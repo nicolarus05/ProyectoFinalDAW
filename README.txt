@@ -48,19 +48,9 @@ Atributos:
     Validación:
         Margen mínimo 15 min entre citas.
         No solapar citas para un mismo empleado.
-        Si cliente no existe → opción de creación rápida.
+        Si cliente no existe → opción de creación rápida
 
-3. Productos
-Atributos:
-
-    id
-    proveedor
-    stock
-    nombre
-    precio_venta (para clientes)
-    precio_coste (para la empresa)
-
-4. Servicios
+3. Servicios
 Atributos:
 
     id
@@ -68,15 +58,8 @@ Atributos:
     empleados_asignados (relación N:M, por flexibilidad)
     tiempo_estimado
     precio
-    Bonos:
-        id_bono
-        servicios_incluidos (relación N:M)
-        precio_total
-        fecha_limite_uso
-        cliente_asociado (FK opcional si es bono personalizado)
-        Control de cuántos servicios del bono se han usado.
 
-5. Cobro de Servicio
+4. Cobro de Servicio
 
 Proceso:
 
@@ -91,24 +74,3 @@ Proceso:
             tipo_pago (efectivo, tarjeta, otros como Bizum)
             cambio (si aplica)
             Factura generada en PDF.
-
-6. Facturación de Empleados
-
-    Informe por período (día/semana/mes).
-    Total ventas por empleado:
-        Total servicios realizados.
-        Total productos vendidos (si empleado también vende).
-    Exportable a PDF.
-
-7. Caja Diaria
-
-    Fecha.
-    Total ingresos:
-        Total efectivo.
-        Total tarjeta.
-    Total servicios peluqueria.
-    Total servicios estetica.
-    Total productos peluqueria.
-    Total productos estética.
-    Opción de cerrar caja al final del día (bloqueo para evitar modificaciones posteriores).
-    exportable a PDF.
