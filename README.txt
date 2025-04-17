@@ -25,12 +25,12 @@ Atributos Cliente (hereda de User):
     dirección
     notas_adicionales
     fecha_registro
-    (Opcional) Historial de citas y servicios adquiridos (útil para promociones personalizadas).
+    Historial de citas y servicios adquiridos.
 
 Atributos Empleado (hereda de User):
 
-    horario_trabajo (podría estar normalizado en otra tabla para flexibilidad)
-    servicios_realizados (relación N:M con tabla de Servicios)
+    horario_trabajo
+    servicios_realizados
     registro_entrada_salida (tabla con fecha y hora)
     Sugerencia extra: Rol/especialización (esteticista, peluquera)
 
@@ -44,7 +44,7 @@ Atributos:
     servicio_id (FK)
     duración
     Estado de cita: pendiente, confirmada, cancelada, completada.
-    Notas adicionales (opcional, por si cliente pide algo específico).
+    Notas adicionales (opcional, por si el cliente pide algo específico).
     Validación:
         Margen mínimo 15 min entre citas.
         No solapar citas para un mismo empleado.
@@ -55,7 +55,7 @@ Atributos:
 
     id
     nombre
-    empleados_asignados (relación N:M, por flexibilidad)
+    empleados_asignados
     tiempo_estimado
     precio
 
@@ -71,6 +71,6 @@ Proceso:
             coste (precio base)
             descuento (en % o €)
             total_final
-            tipo_pago (efectivo, tarjeta, otros como Bizum)
-            cambio (si aplica)
-            Factura generada en PDF.
+            tipo_pago (efectivo, tarjeta)
+            cambio (si el pago no es con tarjeta)
+            opcional: Factura generada en PDF.
