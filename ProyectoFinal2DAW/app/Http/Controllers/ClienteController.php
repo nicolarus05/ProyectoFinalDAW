@@ -44,14 +44,14 @@ class ClienteController extends Controller{
     /**
      * Display the specified resource.
      */
-    public function show(string $id){
+    public function show(Cliente $cliente){
         return view('clientes.show', compact('cliente'));
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id){
+    public function edit(Cliente $cliente){
         $usuarios = Usuario::where('tipo', 'cliente')->get();
         return view('clientes.edit', compact('cliente', 'usuarios'));
     }
@@ -59,14 +59,23 @@ class ClienteController extends Controller{
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id){
-        
+    public function update(Request $request, Cliente $cliente){
+        //validacion de los datos
+        $data = $request->validate([
+            'direccion' => 'required|string|max:255',
+            'notas_adicionales' => 'nullable|string|max:255',
+        ]);
+
+        //actualizacion del cliente
+        $cliente->update($data);
+        return redirect()->route('clientes.index')->with('success', 'El Cliente ha sido actualizado con exito.');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id){
-        
+    public function destroy(Cliente $cliente){
+        $cliente->delete();
+        return redirect()->route('clientes.index')->with('success', 'El Cliente ha sido eliminado con exito.');
     }
 }
