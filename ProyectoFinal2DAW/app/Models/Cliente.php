@@ -13,14 +13,14 @@ class Cliente extends Model{
 
     // Definición de las columnas de la tabla
     protected $fillable = [
-        'usuario_id',
+        'id_usuario',
         'direccion',
         'notas_adicionales',
-        'fecha_resgistro',
+        'fecha_registro',
     ];
     
     public function usuario(){
-        return $this->belongsTo(Usuario::class, 'usuario_id');
+        return $this->belongsTo(Usuario::class, 'id_usuario');
     }
 
     public function citas(){

@@ -13,69 +13,122 @@ class ClienteController extends Controller{
      */
     public function index(){
         $clientes = Cliente::with('usuario')->get();
-        return view('clientes.index', compact('clientes'));
+        return view('Clientes.index', compact('clientes'));
     }
 
     /**
      * Show the form for creating a new resource.
      */
     public function create(){
-        $usuarios = Usuario::where('tipo', 'cliente')->get();
-        return view('clientes.create', compact('usuarios'));
+        $usuarios = Usuario::where('rol', 'cliente')->get();
+        return view('Clientes.create', compact('usuarios'));
     }
 
     /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request){
-        //validacion de los datos
-        $data = $request->validate([
-            'usuario_id' => 'required|exists:usuarios,id',
+        // Validar datos del usuario y del cliente
+        $request->validate([
+            'nombre' => 'required|string|max:255',
+            'apellidos' => 'required|string|max:255',
+            'telefono' => 'nullable|string|max:20',
+            'email' => 'required|email|unique:usuarios,email',
+            'genero' => 'required|string|max:20',
+            'edad' => 'required|integer|min:0',
             'direccion' => 'required|string|max:255',
             'notas_adicionales' => 'nullable|string|max:255',
             'fecha_registro' => 'required|date',
-        ]); 
+        ]);
 
-        //creacion del cliente
-        Cliente::create($data);
-        return redirect()->route('clientes.index')->with('success', 'El Cliente ha sido creado con exito.');
+        //dd($request->all());
+
+        // Crear usuario
+        $usuario = Usuario::create([
+            'nombre' => $request->input('nombre'),
+            'apellidos' => $request->input('apellidos'),
+            'telefono' => $request->input('telefono'),
+            'email' => $request->input('email'),
+            'password' => bcrypt($request->input('password')),
+            'genero' => $request->input('genero'),
+            'edad' => $request->input('edad'),
+            'rol' => 'cliente',
+        ]);
+        
+        // Crear cliente
+        Cliente::create([
+            'id_usuario' => $usuario->id,
+            'direccion' => $request->input('direccion'),
+            'notas_adicionales' => $request->input('notas_adicionales'),
+            'fecha_registro' => $request->input('fecha_registro'),
+        ]);
+
+        return redirect()->route('Clientes.index')->with('success', 'El Cliente ha sido creado con exito.');
     }
 
     /**
      * Display the specified resource.
      */
     public function show(Cliente $cliente){
-        return view('clientes.show', compact('cliente'));
+        return view('Clientes.show', compact('cliente'));
     }
 
     /**
      * Show the form for editing the specified resource.
      */
     public function edit(Cliente $cliente){
-        $usuarios = Usuario::where('tipo', 'cliente')->get();
-        return view('clientes.edit', compact('cliente', 'usuarios'));
+        $usuarios = Usuario::where('rol', 'cliente')->get();
+        return view('Clientes.edit', compact('cliente', 'usuarios'));
     }
 
     /**
      * Update the specified resource in storage.
      */
     public function update(Request $request, Cliente $cliente){
-        //validacion de los datos
-        $data = $request->validate([
+        // Validar datos del usuario y del cliente
+        $request->validate([
+            'nombre' => 'required|string|max:255',
+            'apellidos' => 'required|string|max:255',
+            'telefono' => 'nullable|string|max:20', 
+            'email' => 'required|email|unique:usuarios,email,' . $cliente->usuario->id,
+            'genero' => 'required|string|max:20',
+            'edad' => 'required|integer|min:0',
             'direccion' => 'required|string|max:255',
             'notas_adicionales' => 'nullable|string|max:255',
+            'fecha_registro' => 'required|date',
         ]);
 
-        //actualizacion del cliente
-        $cliente->update($data);
-        return redirect()->route('clientes.index')->with('success', 'El Cliente ha sido actualizado con exito.');
+        // Verificar que el usuario relacionado exista
+        if (!$cliente->usuario) {
+            return back()->withErrors('No se encontró el usuario asociado a este cliente.');
+        }
+
+        // Actualizar el usuario relacionado
+        $cliente->usuario->update([
+            'nombre' => $request->input('nombre'),
+            'apellidos' => $request->input('apellidos'),
+            'telefono' => $request->input('telefono'),
+            'email' => $request->input('email'),
+            'genero' => $request->input('genero'),
+            'edad' => $request->input('edad'),
+        ]);
+
+        // Actualizar los datos del cliente
+        $cliente->update([
+            'direccion' => $request->input('direccion'),
+            'notas_adicionales' => $request->input('notas_adicionales'),
+            'fecha_registro' => $request->input('fecha_registro'),
+        ]);
+
+        return redirect()->route('Clientes.index')->with('success', 'El Cliente ha sido actualizado con éxito.');
     }
+
 
     /**
      * Remove the specified resource from storage.
      */
     public function destroy(Cliente $cliente){
         $cliente->delete();
-        return redirect()->route('clientes.index')->with('success', 'El Cliente ha sido eliminado con exito.');
+        return redirect()->route('Clientes.index')->with('success', 'El Cliente ha sido eliminado con exito.');
     }
 }
