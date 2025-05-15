@@ -10,15 +10,15 @@ class ServicioController extends Controller{
      * Display a listing of the resource.
      */
     public function index(){
-        $servicios = Servicio::with('empleado')->get();
-        return view('servicios.index', compact('servicios'));
+        $servicios = Servicio::all();
+        return view('Servicios.index', compact('servicios'));
     }
 
     /**
      * Show the form for creating a new resource.
      */
     public function create(){
-        return view('servicios.create');
+        return view('Servicios.create');
     }
 
     /**
@@ -32,21 +32,21 @@ class ServicioController extends Controller{
         ]);
 
         Servicio::create($data);
-        return redirect()->route('servicios.index');
+        return redirect()->route('Servicios.index');
     }
 
     /**
      * Display the specified resource.
      */
     public function show(Servicio $servicio){
-        return view('servicios.show', compact('servicio'));
+        return view('Servicios.show', compact('servicio'));
     }
 
     /**
      * Show the form for editing the specified resource.
      */
     public function edit(Servicio $servicio){
-        return view('servicios.edit', compact('servicio'));
+        return view('Servicios.edit', compact('servicio'));
     }
 
     /**
@@ -59,8 +59,8 @@ class ServicioController extends Controller{
             'precio' => 'required|numeric',
         ]);
 
-        Servicio::create($data);
-        return redirect()->route('servicios.index');
+        $servicio->update($data);
+        return redirect()->route('Servicios.index');
     }
 
     /**
@@ -68,6 +68,6 @@ class ServicioController extends Controller{
      */
     public function destroy(Servicio $servicio){
         $servicio->delete();
-        return redirect()->route('servicios.index')->with('success', 'El servicio ha sido eliminado con exito.');
+        return redirect()->route('Servicios.index')->with('success', 'El servicio ha sido eliminado con exito.');
     }
 }

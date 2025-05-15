@@ -19,24 +19,25 @@ class Cita extends Model{
     protected $fillable = [
         'fecha_hora',
         'estado',
-        'cliente_id',
-        'empleado_id',
-        'servicio_id',
+        'notas_adicionales',
+        'id_cliente',
+        'id_empleado',
+        'id_servicio',
     ];
 
     public function cliente(){
-        return $this->belongsTo(Cliente::class, 'cliente_id');
+        return $this->belongsTo(Cliente::class, 'id_cliente');
     }
 
     public function empleado(){
-        return $this->belongsTo(Empleado::class, 'empleado_id');
+        return $this->belongsTo(Empleado::class, 'id_empleado');
     }
 
     public function servicio(){
-        return $this->belongsTo(Servicio::class, 'servicio_id');
+        return $this->belongsTo(Servicio::class, 'id_servicio');
     }
 
     public function cobro(){
-        return $this->hasOne(RegistroCobro::class, 'cita_id');
+        return $this->hasOne(RegistroCobro::class, 'id_cita');
     }
 }

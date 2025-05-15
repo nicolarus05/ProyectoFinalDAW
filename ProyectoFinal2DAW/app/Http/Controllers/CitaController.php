@@ -14,7 +14,7 @@ class CitaController extends Controller{
      */
     public function index(){
         $citas = Cita::with('cliente.usuario','empleado.usuario','servicio')->get();
-        return view('citas.index', compact('citas'));
+        return view('Citas.index', compact('citas'));
     }
 
     /**
@@ -24,30 +24,33 @@ class CitaController extends Controller{
         $clientes = Cliente::all();
         $empleados = Empleado::all();
         $servicios = Servicio::all();
-        return view('citas.create', compact('clientes','empleados','servicios'));
+        return view('Citas.create', compact('clientes','empleados','servicios'));
     }
 
     /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request){
+        //dd($request->all());
+
         $data = $request->validate([
             'fecha_hora' => 'required|date',
             'estado' => 'required|in:pendiente,confirmada,cancelada,completada',
-            'cliente_id' => 'required|exists:clientes,id',
-            'empleado_id' => 'required|exists:empleados,id',
-            'servicio_id' => 'required|exists:servicios,id',
+            'notas_adicionales' => 'nullable|string|max:255',
+            'id_cliente' => 'required|exists:clientes,id',
+            'id_empleado' => 'required|exists:empleados,id',
+            'id_servicio' => 'required|exists:servicios,id',
         ]);
 
         Cita::create($data);
-        return redirect()->route('citas.index');
+        return redirect()->route('Citas.index');
     }
 
     /**
      * Display the specified resource.
      */
     public function show(Cita $cita){
-        return view('citas.show', compact('cita'));
+        return view('Citas.show', compact('cita'));
     }
 
     /**
@@ -57,7 +60,7 @@ class CitaController extends Controller{
         $clientes = Cliente::all();
         $empleados = Empleado::all();
         $servicios = Servicio::all();
-        return view('citas.edit', compact('cita','clientes','empleados','servicios'));
+        return view('Citas.edit', compact('cita','clientes','empleados','servicios'));
     }
 
     /**
@@ -69,7 +72,7 @@ class CitaController extends Controller{
         ]);
 
         $cita->update($data);
-        return redirect()->route('citas.index');
+        return redirect()->route('Citas.index');
     }
 
     /**
@@ -77,6 +80,6 @@ class CitaController extends Controller{
      */
     public function destroy(Cita $cita){
         $cita->delete();
-        return redirect()->route('citas.index')->with('success', 'La cita ha sido eliminada con exito.');
+        return redirect()->route('Citas.index')->with('success', 'La cita ha sido eliminada con exito.');
     }
 }

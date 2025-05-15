@@ -22,12 +22,12 @@ class Servicio extends Model{
         return $this->belongsToMany(
             Empleado::class,
             'empleado_servicio',
-            'servicio_id',
-            'empleado_id'
+            'id_servicio',
+            'id_empleado',
         );
     }
 
     public function citas(){
-        return $this->hasMany(Cita::class, 'servicio_id');
+        return $this->hasMany(Cita::class, 'id_servicio');
     }
 }
