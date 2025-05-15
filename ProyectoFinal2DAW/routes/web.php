@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ClienteController;
+use App\Http\Controllers\EmpleadoController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -26,5 +27,12 @@ Route::get('/clientes/{cliente}/edit', [ClienteController::class, 'edit'])->name
 Route::put('/clientes/{cliente}', [ClienteController::class, 'update'])->name('Clientes.update');
 Route::delete('/clientes/{cliente}', [ClienteController::class, 'destroy'])->name('Clientes.destroy');
 
+Route::get('/empleados', [EmpleadoController::class, 'index'])->name('Empleados.index');
+Route::get('/empleados/create', [EmpleadoController::class, 'create'])->name('Empleados.create');
+Route::post('/empleados', [EmpleadoController::class, 'store'])->name('Empleados.store');
+Route::get('/empleados/{empleado}', [EmpleadoController::class, 'show'])->name('Empleados.show');
+Route::get('/empleados/{empleado}/edit', [EmpleadoController::class, 'edit'])->name('Empleados.edit');
+Route::put('/empleados/{empleado}', [EmpleadoController::class, 'update'])->name('Empleados.update');
+Route::delete('/empleados/{empleado}', [EmpleadoController::class, 'destroy'])->name('Empleados.destroy');
 
 require __DIR__.'/auth.php';

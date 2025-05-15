@@ -41,8 +41,6 @@ class ClienteController extends Controller{
             'fecha_registro' => 'required|date',
         ]);
 
-        //dd($request->all());
-
         // Crear usuario
         $usuario = Usuario::create([
             'nombre' => $request->input('nombre'),
@@ -97,11 +95,6 @@ class ClienteController extends Controller{
             'notas_adicionales' => 'nullable|string|max:255',
             'fecha_registro' => 'required|date',
         ]);
-
-        // Verificar que el usuario relacionado exista
-        if (!$cliente->usuario) {
-            return back()->withErrors('No se encontró el usuario asociado a este cliente.');
-        }
 
         // Actualizar el usuario relacionado
         $cliente->usuario->update([

@@ -14,24 +14,24 @@ class Empleado extends Model{
 
     // Definición de las columnas de la tabla
     protected $fillable = [
-        'usuario_id',
+        'id_usuario',
         'especializacion',
     ];
 
     public function usuario(){
-        return $this->belongsTo(Usuario::class, 'usuario_id');
+        return $this->belongsTo(Usuario::class, 'id_usuario');
     }
 
     public function citas(){
-        return $this->hasMany(Cita::class, 'empleado_id');
+        return $this->hasMany(Cita::class, 'id_empleado');
     }
 
     public function servicios(){
         return $this->belongsToMany(
             Servicio::class,
             'empleado_servicio',
-            'empleado_id',
-            'servicio_id'
+            'id_empleado',
+            'id_servicio',
         );
     }
 }
