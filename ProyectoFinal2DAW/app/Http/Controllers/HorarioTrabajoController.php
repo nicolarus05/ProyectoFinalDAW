@@ -12,7 +12,7 @@ class HorarioTrabajoController extends Controller{
      */
     public function index(){
         $horarios = HorarioTrabajo::with('empleado.usuario')->get();
-        return view('horarios.index', compact('horarios'));
+        return view('Horarios.index', compact('horarios'));
     }
 
     /**
@@ -20,7 +20,7 @@ class HorarioTrabajoController extends Controller{
      */
     public function create(){
         $empleados = Empleado::all();
-        return view('horarios.create', compact('empleados'));
+        return view('Horarios.create', compact('empleados'));
     }
 
     /**
@@ -28,22 +28,22 @@ class HorarioTrabajoController extends Controller{
      */
     public function store(Request $request){
         $data = $request->validate([
-            'empleado_id' => 'required|exists:empleados,id',
-            'dia_semana' => 'required|in:lunes,martes,miércoles,jueves,viernes,sábado,domingo',
+            'id_empleado' => 'required|exists:empleados,id',
+            'dia_semana' => 'required|in:lunes,martes,miércoles,jueves,viernes,sábado',
             'hora_inicio' => 'required|date_format:H:i',
             'hora_fin' => 'required|date_format:H:i',
             'disponible' => 'boolean',
         ]);
 
         HorarioTrabajo::create($data);
-        return redirect()->route('horarios.index');
+        return redirect()->route('Horarios.index');
     }
 
     /**
      * Display the specified resource.
      */
     public function show(HorarioTrabajo $horario){
-        return view('horarios.show', compact('horarioTrabajo'));
+        return view('Horarios.show', compact('horario'));
     }
 
     /**
@@ -51,19 +51,26 @@ class HorarioTrabajoController extends Controller{
      */
     public function edit(HorarioTrabajo $horario){
         $empleados = Empleado::all();
-        return view('horarios.edit', compact('horario', 'empleados'));
+        return view('Horarios.edit', compact('horario', 'empleados'));
     }
 
     /**
      * Update the specified resource in storage.
      */
     public function update(Request $request, HorarioTrabajo $horario){
+
+        //dd($request->all());
+
         $data = $request->validate([
+            'id_empleado' => 'required|exists:empleados,id',
+            'dia_semana' => 'required|in:lunes,martes,miércoles,jueves,viernes,sábado',
+            'hora_inicio' => 'required|date_format:H:i:s',
+            'hora_fin' => 'required|date_format:H:i:s',
             'disponible' => 'boolean',
         ]);
 
         $horario->update($data);
-        return redirect()->route('horarios.index');
+        return redirect()->route('Horarios.index')->with('success', 'El horario ha sido actualizado con éxito.');
     }
 
     /**
@@ -71,6 +78,6 @@ class HorarioTrabajoController extends Controller{
      */
     public function destroy(HorarioTrabajo $horario){
         $horario->delete();
-        return redirect()->route('horarios.index')->with('success', 'El horario ha sido eliminado con éxito.');
+        return redirect()->route('Horarios.index')->with('success', 'El horario ha sido eliminado con éxito.');
     }
 }

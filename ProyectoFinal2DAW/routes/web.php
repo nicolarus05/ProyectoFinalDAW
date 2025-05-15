@@ -6,6 +6,8 @@ use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\EmpleadoController;
 use App\Http\Controllers\CitaController;
 use App\Http\Controllers\ServicioController;
+use App\Http\Controllers\RegistroCobroController;
+use App\Http\Controllers\HorarioTrabajoController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -48,16 +50,7 @@ Route::delete('/citas/{cita}', [CitaController::class, 'destroy'])->name('Citas.
 Route::get('/servicios', [ServicioController::class, 'index'])->name('Servicios.index');
 Route::get('/servicios/create', [ServicioController::class, 'create'])->name('Servicios.create');
 Route::post('/servicios', [ServicioController::class, 'store'])->name('Servicios.store');
-Route::get('/servicios/{servicio}', [ServicioController::class, 'show'])->name('Servicios.show');
-Route::get('/servicios/{servicio}/edit', [ServicioController::class, 'edit'])->name('Servicios.edit');
-Route::put('/servicios/{servicio}', [ServicioController::class, 'update'])->name('Servicios.update');
-Route::delete('/servicios/{servicio}', [ServicioController::class, 'destroy'])->name('Servicios.destroy');
-Route::get('/servicios/{servicio}/empleados', [ServicioController::class, 'empleados'])->name('Servicios.empleados');
-Route::post('/servicios/{servicio}/empleados', [ServicioController::class, 'addEmpleado'])->name('Servicios.addEmpleado');
-Route::delete('/servicios/{servicio}/empleados/{empleado}', [ServicioController::class, 'removeEmpleado'])->name('Servicios.removeEmpleado');
-Route::get('/servicios/{servicio}/citas', [ServicioController::class, 'citas'])->name('Servicios.citas');
-Route::post('/servicios/{servicio}/citas', [ServicioController::class, 'addCita'])->name('Servicios.addCita');
-Route::delete('/servicios/{servicio}/citas/{cita}', [ServicioController::class, 'removeCita'])->name('Servicios.removeCita');
+
 Route::get('/servicios/{servicio}/empleados/create', [ServicioController::class, 'createEmpleado'])->name('Servicios.createEmpleado');
 Route::post('/servicios/{servicio}/empleados/store', [ServicioController::class, 'storeEmpleado'])->name('Servicios.storeEmpleado');
 Route::get('/servicios/{servicio}/citas/create', [ServicioController::class, 'createCita'])->name('Servicios.createCita');
@@ -65,6 +58,25 @@ Route::post('/servicios/{servicio}/citas/store', [ServicioController::class, 'st
 Route::get('/servicios/{servicio}/empleados/{empleado}/edit', [ServicioController::class, 'editEmpleado'])->name('Servicios.editEmpleado');
 Route::put('/servicios/{servicio}/empleados/{empleado}', [ServicioController::class, 'updateEmpleado'])->name('Servicios.updateEmpleado');
 Route::get('/servicios/{servicio}/citas/{cita}/edit', [ServicioController::class, 'editCita'])->name('Servicios.editCita');
+Route::delete('/servicios/{servicio}/empleados/{empleado}', [ServicioController::class, 'removeEmpleado'])->name('Servicios.removeEmpleado');
+Route::delete('/servicios/{servicio}/citas/{cita}', [ServicioController::class, 'removeCita'])->name('Servicios.removeCita');
 
+Route::get('/servicios/{servicio}/empleados', [ServicioController::class, 'empleados'])->name('Servicios.empleados');
+Route::post('/servicios/{servicio}/empleados', [ServicioController::class, 'addEmpleado'])->name('Servicios.addEmpleado');
+Route::get('/servicios/{servicio}/citas', [ServicioController::class, 'citas'])->name('Servicios.citas');
+Route::post('/servicios/{servicio}/citas', [ServicioController::class, 'addCita'])->name('Servicios.addCita');
+
+Route::get('/servicios/{servicio}/edit', [ServicioController::class, 'edit'])->name('Servicios.edit');
+Route::put('/servicios/{servicio}', [ServicioController::class, 'update'])->name('Servicios.update');
+Route::delete('/servicios/{servicio}', [ServicioController::class, 'destroy'])->name('Servicios.destroy');
+Route::get('/servicios/{servicio}', [ServicioController::class, 'show'])->name('Servicios.show');
+
+Route::get('/horarios', [App\Http\Controllers\HorarioTrabajoController::class, 'index'])->name('Horarios.index');
+Route::get('/horarios/create', [App\Http\Controllers\HorarioTrabajoController::class, 'create'])->name('Horarios.create');
+Route::post('/horarios', [App\Http\Controllers\HorarioTrabajoController::class, 'store'])->name('Horarios.store');
+Route::get('/horarios/{horario}', [App\Http\Controllers\HorarioTrabajoController::class, 'show'])->name('Horarios.show');
+Route::get('/horarios/{horario}/edit', [App\Http\Controllers\HorarioTrabajoController::class, 'edit'])->name('Horarios.edit');
+Route::put('/horarios/{horario}', [App\Http\Controllers\HorarioTrabajoController::class, 'update'])->name('Horarios.update');
+Route::delete('/horarios/{horario}', [App\Http\Controllers\HorarioTrabajoController::class, 'destroy'])->name('Horarios.destroy');
 
 require __DIR__.'/auth.php';

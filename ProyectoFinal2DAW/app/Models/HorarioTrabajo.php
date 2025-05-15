@@ -12,14 +12,18 @@ class HorarioTrabajo extends Model{
 
     // Definición de las columnas de la tabla
     protected $fillable = [
-        'empleado_id',
+        'id_empleado',
         'dia_semana',
         'hora_inicio',
         'hora_fin',
         'disponible',
     ];
 
+    protected $casts = [
+        'disponible' => 'boolean',
+    ];
+
     public function empleado(){
-        return $this->belongsTo(Empleado::class, 'empleado_id');
+        return $this->belongsTo(Empleado::class, 'id_empleado');
     }
 }
