@@ -12,7 +12,7 @@ class RegistroCobroController extends Controller{
      */
     public function index(){
         $cobros = RegistroCobro::with('cita.cliente.usuario','cita.empleado.usuario','cita.servicio')->get();
-        return view('cobros.index', compact('cobros'));
+        return view('Cobros.index', compact('cobros'));
     }
 
     /**
@@ -20,7 +20,7 @@ class RegistroCobroController extends Controller{
      */
     public function create(){
         $citas = Cita::whereDoesntHave('cobro')->get();
-        return view('cobros.create', compact('citas'));
+        return view('Cobros.create', compact('citas'));
     }
 
     /**
@@ -28,7 +28,7 @@ class RegistroCobroController extends Controller{
      */
     public function store(Request $request){
         $data = $request->validate([
-            'cita_id' => 'required|exists:citas,id',
+            'id_cita' => 'required|exists:citas,id',
             'coste' => 'required|numeric',
             'descuento_porcentaje' => 'nullable|numeric|min:0|max:100',
             'descuento_euros' => 'nullable|numeric|min:0',
@@ -38,14 +38,14 @@ class RegistroCobroController extends Controller{
         ]);
 
         RegistroCobro::create($data);
-        return redirect()->route('cobros.index');
+        return redirect()->route('Cobros.index');
     }
 
     /**
      * Display the specified resource.
      */
     public function show(RegistroCobro $cobro){
-        return view('cobros.show', compact('cobro'));
+        return view('Cobros.show', compact('cobro'));
     }
 
     /**
@@ -55,7 +55,7 @@ class RegistroCobroController extends Controller{
         // Obtener todas las citas que no tienen un cobro asociado
         // o la cita asociada al cobro actual
         $citas = Cita::whereDoesntHave('cobro')->orWhere('id', $cobro->cita_id)->get();
-        return view('cobros.edit', compact('cobro', 'citas'));
+        return view('Cobros.edit', compact('cobro', 'citas'));
     }
 
     /**
@@ -68,7 +68,7 @@ class RegistroCobroController extends Controller{
         ]);
 
         $cobro->update($data);
-        return redirect()->route('cobros.index');
+        return redirect()->route('Cobros.index');
     }
 
     /**
@@ -76,6 +76,6 @@ class RegistroCobroController extends Controller{
      */
     public function destroy(RegistroCobro $cobro){
         $cobro->delete();
-        return redirect()->route('cobros.index');
+        return redirect()->route('Cobros.index');
     }
 }

@@ -9,11 +9,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class RegistroCobro extends Model{
     use HasFactory;
 
-    protected $table = 'registro_cobro';
+    protected $table = 'registro_cobros';
 
     // Definición de las columnas de la tabla
     protected $fillable = [
-        'cita_id',
+        'id_cita',
         'coste',
         'descuento_porcentaje',
         'descuento_euro',
@@ -23,6 +23,6 @@ class RegistroCobro extends Model{
     ];
 
     public function cita(){
-        return $this->belongsTo(Cita::class, 'cita_id');
+        return $this->belongsTo(Cita::class, 'id_cita');
     }
 }

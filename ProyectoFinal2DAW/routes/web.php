@@ -79,4 +79,12 @@ Route::get('/horarios/{horario}/edit', [App\Http\Controllers\HorarioTrabajoContr
 Route::put('/horarios/{horario}', [App\Http\Controllers\HorarioTrabajoController::class, 'update'])->name('Horarios.update');
 Route::delete('/horarios/{horario}', [App\Http\Controllers\HorarioTrabajoController::class, 'destroy'])->name('Horarios.destroy');
 
+Route::get('/cobros', [RegistroCobroController::class, 'index'])->name('Cobros.index');
+Route::get('/cobros/create', [RegistroCobroController::class, 'create'])->name('Cobros.create');
+Route::post('/cobros', [RegistroCobroController::class, 'store'])->name('Cobros.store');
+Route::get('/cobros/{cobro}', [RegistroCobroController::class, 'show'])->name('Cobros.show');
+Route::get('/cobros/{cobro}/edit', [RegistroCobroController::class, 'edit'])->name('Cobros.edit');
+Route::put('/cobros/{cobro}', [RegistroCobroController::class, 'update'])->name('Cobros.update');
+Route::delete('/cobros/{cobro}', [RegistroCobroController::class, 'destroy'])->name('Cobros.destroy');
+
 require __DIR__.'/auth.php';
