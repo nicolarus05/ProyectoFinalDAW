@@ -9,19 +9,21 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
-    {
+    public function up(): void{
         Schema::create('registro_cobros', function (Blueprint $table) {
             $table->id();
+
             $table->foreignId('id_cita')->constrained('citas')->onDelete('cascade');
+
             $table->decimal('coste', 8, 2); // Coste del servicio
-            $table->decimal('descuento_porcentaje', 5, 2)->nullable(); // Descuento aplicado en porcentaje
-            $table->decimal('descuento_euro', 8, 2)->nullable(); // Descuento aplicado en euro
-            $table->decimal('total_final', 8, 2); // Total a pagar después de aplicar descuentos
-            $table->enum('metodo_pago', ['efectivo', 'tarjeta']); // Método de pago utilizado
-            $table->decimal('cambio', 8, 2)->nullable(); // Cambio devuelto al cliente (si aplica)
-            $table->foreignId('id_empelado')->constrained('empleados')->cascadeOnDelete();
-            $table->foreignId('id_servicio')->constrained('servicios')->cascadeOnDelete();
+            $table->decimal('descuento_porcentaje', 5, 2)->nullable(); // Descuento en porcentaje
+            $table->decimal('descuento_euro', 8, 2)->nullable(); // Descuento en euros
+            $table->decimal('total_final', 8, 2); // Total después de aplicar descuentos
+            $table->decimal('dinero_cliente', 8, 2); // Dinero recibido por el cliente
+
+            $table->enum('metodo_pago', ['efectivo', 'tarjeta']); // Método de pago
+            $table->decimal('cambio', 8, 2)->nullable(); // Cambio devuelto al cliente
+
             $table->timestamps();
         });
     }
