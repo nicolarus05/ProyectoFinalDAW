@@ -8,12 +8,14 @@
 <body>
     <h1>Editar Cobro</h1>
 
-    <form method="POST" action="{{ route('Cobros.update', $cobro->id) }}">
+    <form action="{{ route('Cobros.update', $cobro->id) }}" method="POST">
         @csrf
         @method('PUT')
 
-        <label>Cita (no editable):</label>
-        <input type="text" disabled value="{{ $cobro->cita->cliente->usuario->nombre ?? '' }} - {{ $cobro->cita->servicio->nombre ?? '' }}">
+        <p><strong>Cliente:</strong> {{ $cobro->cita->cliente->usuario->nombre ?? '-' }}</p>
+        <p><strong>Servicio:</strong> {{ $cobro->cita->servicio->nombre ?? '-' }}</p>
+        <p><strong>Coste:</strong> {{ $cobro->coste }} €</p>
+        <p><strong>Total Final:</strong> {{ $cobro->total_final }} €</p>
 
         <label for="metodo_pago">Método de Pago:</label>
         <select name="metodo_pago" required>
@@ -21,12 +23,15 @@
             <option value="tarjeta" {{ $cobro->metodo_pago === 'tarjeta' ? 'selected' : '' }}>Tarjeta</option>
         </select>
 
+        <label for="dinero_cliente">Dinero del Cliente:</label>
+        <input type="number" name="dinero_cliente" value="{{ $cobro->dinero_cliente }}" step="0.01" required>
+
         <label for="cambio">Cambio:</label>
-        <input type="number" name="cambio" step="0.01" value="{{ $cobro->cambio }}">
+        <input type="number" name="cambio" value="{{ $cobro->cambio }}" step="0.01" readonly>
 
         <button type="submit">Actualizar</button>
     </form>
 
-    <a href="{{ route('Cobros.index') }}">Volver a la lista</a>
+    <a href="{{ route('Cobros.index') }}">Volver</a>
 </body>
 </html>

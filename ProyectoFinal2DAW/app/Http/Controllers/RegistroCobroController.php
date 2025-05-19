@@ -31,15 +31,29 @@ class RegistroCobroController extends Controller{
             'id_cita' => 'required|exists:citas,id',
             'coste' => 'required|numeric',
             'descuento_porcentaje' => 'nullable|numeric|min:0|max:100',
-            'descuento_euros' => 'nullable|numeric|min:0',
-            'total_final' => 'required|numeric',
+            'descuento_euro' => 'nullable|numeric|min:0',
+            'dinero_cliente' => 'nullable|numeric|min:0',
             'metodo_pago' => 'required|in:efectivo,tarjeta',
-            'cambio' => 'nullable|numeric|min:0',
         ]);
 
+        // Valores por defecto si vienen vacíos
+        $descuentoPorcentaje = $data['descuento_porcentaje'] ?? 0;
+        $descuentoEuro = $data['descuento_euro'] ?? 0;
+        $dineroCliente = $data['dinero_cliente'] ?? 0;
+
+        // Calcular total_final
+        $descuentoTotal = ($data['coste'] * ($descuentoPorcentaje / 100)) + $descuentoEuro;
+        $totalFinal = $data['coste'] - $descuentoTotal;
+        $data['total_final'] = round($totalFinal, 2);
+
+        // Calcular cambio
+        $data['cambio'] = $dineroCliente > 0 ? round($dineroCliente - $data['total_final'], 2) : null;
+
         RegistroCobro::create($data);
-        return redirect()->route('Cobros.index');
+
+        return redirect()->route('Cobros.index')->with('success', 'Cobro registrado correctamente.');
     }
+
 
     /**
      * Display the specified resource.
@@ -64,8 +78,12 @@ class RegistroCobroController extends Controller{
     public function update(Request $request, RegistroCobro $cobro){
         $data = $request->validate([
             'metodo_pago' => 'required|in:efectivo,tarjeta',
-            'cambio' => 'nullable|numeric',
+            'dinero_cliente' => 'required|numeric|min:0',
         ]);
+
+        // Calcular el descuento final
+        $totalFinal = $cobro->total_final;
+        $data['cambio'] = max(0, $data['dinero_cliente'] - $totalFinal);
 
         $cobro->update($data);
         return redirect()->route('Cobros.index');

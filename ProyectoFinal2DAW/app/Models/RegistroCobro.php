@@ -19,8 +19,10 @@ class RegistroCobro extends Model{
         'descuento_euro',
         'total_final',
         'metodo_pago',
+        'dinero_cliente',
         'cambio',
     ];
+
 
     public function cita(){
         return $this->belongsTo(Cita::class, 'id_cita');
