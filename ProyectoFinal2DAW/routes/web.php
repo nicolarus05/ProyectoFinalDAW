@@ -7,6 +7,7 @@ use App\Http\Controllers\EmpleadoController;
 use App\Http\Controllers\CitaController;
 use App\Http\Controllers\ServicioController;
 use App\Http\Controllers\RegistroCobroController;
+use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\HorarioTrabajoController;
 
 Route::get('/', function () {
@@ -86,5 +87,18 @@ Route::get('/cobros/{cobro}', [RegistroCobroController::class, 'show'])->name('C
 Route::get('/cobros/{cobro}/edit', [RegistroCobroController::class, 'edit'])->name('Cobros.edit');
 Route::put('/cobros/{cobro}', [RegistroCobroController::class, 'update'])->name('Cobros.update');
 Route::delete('/cobros/{cobro}', [RegistroCobroController::class, 'destroy'])->name('Cobros.destroy');
+
+Route::resource('usuarios', UsuarioController::class, [
+    'names' => [
+        'index' => 'Usuarios.index',
+        'create' => 'Usuarios.create',
+        'store' => 'Usuarios.store',
+        'show' => 'Usuarios.show',
+        'edit' => 'Usuarios.edit',
+        'update' => 'Usuarios.update',
+        'destroy' => 'Usuarios.destroy',
+    ],
+]);
+
 
 require __DIR__.'/auth.php';

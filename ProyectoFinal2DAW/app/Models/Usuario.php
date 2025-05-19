@@ -38,10 +38,10 @@ class Usuario extends Authenticatable{
 
     // Definición de las relaciones
     public function cliente(){
-        return $this->hasOne(Cliente::class, 'usuario_id');
+        return $this->hasOne(Cliente::class, 'id_usuario');
     }
 
     public function empleado(){
-        return $this->hasOne(Empleado::class, 'usuario_id');
+        return $this->hasOne(Empleado::class, 'id_usuario');
     }
 }
