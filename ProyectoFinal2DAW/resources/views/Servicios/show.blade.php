@@ -11,6 +11,7 @@
     <p><strong>Nombre:</strong> {{ $servicio->nombre }}</p>
     <p><strong>Precio:</strong> {{ $servicio->precio }} €</p>
     <p><strong>Tiempo estimado:</strong> {{ $servicio->tiempo_estimado }} minutos</p>
+    <p><strong>Tipo:</strong> {{ $servicio->tipo }}</p>
 
     <a href="{{ route('Servicios.index') }}">Volver</a>
 </body>

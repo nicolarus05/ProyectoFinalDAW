@@ -33,8 +33,8 @@ class Cita extends Model{
         return $this->belongsTo(Empleado::class, 'id_empleado');
     }
 
-    public function servicio(){
-        return $this->belongsTo(Servicio::class, 'id_servicio');
+    public function servicios(){
+        return $this->belongsToMany(Servicio::class, 'cita_servicio', 'id_cita', 'id_servicio');
     }
 
     public function cobro(){

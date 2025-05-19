@@ -18,7 +18,6 @@ return new class extends Migration
             $table->string('notas_adicionales')->nullable(); // Notas adicionales sobre la cita
             $table->foreignId('id_cliente')->constrained('clientes')->onDelete('cascade'); // Relación con la tabla clientes
             $table->foreignId('id_empleado')->constrained('empleados')->onDelete('cascade'); // Relación con la tabla empleados
-            $table->foreignId('id_servicio')->constrained('servicios')->onDelete('cascade'); // Relación con la tabla servicios
             $table->timestamps();
         });
     }

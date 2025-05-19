@@ -16,6 +16,7 @@ class Servicio extends Model{
         'nombre',
         'tiempo_estimado',
         'precio',
+        'tipo', 
     ];
 
     public function empleados(){
@@ -28,6 +29,6 @@ class Servicio extends Model{
     }
 
     public function citas(){
-        return $this->hasMany(Cita::class, 'id_servicio');
+        return $this->belongsToMany(Cita::class, 'cita_servicio', 'id_servicio', 'id_cita');
     }
 }

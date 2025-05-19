@@ -13,7 +13,7 @@ class CitaController extends Controller{
      * Display a listing of the resource.
      */
     public function index(){
-        $citas = Cita::with('cliente.usuario','empleado.usuario','servicio')->get();
+        $citas = Cita::with('cliente.usuario','empleado.usuario','servicios')->get();
         return view('Citas.index', compact('citas'));
     }
 
@@ -31,20 +31,29 @@ class CitaController extends Controller{
      * Store a newly created resource in storage.
      */
     public function store(Request $request){
-        //dd($request->all());
-
         $data = $request->validate([
             'fecha_hora' => 'required|date',
             'estado' => 'required|in:pendiente,confirmada,cancelada,completada',
             'notas_adicionales' => 'nullable|string|max:255',
             'id_cliente' => 'required|exists:clientes,id',
             'id_empleado' => 'required|exists:empleados,id',
-            'id_servicio' => 'required|exists:servicios,id',
+            'servicios' => 'required|array|min:1',
+            'servicios.*' => 'distinct|exists:servicios,id',
         ]);
 
-        Cita::create($data);
-        return redirect()->route('Citas.index');
+        // Extraemos los IDs de servicios
+        $servicios = $data['servicios'];
+        unset($data['servicios']);
+
+        // Creamos la cita
+        $cita = Cita::create($data);
+
+        // Asociamos los servicios seleccionados
+        $cita->servicios()->attach($servicios);
+
+        return redirect()->route('Citas.index')->with('success', 'Cita creada correctamente con múltiples servicios.');
     }
+
 
     /**
      * Display the specified resource.

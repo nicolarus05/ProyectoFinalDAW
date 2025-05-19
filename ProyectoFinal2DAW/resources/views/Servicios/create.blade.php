@@ -16,8 +16,15 @@
         <label>Precio (€):</label>
         <input type="number" name="precio" step="0.01" required>
 
-        <label>Timepo estimado (minutos):</label>
+        <label>Tiempo estimado (minutos):</label>
         <input type="number" name="tiempo_estimado" required>
+
+        <label>Tipo:</label>
+        <select name="tipo" required>
+            <option value="">Seleccione</option>
+            <option value="Peluqueria">Peluqueria</option>
+            <option value="Estetica">Estetica</option>
+        </select>
 
         <button type="submit">Guardar</button>
     </form>

@@ -21,6 +21,13 @@
         <label>Tiempo estimado (minutos):</label>
         <input type="number" name="tiempo_estimado" value="{{ $servicio->tiempo_estimado }}" required>
 
+        <label>Tipo:</label>
+        <select name="tipo" required>
+            <option value="">Seleccione</option>
+            <option value="Peluqueria" {{ $servicio->tipo == 'Peluqueria' ? 'selected' : '' }}>Peluqueria</option>
+            <option value="Estetica" {{ $servicio->tipo == 'Estetica' ? 'selected' : '' }}>Estetica</option>
+        </select>
+
         <button type="submit">Actualizar</button>
     </form>
 

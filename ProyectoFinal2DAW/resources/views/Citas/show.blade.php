@@ -10,7 +10,14 @@
 
     <p><strong>Cliente:</strong> {{ $cita->cliente->usuario->nombre }} {{ $cita->cliente->usuario->apellidos }}</p>
     <p><strong>Empleado:</strong> {{ $cita->empleado->usuario->nombre }} {{ $cita->empleado->usuario->apellidos }}</p>
-    <p><strong>Servicio:</strong> {{ $cita->servicio->nombre }}</p>
+    @if ($cita->servicios)
+        @foreach ($cita->servicios as $servicio)
+            {{ $servicio->nombre }}
+        @endforeach
+    @else
+        <p>No hay servicios asociados a esta cita.</p>
+    @endif
+
     <p><strong>Fecha y Hora:</strong> {{ $cita->fecha_hora }}</p>
     <p><strong>Estado:</strong> {{ $cita->estado }}</p>
 

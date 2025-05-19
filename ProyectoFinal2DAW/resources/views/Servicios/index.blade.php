@@ -20,21 +20,20 @@
     <table>
         <thead>
             <tr>
-                <th>ID</th>
                 <th>Nombre</th>
-                <th>Descripción</th>
                 <th>Precio</th>
                 <th>Tiempo estimado (min)</th>
+                <th>Tipo</th>
                 <th>Acciones</th>
             </tr>
         </thead>
         <tbody>
             @foreach ($servicios as $servicio)
                 <tr>
-                    <td>{{ $servicio->id }}</td>
                     <td>{{ $servicio->nombre }}</td>
                     <td>{{ $servicio->precio }} €</td>
                     <td>{{ $servicio->tiempo_estimado }}</td>
+                    <td>{{ $servicio->tipo }}</td>
                     <td>
                         <a href="{{ route('Servicios.show', $servicio->id) }}">Ver</a>
                         <a href="{{ route('Servicios.edit', $servicio->id) }}">Editar</a>

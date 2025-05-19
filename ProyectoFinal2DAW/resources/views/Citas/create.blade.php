@@ -40,9 +40,9 @@
             @endforeach
         </select>
 
-        <label for="id_servicio">Servicio:</label>
-        <select name="id_servicio" required>
-            @foreach ($servicios as $servicio)
+        <label for="servicios">Servicios:</label>
+        <select name="servicios[]" multiple required>
+            @foreach($servicios as $servicio)
                 <option value="{{ $servicio->id }}">{{ $servicio->nombre }}</option>
             @endforeach
         </select>

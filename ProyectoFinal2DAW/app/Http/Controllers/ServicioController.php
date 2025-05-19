@@ -29,6 +29,7 @@ class ServicioController extends Controller{
             'nombre' => 'required|string',
             'tiempo_estimado' => 'required|integer',
             'precio' => 'required|numeric',
+            'tipo' => 'required|string',
         ]);
 
         Servicio::create($data);
@@ -57,6 +58,7 @@ class ServicioController extends Controller{
             'nombre' => 'required|string',
             'tiempo_estimado' => 'required|integer',
             'precio' => 'required|numeric',
+            'tipo' => 'required|string',
         ]);
 
         $servicio->update($data);

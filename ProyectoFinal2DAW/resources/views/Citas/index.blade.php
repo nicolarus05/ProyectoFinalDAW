@@ -20,7 +20,6 @@
     <table>
         <thead>
             <tr>
-                <th>ID</th>
                 <th>Cliente</th>
                 <th>Empleado</th>
                 <th>Servicio</th>
@@ -33,10 +32,18 @@
         <tbody>
             @foreach ($citas as $cita)
                 <tr>
-                    <td>{{ $cita->id }}</td>
                     <td>{{ $cita->cliente->usuario->nombre ?? '-' }} {{ $cita->cliente->usuario->apellidos ?? '' }}</td>
                     <td>{{ $cita->empleado->usuario->nombre ?? '-' }} {{ $cita->empleado->usuario->apellidos ?? '' }}</td>
-                    <td>{{ $cita->servicio->nombre ?? '-' }}</td>
+                    <td>
+                        @if ($cita->servicios && count($cita->servicios))
+                            @foreach ($cita->servicios as $servicio)
+                                {{ $servicio->nombre }}@if (!$loop->last), @endif
+                            @endforeach
+                        @else
+                            No hay servicios asociados a esta cita.
+                        @endif
+                    </td>
+
                     <td>{{ $cita->notas_adicionales ?? '-' }}</td>
                     <td>{{ $cita->fecha_hora }}</td>
                     <td>{{ ucfirst($cita->estado) }}</td>
