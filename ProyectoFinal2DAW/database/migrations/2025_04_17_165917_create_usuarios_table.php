@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('genero');
             $table->integer('edad');
             $table->enum('rol', ['admin', 'empleado', 'cliente']);
+            $table->rememberToken();
             $table->timestamps();
         });
     }

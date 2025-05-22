@@ -7,6 +7,8 @@ use App\Models\Empleado;
 use App\Models\Cliente;
 use App\Models\Servicio;
 use App\Models\Cita;
+use App\Models\HorarioTrabajo;
+use Carbon\Carbon;
 
 class CitaController extends Controller{
     /**
@@ -30,6 +32,7 @@ class CitaController extends Controller{
     /**
      * Store a newly created resource in storage.
      */
+
     public function store(Request $request){
         $data = $request->validate([
             'fecha_hora' => 'required|date',
@@ -40,6 +43,51 @@ class CitaController extends Controller{
             'servicios' => 'required|array|min:1',
             'servicios.*' => 'distinct|exists:servicios,id',
         ]);
+
+        // Validación de disponibilidad del empleado
+        $fechaHora = Carbon::parse($data['fecha_hora']);
+        $diaSemana = $fechaHora->format('l'); // Por ejemplo: "Lunes"
+
+        // traducir el día a español si tus horarios están en español
+        $dias = [
+            'Monday' => 'lunes',
+            'Tuesday' => 'martes',
+            'Wednesday' => 'miércoles',
+            'Thursday' => 'jueves',
+            'Friday' => 'viernes',
+            'Saturday' => 'sábado',
+            'Sunday' => 'domingo',
+        ];
+
+        $diaSemanaTraducido = $dias[$diaSemana] ?? $diaSemana;
+        $hora = $fechaHora->format('H:i:s');
+
+        $horario = HorarioTrabajo::where('id_empleado', $data['id_empleado'])
+            ->where('dia_semana', $diaSemanaTraducido)
+            ->where('disponible', true)
+            ->whereTime('hora_inicio', '<=', $hora)
+            ->whereTime('hora_fin', '>=', $hora)
+            ->first();
+
+        if (!$horario) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['id_empleado' => 'El empleado no está disponible en la fecha y hora seleccionadas.']);
+        }
+
+        // Verifica que no haya otra cita en los 15 minutos antes o después
+        $fechaInicioMargen = $fechaHora->copy()->subMinutes(15);
+        $fechaFinMargen = $fechaHora->copy()->addMinutes(15);
+
+        $existeCitaCercana = Cita::where('id_empleado', $data['id_empleado'])
+            ->whereBetween('fecha_hora', [$fechaInicioMargen, $fechaFinMargen])
+            ->exists();
+
+        if ($existeCitaCercana) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['fecha_hora' => 'Este empleado ya tiene una cita muy cerca de la hora seleccionada. Debe mantener un margen de 15 minutos.']);
+        }
 
         // Extraemos los IDs de servicios
         $servicios = $data['servicios'];
@@ -53,6 +101,7 @@ class CitaController extends Controller{
 
         return redirect()->route('Citas.index')->with('success', 'Cita creada correctamente con múltiples servicios.');
     }
+
 
 
     /**

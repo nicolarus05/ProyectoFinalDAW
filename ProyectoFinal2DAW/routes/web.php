@@ -1,104 +1,73 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\ClienteController;
-use App\Http\Controllers\EmpleadoController;
-use App\Http\Controllers\CitaController;
-use App\Http\Controllers\ServicioController;
-use App\Http\Controllers\RegistroCobroController;
-use App\Http\Controllers\UsuarioController;
-use App\Http\Controllers\HorarioTrabajoController;
+use App\Http\Controllers\{
+    ProfileController, ClienteController, EmpleadoController,
+    CitaController, ServicioController, RegistroCobroController,
+    UsuarioController, HorarioTrabajoController,
+    Auth\AuthenticatedSessionController
+};
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/', fn () => view('welcome'));
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', fn () => view('dashboard'))
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
 
-Route::middleware('auth')->group(function () {
+Route::get('/login', [AuthenticatedSessionController::class, 'create'])
+    ->middleware('guest')
+    ->name('login');
+
+Route::middleware(['auth'])->group(function () {
+    // Perfil común
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-Route::get('/clientes', [ClienteController::class, 'index'])->name('Clientes.index');
-Route::get('/clientes/create', [ClienteController::class, 'create'])->name('Clientes.create');
-Route::post('/clientes', [ClienteController::class, 'store'])->name('Clientes.store');
-Route::get('/clientes/{cliente}', [ClienteController::class, 'show'])->name('Clientes.show');
-Route::get('/clientes/{cliente}/edit', [ClienteController::class, 'edit'])->name('Clientes.edit');
-Route::put('/clientes/{cliente}', [ClienteController::class, 'update'])->name('Clientes.update');
-Route::delete('/clientes/{cliente}', [ClienteController::class, 'destroy'])->name('Clientes.destroy');
 
-Route::get('/empleados', [EmpleadoController::class, 'index'])->name('Empleados.index');
-Route::get('/empleados/create', [EmpleadoController::class, 'create'])->name('Empleados.create');
-Route::post('/empleados', [EmpleadoController::class, 'store'])->name('Empleados.store');
-Route::get('/empleados/{empleado}', [EmpleadoController::class, 'show'])->name('Empleados.show');
-Route::get('/empleados/{empleado}/edit', [EmpleadoController::class, 'edit'])->name('Empleados.edit');
-Route::put('/empleados/{empleado}', [EmpleadoController::class, 'update'])->name('Empleados.update');
-Route::delete('/empleados/{empleado}', [EmpleadoController::class, 'destroy'])->name('Empleados.destroy');
+// Rutas solo para ADMIN
+Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::resource('usuarios', UsuarioController::class)->names('Usuarios');
 
-Route::get('/citas', [CitaController::class, 'index'])->name('Citas.index');
-Route::get('/citas/create', [CitaController::class, 'create'])->name('Citas.create');
-Route::post('/citas', [CitaController::class, 'store'])->name('Citas.store');
-Route::get('/citas/{cita}', [CitaController::class, 'show'])->name('Citas.show');
-Route::get('/citas/{cita}/edit', [CitaController::class, 'edit'])->name('Citas.edit');
-Route::put('/citas/{cita}', [CitaController::class, 'update'])->name('Citas.update');
-Route::delete('/citas/{cita}', [CitaController::class, 'destroy'])->name('Citas.destroy');
+    Route::resource('clientes', ClienteController::class)->names('Clientes');
+    Route::resource('empleados', EmpleadoController::class)->names('Empleados');
+    Route::resource('servicios', ServicioController::class)->names('Servicios');
 
-Route::get('/servicios', [ServicioController::class, 'index'])->name('Servicios.index');
-Route::get('/servicios/create', [ServicioController::class, 'create'])->name('Servicios.create');
-Route::post('/servicios', [ServicioController::class, 'store'])->name('Servicios.store');
+    // Rutas anidadas de servicios
+    Route::get('/servicios/{servicio}/empleados/create', [ServicioController::class, 'createEmpleado'])->name('Servicios.createEmpleado');
+    Route::post('/servicios/{servicio}/empleados/store', [ServicioController::class, 'storeEmpleado'])->name('Servicios.storeEmpleado');
+    Route::get('/servicios/{servicio}/empleados/{empleado}/edit', [ServicioController::class, 'editEmpleado'])->name('Servicios.editEmpleado');
+    Route::put('/servicios/{servicio}/empleados/{empleado}', [ServicioController::class, 'updateEmpleado'])->name('Servicios.updateEmpleado');
+    Route::delete('/servicios/{servicio}/empleados/{empleado}', [ServicioController::class, 'removeEmpleado'])->name('Servicios.removeEmpleado');
 
-Route::get('/servicios/{servicio}/empleados/create', [ServicioController::class, 'createEmpleado'])->name('Servicios.createEmpleado');
-Route::post('/servicios/{servicio}/empleados/store', [ServicioController::class, 'storeEmpleado'])->name('Servicios.storeEmpleado');
-Route::get('/servicios/{servicio}/citas/create', [ServicioController::class, 'createCita'])->name('Servicios.createCita');
-Route::post('/servicios/{servicio}/citas/store', [ServicioController::class, 'storeCita'])->name('Servicios.storeCita');
-Route::get('/servicios/{servicio}/empleados/{empleado}/edit', [ServicioController::class, 'editEmpleado'])->name('Servicios.editEmpleado');
-Route::put('/servicios/{servicio}/empleados/{empleado}', [ServicioController::class, 'updateEmpleado'])->name('Servicios.updateEmpleado');
-Route::get('/servicios/{servicio}/citas/{cita}/edit', [ServicioController::class, 'editCita'])->name('Servicios.editCita');
-Route::delete('/servicios/{servicio}/empleados/{empleado}', [ServicioController::class, 'removeEmpleado'])->name('Servicios.removeEmpleado');
-Route::delete('/servicios/{servicio}/citas/{cita}', [ServicioController::class, 'removeCita'])->name('Servicios.removeCita');
+    Route::get('/servicios/{servicio}/citas/create', [ServicioController::class, 'createCita'])->name('Servicios.createCita');
+    Route::post('/servicios/{servicio}/citas/store', [ServicioController::class, 'storeCita'])->name('Servicios.storeCita');
+    Route::get('/servicios/{servicio}/citas/{cita}/edit', [ServicioController::class, 'editCita'])->name('Servicios.editCita');
+    Route::delete('/servicios/{servicio}/citas/{cita}', [ServicioController::class, 'removeCita'])->name('Servicios.removeCita');
 
-Route::get('/servicios/{servicio}/empleados', [ServicioController::class, 'empleados'])->name('Servicios.empleados');
-Route::post('/servicios/{servicio}/empleados', [ServicioController::class, 'addEmpleado'])->name('Servicios.addEmpleado');
-Route::get('/servicios/{servicio}/citas', [ServicioController::class, 'citas'])->name('Servicios.citas');
-Route::post('/servicios/{servicio}/citas', [ServicioController::class, 'addCita'])->name('Servicios.addCita');
+    Route::get('/servicios/{servicio}/empleados', [ServicioController::class, 'empleados'])->name('Servicios.empleados');
+    Route::post('/servicios/{servicio}/empleados', [ServicioController::class, 'addEmpleado'])->name('Servicios.addEmpleado');
+    Route::get('/servicios/{servicio}/citas', [ServicioController::class, 'citas'])->name('Servicios.citas');
+    Route::post('/servicios/{servicio}/citas', [ServicioController::class, 'addCita'])->name('Servicios.addCita');
 
-Route::get('/servicios/{servicio}/edit', [ServicioController::class, 'edit'])->name('Servicios.edit');
-Route::put('/servicios/{servicio}', [ServicioController::class, 'update'])->name('Servicios.update');
-Route::delete('/servicios/{servicio}', [ServicioController::class, 'destroy'])->name('Servicios.destroy');
-Route::get('/servicios/{servicio}', [ServicioController::class, 'show'])->name('Servicios.show');
+    Route::resource('horarios', HorarioTrabajoController::class)->names('Horarios');
+    Route::resource('cobros', RegistroCobroController::class)->names('Cobros');
+});
 
-Route::get('/horarios', [App\Http\Controllers\HorarioTrabajoController::class, 'index'])->name('Horarios.index');
-Route::get('/horarios/create', [App\Http\Controllers\HorarioTrabajoController::class, 'create'])->name('Horarios.create');
-Route::post('/horarios', [App\Http\Controllers\HorarioTrabajoController::class, 'store'])->name('Horarios.store');
-Route::get('/horarios/{horario}', [App\Http\Controllers\HorarioTrabajoController::class, 'show'])->name('Horarios.show');
-Route::get('/horarios/{horario}/edit', [App\Http\Controllers\HorarioTrabajoController::class, 'edit'])->name('Horarios.edit');
-Route::put('/horarios/{horario}', [App\Http\Controllers\HorarioTrabajoController::class, 'update'])->name('Horarios.update');
-Route::delete('/horarios/{horario}', [App\Http\Controllers\HorarioTrabajoController::class, 'destroy'])->name('Horarios.destroy');
 
-Route::get('/cobros', [RegistroCobroController::class, 'index'])->name('Cobros.index');
-Route::get('/cobros/create', [RegistroCobroController::class, 'create'])->name('Cobros.create');
-Route::post('/cobros', [RegistroCobroController::class, 'store'])->name('Cobros.store');
-Route::get('/cobros/{cobro}', [RegistroCobroController::class, 'show'])->name('Cobros.show');
-Route::get('/cobros/{cobro}/edit', [RegistroCobroController::class, 'edit'])->name('Cobros.edit');
-Route::put('/cobros/{cobro}', [RegistroCobroController::class, 'update'])->name('Cobros.update');
-Route::delete('/cobros/{cobro}', [RegistroCobroController::class, 'destroy'])->name('Cobros.destroy');
+// Rutas accesibles por ADMIN y EMPLEADO
+Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
+    Route::resource('citas', CitaController::class)->names('Citas');
+});
 
-Route::resource('usuarios', UsuarioController::class, [
-    'names' => [
-        'index' => 'Usuarios.index',
-        'create' => 'Usuarios.create',
-        'store' => 'Usuarios.store',
-        'show' => 'Usuarios.show',
-        'edit' => 'Usuarios.edit',
-        'update' => 'Usuarios.update',
-        'destroy' => 'Usuarios.destroy',
-    ],
-]);
 
+// Rutas exclusivas para CLIENTES
+Route::middleware(['auth', 'role:cliente'])->group(function () {
+    // Aquí podrías poner, por ejemplo, crear cita o ver citas propias
+    Route::get('/mis-citas', [CitaController::class, 'index'])->name('Cliente.Citas.index');
+    Route::get('/mis-citas/create', [CitaController::class, 'create'])->name('Cliente.Citas.create');
+    Route::post('/mis-citas', [CitaController::class, 'store'])->name('Cliente.Citas.store');
+});
 
 require __DIR__.'/auth.php';
