@@ -26,36 +26,72 @@ class UsuarioController extends Controller
     /**
      * Store a newly created resource in storage.
      */
+
+
     public function store(Request $request){
-        $request->validate([
+        // Validación de los datos del formulario
+        $data = $request->validate([
             'nombre' => 'required|string|max:255',
             'apellidos' => 'required|string|max:255',
-            'telefono' => 'required|string|max:15',
-            'email' => 'required|string|email|max:255|unique:usuarios',
-            'password' => 'required|string|min:8|confirmed',
-            'genero' => 'required|string|max:10',
-            'edad' => 'required|integer|min:0',
-            'rol' => 'required|string|max:20',
+            'email' => 'required|email|unique:usuarios,email',
+            'telefono' => 'nullable|string|max:20',
+            'password' => 'required|string|min:6',
+            'genero' => 'nullable|string|in:Masculino,Femenino,Otro',
+            'edad' => 'nullable|integer|min:0|max:120',
+            'rol' => 'required|in:cliente,empleado',
+
+            // Campos específicos para cada rol
+            'especializacion' => 'nullable|string|max:255',
+            'fecha_registro' => 'nullable|date',
+            'direccion' => 'nullable|string|max:255',
+            'notas_adicionales' => 'nullable|string|max:1000',
         ]);
 
-        Usuario::create([
-            'nombre' => $request->nombre,
-            'apellidos' => $request->apellidos,
-            'telefono' => $request->telefono,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'genero' => $request->genero,
-            'edad' => $request->edad,
-            'rol' => $request->rol,
-        ]);
+        // Encriptar la contraseña
+        $data['password'] = Hash::make($data['password']);
 
-        return redirect()->route('Usuarios.index')->with('success', 'Usuario creado con éxito.');
+        try {
+            // Crear el usuario principal
+            $usuario = Usuario::create([
+                'nombre' => $data['nombre'],
+                'apellidos' => $data['apellidos'],
+                'email' => $data['email'],
+                'telefono' => $data['telefono'] ?? null,
+                'edad' => $data['edad'] ?? null,
+                'genero' => $data['genero'] ?? null,
+                'password' => $data['password'],
+                'rol' => $data['rol'],
+            ]);
+
+            // Crear datos adicionales según el rol
+            if ($data['rol'] === 'empleado') {
+                $usuario->empleado()->create([
+                    'especializacion' => $data['especializacion'] ?? null,
+                ]);
+            }
+
+            if ($data['rol'] === 'cliente') {
+                $usuario->cliente()->create([
+                    'direccion' => $data['direccion'] ?? null,
+                    'fecha_registro' => $data['fecha_registro'] ?? null,
+                    'notas_adicionales' => $data['notas_adicionales'] ?? null,
+                ]);
+            }
+
+            return redirect()->route('Usuarios.index')->with('success', 'Usuario creado correctamente.');
+
+        } catch (\Exception $e) {
+            // Mostrar mensaje de error si algo falla
+            return back()->withErrors(['error' => 'Error al crear el usuario: ' . $e->getMessage()])
+                        ->withInput();
+        }
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Usuario $usuario){
+    public function show($id){
+        $usuario = Usuario::with('empleado')->findOrFail($id);
         return view('Usuarios.show', compact('usuario'));
     }
 

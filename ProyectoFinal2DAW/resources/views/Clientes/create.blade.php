@@ -44,7 +44,7 @@
         <textarea name="notas_adicionales"></textarea>
 
         <label for="fecha_registro">Fecha de Registro:</label>
-        <input type="date" name="fecha_registro" required>
+        <input type="date" name="fecha_registro" value="{{ date('Y-m-d') }}" required>
 
         <br>
         <button type="submit">Guardar</button>
