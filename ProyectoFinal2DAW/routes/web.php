@@ -5,7 +5,7 @@ use App\Http\Controllers\{
     ProfileController, ClienteController, EmpleadoController,
     CitaController, ServicioController, RegistroCobroController,
     UsuarioController, HorarioTrabajoController,
-    Auth\AuthenticatedSessionController
+    Auth\AuthenticatedSessionController, Auth\RegisterClienteController
 };
 
 Route::get('/', fn () => view('welcome'));
@@ -69,5 +69,12 @@ Route::middleware(['auth', 'role:cliente'])->group(function () {
     Route::get('/mis-citas/create', [CitaController::class, 'create'])->name('Cliente.Citas.create');
     Route::post('/mis-citas', [CitaController::class, 'store'])->name('Cliente.Citas.store');
 });
+
+// Rutas para que un usuario se pueda registrar
+Route::middleware('guest')->group(function () {
+    Route::get('/register/cliente', [RegisterClienteController::class, 'create'])->name('register.cliente');
+    Route::post('/register/cliente', [RegisterClienteController::class, 'store'])->name('register.cliente.store');
+});
+
 
 require __DIR__.'/auth.php';

@@ -1,52 +1,58 @@
-<x-guest-layout>
-    <form method="POST" action="{{ route('register') }}">
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Registro de Cliente</title>
+    <link rel="stylesheet" href="{{ asset('css/styles.css') }}">
+</head>
+<body>
+    <h1>Registro de Cliente</h1>
+
+    <form method="POST" action="{{ route('register.cliente.store') }}">
         @csrf
 
-        <!-- Name -->
-        <div>
-            <x-input-label for="name" :value="__('Name')" />
-            <x-text-input id="name" class="block mt-1 w-full" type="text" name="name" :value="old('name')" required autofocus autocomplete="name" />
-            <x-input-error :messages="$errors->get('name')" class="mt-2" />
-        </div>
+        <label>Nombre:</label>
+        <input type="text" name="nombre" value="{{ old('nombre') }}" required><br>
 
-        <!-- Email Address -->
-        <div class="mt-4">
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autocomplete="username" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
-        </div>
+        <label>Apellidos:</label>
+        <input type="text" name="apellidos" value="{{ old('apellidos') }}" required><br>
 
-        <!-- Password -->
-        <div class="mt-4">
-            <x-input-label for="password" :value="__('Password')" />
+        <label>Teléfono:</label>
+        <input type="text" name="telefono" value="{{ old('telefono') }}" required><br>
 
-            <x-text-input id="password" class="block mt-1 w-full"
-                            type="password"
-                            name="password"
-                            required autocomplete="new-password" />
+        <label>Email:</label>
+        <input type="email" name="email" value="{{ old('email') }}" required><br>
 
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
-        </div>
+        <label>Contraseña:</label>
+        <input type="password" name="password" required><br>
 
-        <!-- Confirm Password -->
-        <div class="mt-4">
-            <x-input-label for="password_confirmation" :value="__('Confirm Password')" />
+        <label>Confirmar contraseña:</label>
+        <input type="password" name="password_confirmation" required><br>
 
-            <x-text-input id="password_confirmation" class="block mt-1 w-full"
-                            type="password"
-                            name="password_confirmation" required autocomplete="new-password" />
+        <label>Género:</label>
+        <select name="genero" required>
+            <option value="">Selecciona</option>
+            <option value="masculino" {{ old('genero') == 'masculino' ? 'selected' : '' }}>Masculino</option>
+            <option value="femenino" {{ old('genero') == 'femenino' ? 'selected' : '' }}>Femenino</option>
+            <option value="otro" {{ old('genero') == 'otro' ? 'selected' : '' }}>Otro</option>
+        </select><br>
 
-            <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
-        </div>
+        <label>Edad:</label>
+        <input type="number" name="edad" min="0" max="120" value="{{ old('edad') }}" required><br>
 
-        <div class="flex items-center justify-end mt-4">
-            <a class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" href="{{ route('login') }}">
-                {{ __('Already registered?') }}
-            </a>
+        <label>Dirección:</label>
+        <input type="text" name="direccion" value="{{ old('direccion') }}" required><br>
 
-            <x-primary-button class="ms-4">
-                {{ __('Register') }}
-            </x-primary-button>
-        </div>
+        <label>Notas adicionales:</label>
+        <textarea name="notas_adicionales">{{ old('notas_adicionales') }}</textarea><br>
+
+        <label>Fecha de registro:</label>
+        <input type="date" name="fecha_registro" value="{{ old('fecha_registro', date('Y-m-d')) }}" required><br>
+
+        <button type="submit">Registrarse</button>
     </form>
-</x-guest-layout>
+
+    <br>
+    <a href="{{ route('login') }}">¿Ya tienes cuenta? Inicia sesión</a>
+</body>
+</html>
