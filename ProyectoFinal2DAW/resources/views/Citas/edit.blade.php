@@ -23,14 +23,20 @@
             <option value="cancelada" {{ $cita->estado == 'cancelada' ? 'selected' : '' }}>Cancelada</option>
         </select>
 
-        <label for="id_cliente">Cliente:</label>
-        <select name="id_cliente" required>
-            @foreach ($clientes as $cliente)
-                <option value="{{ $cliente->id }}" {{ $cita->id_cliente == $cliente->id ? 'selected' : '' }}>
-                    {{ $cliente->usuario->nombre }} {{ $cliente->usuario->apellidos }}
-                </option>
-            @endforeach
-        </select>
+        @if(auth()->user()->rol === 'admin')
+            <label for="id_cliente">Cliente:</label>
+            <select name="id_cliente" required>
+                @foreach ($clientes as $cliente)
+                    <option value="{{ $cliente->id }}" {{ $cita->id_cliente == $cliente->id ? 'selected' : '' }}>
+                        {{ $cliente->usuario->nombre }} {{ $cliente->usuario->apellidos }}
+                    </option>
+                @endforeach
+            </select>
+        @else
+            <input type="hidden" name="id_cliente" value="{{ $cita->id_cliente }}">
+            <p>Cliente: {{ $cita->cliente->usuario->nombre }} {{ $cita->cliente->usuario->apellidos }}</p>
+        @endif
+
 
         <label for="id_empleado">Empleado:</label>
         <select name="id_empleado" required>

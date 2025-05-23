@@ -41,6 +41,18 @@ class UsuariosSeeder extends Seeder
                 'rol' => 'empleado',
                 'created_at' => now(),
                 'updated_at' => now(),
+            ],
+            [
+                'nombre' => 'Carlos',
+                'apellidos' => 'Ramírez',
+                'telefono' => '654321987',
+                'email' => 'carlos.ramirez@correo.com',
+                'password' => Hash::make('87654321'),
+                'genero' => 'masculino',
+                'edad' => 35,
+                'rol' => 'admin',
+                'created_at' => now(),
+                'updated_at' => now(),
             ]
         ]);
     }

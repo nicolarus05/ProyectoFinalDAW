@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Usuario;
+use App\Models\Cliente;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
@@ -16,7 +17,6 @@ class RegisterClienteController extends Controller
     }
 
     public function store(Request $request){
-        Log::info('Iniciando registro de cliente', $request->all());
 
         $request->validate([
             'nombre' => 'required|string|max:255',
@@ -44,6 +44,15 @@ class RegisterClienteController extends Controller
             'notas_adicionales' => $request->notas_adicionales,
             'fecha_registro' => $request->fecha_registro,
         ]);
+
+        // Crear registro en tabla clientes vinculado al usuario
+        Cliente::create([
+            'id_usuario' => $user->id,
+            'direccion' => $request->direccion,
+            'notas_adicionales' => $request->notas_adicionales,
+            'fecha_registro' => $request->fecha_registro,
+        ]);
+
 
         Auth::login($user);
 

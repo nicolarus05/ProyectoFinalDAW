@@ -62,13 +62,17 @@ Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
 });
 
 
-// Rutas exclusivas para CLIENTES
-Route::middleware(['auth', 'role:cliente'])->group(function () {
-    // Aquí podrías poner, por ejemplo, crear cita o ver citas propias
-    Route::get('/mis-citas', [CitaController::class, 'index'])->name('Cliente.Citas.index');
-    Route::get('/mis-citas/create', [CitaController::class, 'create'])->name('Cliente.Citas.create');
-    Route::post('/mis-citas', [CitaController::class, 'store'])->name('Cliente.Citas.store');
+// Rutas de citas accesibles por ADMIN, EMPLEADO y CLIENTE
+Route::middleware(['auth', 'role:admin,empleado,cliente'])->group(function () {
+    Route::get('/citas', [CitaController::class, 'index'])->name('Citas.index');
+    Route::get('/citas/create', [CitaController::class, 'create'])->name('Citas.create');
+    Route::post('/citas', [CitaController::class, 'store'])->name('Citas.store');
+    Route::get('/citas/{cita}', [CitaController::class, 'show'])->name('Citas.show');
+    Route::get('/citas/{cita}/edit', [CitaController::class, 'edit'])->name('Citas.edit');
+    Route::put('/citas/{cita}', [CitaController::class, 'update'])->name('Citas.update');
+    Route::patch('/citas/{cita}', [CitaController::class, 'update'])->name('Citas.update');
 });
+
 
 // Rutas para que un usuario se pueda registrar
 Route::middleware('guest')->group(function () {

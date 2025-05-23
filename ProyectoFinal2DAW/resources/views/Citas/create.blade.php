@@ -37,12 +37,9 @@
         <label for="notas_adicionales">Notas adicionales</label>
         <textarea name="notas_adicionales"></textarea>
 
-        <label for="id_cliente">Cliente:</label>
-        <select name="id_cliente" required>
-            @foreach ($clientes as $cliente)
-                <option value="{{ $cliente->id }}">{{ $cliente->usuario->nombre }} {{ $cliente->usuario->apellidos }}</option>
-            @endforeach
-        </select>
+        <input type="hidden" name="id_cliente" value="{{ $clientes->id }}">
+        <p>Cliente: {{ $clientes->usuario->nombre }} {{ $clientes->usuario->apellidos }}</p>
+
 
         <label for="id_empleado">Empleado:</label>
         <select name="id_empleado" required>
@@ -62,6 +59,6 @@
         <button type="submit">Guardar</button>
     </form>
 
-    <a href="{{ route('Citas.index') }}">Volver</a>
+    <a href="{{ route('dashboard') }}">Volver</a>
 </body>
 </html>

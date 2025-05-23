@@ -9,21 +9,53 @@ use App\Models\Servicio;
 use App\Models\Cita;
 use App\Models\HorarioTrabajo;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class CitaController extends Controller{
     /**
      * Display a listing of the resource.
      */
     public function index(){
-        $citas = Cita::with('cliente.usuario','empleado.usuario','servicios')->get();
+        $usuario = Auth::user();
+
+        if ($usuario->rol === 'cliente') {
+            $cliente = $usuario->cliente;
+            if (!$cliente) {
+                abort(403, 'No tienes permiso para acceder a esta sección.');
+            }
+            // Solo las citas del cliente
+            $citas = $cliente->citas()->latest()->get();
+
+        } else if ($usuario->rol === 'empleado') {
+            $empleado = $usuario->empleado;
+            if (!$empleado) {
+                abort(403, 'No tienes permiso para acceder a esta sección.');
+            }
+            // Solo las citas del empleado
+            $citas = Cita::where('id_empleado', $empleado->id)->latest()->get();
+
+        } else if ($usuario->rol === 'admin') {
+            // El admin ve todas las citas
+            $citas = Cita::latest()->get();
+
+        } else {
+            abort(403, 'No tienes permiso para acceder a esta sección.');
+        }
+
         return view('Citas.index', compact('citas'));
     }
+
+
 
     /**
      * Show the form for creating a new resource.
      */
     public function create(){
-        $clientes = Cliente::all();
+        $usuario = Auth::user();
+
+        $clientes = $usuario->cliente;
+
+        
         $empleados = Empleado::all();
         $servicios = Servicio::all();
         return view('Citas.create', compact('clientes','empleados','servicios'));

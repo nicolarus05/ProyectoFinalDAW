@@ -40,4 +40,8 @@ class Cita extends Model{
     public function cobro(){
         return $this->hasOne(RegistroCobro::class, 'id_cita');
     }
+
+    public function usuario(){
+        return $this->belongsTo(Usuario::class, 'id_usuario');
+    }
 }
