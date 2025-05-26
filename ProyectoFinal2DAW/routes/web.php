@@ -6,7 +6,8 @@ use App\Http\Controllers\{
     CitaController, ServicioController, RegistroCobroController,
     UsuarioController, HorarioTrabajoController,
     Auth\AuthenticatedSessionController, Auth\RegisterClienteController, 
-    Auth\PerfilController
+    Auth\PerfilController, Auth\PasswordResetLinkController,
+    Auth\NewPasswordController
 };
 
 Route::get('/', fn () => view('welcome'));
@@ -19,13 +20,28 @@ Route::get('/login', [AuthenticatedSessionController::class, 'create'])
     ->middleware('guest')
     ->name('login');
 
+Route::get('/forgot-password', [PasswordResetLinkController::class, 'create'])
+    ->middleware('guest')
+    ->name('password.request');
+
+Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])
+    ->middleware('guest')
+    ->name('password.email');
+
+Route::get('/reset-password/{token}', [NewPasswordController::class, 'create'])
+    ->middleware('guest')
+    ->name('password.reset');
+
+Route::match(['put', 'post'], '/reset-password', [NewPasswordController::class, 'store'])
+    ->middleware('guest')
+    ->name('password.update');
+
 Route::middleware(['auth'])->group(function () {
     // Perfil común
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
-
 
 // Rutas solo para ADMIN
 Route::middleware(['auth', 'role:admin'])->group(function () {
@@ -56,12 +72,10 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::resource('cobros', RegistroCobroController::class)->names('Cobros');
 });
 
-
 // Rutas accesibles por ADMIN y EMPLEADO
 Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
     Route::resource('citas', CitaController::class)->names('Citas');
 });
-
 
 // Rutas de citas accesibles por ADMIN, EMPLEADO y CLIENTE
 Route::middleware(['auth', 'role:admin,empleado,cliente'])->group(function () {
@@ -73,7 +87,6 @@ Route::middleware(['auth', 'role:admin,empleado,cliente'])->group(function () {
     Route::put('/citas/{cita}', [CitaController::class, 'update'])->name('Citas.update');
     Route::patch('/citas/{cita}', [CitaController::class, 'update'])->name('Citas.update');
 });
-
 
 // Rutas para que un usuario se pueda registrar
 Route::middleware('guest')->group(function () {

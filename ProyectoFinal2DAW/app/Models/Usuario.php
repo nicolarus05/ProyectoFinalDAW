@@ -7,9 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use App\Models\Cliente;
+use Illuminate\Notifications\Notifiable;
 
 class Usuario extends Authenticatable{
-    use HasFactory, HasApiTokens; 
+    use HasFactory, HasApiTokens, Notifiable; 
 
     protected $table = 'usuarios';
 
