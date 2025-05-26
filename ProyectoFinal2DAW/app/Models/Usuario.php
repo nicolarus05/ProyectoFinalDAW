@@ -23,6 +23,7 @@ class Usuario extends Authenticatable{
         'genero',
         'edad', 
         'rol',
+        'foto_perfil',
     ];
 
     // Definición de las columnas que no se deben mostrar

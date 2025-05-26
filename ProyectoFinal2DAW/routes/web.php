@@ -5,7 +5,8 @@ use App\Http\Controllers\{
     ProfileController, ClienteController, EmpleadoController,
     CitaController, ServicioController, RegistroCobroController,
     UsuarioController, HorarioTrabajoController,
-    Auth\AuthenticatedSessionController, Auth\RegisterClienteController
+    Auth\AuthenticatedSessionController, Auth\RegisterClienteController, 
+    Auth\PerfilController
 };
 
 Route::get('/', fn () => view('welcome'));
@@ -79,6 +80,15 @@ Route::middleware('guest')->group(function () {
     Route::get('/register/cliente', [RegisterClienteController::class, 'create'])->name('register.cliente');
     Route::post('/register/cliente', [RegisterClienteController::class, 'store'])->name('register.cliente.store');
 });
+
+//Rutas para la edicion del perfil
+Route::middleware('auth')->group(function(){
+    Route::get('/perfil/edit', [ProfileController::class, 'edit'])->name('perfil.edit');
+    Route::put('/perfil/update', [ProfileController::class, 'update'])->name('perfil.update');
+});
+
+Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+
 
 
 require __DIR__.'/auth.php';

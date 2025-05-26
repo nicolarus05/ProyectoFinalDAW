@@ -8,6 +8,19 @@
 <body>
     <h1>Panel de Control</h1>
 
+    @php
+        $usuario = Auth::user();
+    @endphp
+
+    <a href="{{ route('profile.edit') }}" title="Editar Perfil">
+        @if ($usuario && $usuario->foto_perfil)
+            <img src="{{ asset('storage/' . $usuario->foto_perfil) }}"
+                style="width: 50px; height: 50px; object-fit: cover; border-radius: 50%;">
+        @else
+            <span>Sin foto</span>
+        @endif
+    </a>
+
     <p>Bienvenido, {{ Auth::user()->nombre }} {{ Auth::user()->apellidos }} ({{ Auth::user()->rol }})</p>
 
     @php
