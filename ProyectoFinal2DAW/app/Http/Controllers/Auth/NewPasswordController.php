@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\user; 
+use App\Models\User; 
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,11 +18,13 @@ class NewPasswordController extends Controller
 {
     public function create(Request $request): View
     {
-        return view('auth.reset-password', ['request' => $request]);
+        return view('auth.reset-password', [
+            'request' => $request,
+            'token' => $request->route('token'),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse{
-        dd($request->all());
 
         $request->validate([
             'token' => ['required'],
@@ -31,23 +33,20 @@ class NewPasswordController extends Controller
         ]);
 
         $status = Password::reset(
-        $request->only('email', 'password', 'password_confirmation', 'token'),
-        function (user $user) use ($request) {
-            // VERIFICAR SI ENTRA AQUÍ
-            Log::info("Entró al callback de reset con user: " . $user->email);
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function (user $user) use ($request) {
+                dd('entro al callback', $user);
+                $user->forceFill([
+                    'password' => Hash::make($request->password),
+                    'remember_token' => Str::random(60),
+                ])->save();
 
-            $user->forceFill([
-                'password' => Hash::make($request->password),
-                'remember_token' => Str::random(60),
-            ])->save();
-
-            event(new PasswordReset($user));
-        }
-    );
-
+                event(new PasswordReset($user));
+            }
+        );
 
         return $status == Password::PASSWORD_RESET
-            ? redirect()->route('login')->with('status', __($status))
+            ? redirect()->route('login')->with('status', __('contraseña actualizada correctamente'))
             : back()->withInput($request->only('email'))
                 ->withErrors(['email' => __($status)]);
     }

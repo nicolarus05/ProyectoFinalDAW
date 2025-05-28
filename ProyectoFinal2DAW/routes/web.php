@@ -33,7 +33,6 @@ Route::get('/reset-password/{token}', [NewPasswordController::class, 'create'])
     ->middleware('guest')
     ->name('password.reset');
 
-
 Route::middleware(['auth'])->group(function () {
     // Perfil común
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
