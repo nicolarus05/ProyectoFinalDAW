@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\Log;
 
 class NewPasswordController extends Controller
 {
@@ -30,16 +31,20 @@ class NewPasswordController extends Controller
         ]);
 
         $status = Password::reset(
-            $request->only('email', 'password', 'password_confirmation', 'token'),
-            function (Usuario $user) use ($request) { 
-                $user->forceFill([
-                    'password' => Hash::make($request->password),
-                    'remember_token' => Str::random(60),
-                ])->save();
+        $request->only('email', 'password', 'password_confirmation', 'token'),
+        function (Usuario $user) use ($request) {
+            // VERIFICAR SI ENTRA AQUÍ
+            Log::info("Entró al callback de reset con usuario: " . $user->email);
 
-                event(new PasswordReset($user));
-            }
-        );
+            $user->forceFill([
+                'password' => Hash::make($request->password),
+                'remember_token' => Str::random(60),
+            ])->save();
+
+            event(new PasswordReset($user));
+        }
+    );
+
 
         return $status == Password::PASSWORD_RESET
             ? redirect()->route('login')->with('status', __($status))
