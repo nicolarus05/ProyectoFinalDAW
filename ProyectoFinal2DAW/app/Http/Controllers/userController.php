@@ -3,24 +3,24 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Usuario;
+use App\Models\user;
 use Illuminate\Support\Facades\Hash;
 
-class UsuarioController extends Controller
+class userController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
     public function index(){
-        $usuarios = Usuario::all();
-        return view('Usuarios.index', compact('usuarios'));
+        $users = user::all();
+        return view('users.index', compact('users'));
     }
 
     /**
      * Show the form for creating a new resource.
      */
     public function create(){
-        return view('Usuarios.create');
+        return view('users.create');
     }
 
     /**
@@ -33,7 +33,7 @@ class UsuarioController extends Controller
         $data = $request->validate([
             'nombre' => 'required|string|max:255',
             'apellidos' => 'required|string|max:255',
-            'email' => 'required|email|unique:usuarios,email',
+            'email' => 'required|email|unique:users,email',
             'telefono' => 'nullable|string|max:20',
             'password' => 'required|string|min:6',
             'genero' => 'nullable|string|in:Masculino,Femenino,Otro',
@@ -51,8 +51,8 @@ class UsuarioController extends Controller
         $data['password'] = Hash::make($data['password']);
 
         try {
-            // Crear el usuario principal
-            $usuario = Usuario::create([
+            // Crear el user principal
+            $user = user::create([
                 'nombre' => $data['nombre'],
                 'apellidos' => $data['apellidos'],
                 'email' => $data['email'],
@@ -65,24 +65,24 @@ class UsuarioController extends Controller
 
             // Crear datos adicionales según el rol
             if ($data['rol'] === 'empleado') {
-                $usuario->empleado()->create([
+                $user->empleado()->create([
                     'especializacion' => $data['especializacion'] ?? null,
                 ]);
             }
 
             if ($data['rol'] === 'cliente') {
-                $usuario->cliente()->create([
+                $user->cliente()->create([
                     'direccion' => $data['direccion'] ?? null,
                     'fecha_registro' => $data['fecha_registro'] ?? null,
                     'notas_adicionales' => $data['notas_adicionales'] ?? null,
                 ]);
             }
 
-            return redirect()->route('Usuarios.index')->with('success', 'Usuario creado correctamente.');
+            return redirect()->route('users.index')->with('success', 'user creado correctamente.');
 
         } catch (\Exception $e) {
             // Mostrar mensaje de error si algo falla
-            return back()->withErrors(['error' => 'Error al crear el usuario: ' . $e->getMessage()])
+            return back()->withErrors(['error' => 'Error al crear el user: ' . $e->getMessage()])
                         ->withInput();
         }
     }
@@ -91,51 +91,51 @@ class UsuarioController extends Controller
      * Display the specified resource.
      */
     public function show($id){
-        $usuario = Usuario::with('empleado')->findOrFail($id);
-        return view('Usuarios.show', compact('usuario'));
+        $user = user::with('empleado')->findOrFail($id);
+        return view('users.show', compact('user'));
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Usuario $usuario){
-        return view('Usuarios.edit', compact('usuario'));
+    public function edit(user $user){
+        return view('users.edit', compact('user'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Usuario $usuario){
+    public function update(Request $request, user $user){
         $request->validate([
             'nombre' => 'required|string|max:255',
             'apellidos' => 'required|string|max:255',
             'telefono' => 'required|string|max:15',
-            'email' => 'required|string|email|max:255|unique:usuarios,email,' . $usuario->id,
+            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
             'password' => 'nullable|string|min:8|confirmed',
             'genero' => 'required|string|max:10',
             'edad' => 'required|integer|min:0',
             'rol' => 'required|string|max:20',
         ]);
 
-        $usuario->update([
+        $user->update([
             'nombre' => $request->nombre,
             'apellidos' => $request->apellidos,
             'telefono' => $request->telefono,
             'email' => $request->email,
-            'password' => $request->password ? Hash::make($request->password) : $usuario->password,
+            'password' => $request->password ? Hash::make($request->password) : $user->password,
             'genero' => $request->genero,
             'edad' => $request->edad,
             'rol' => $request->rol,
         ]);
 
-        return redirect()->route('Usuarios.index')->with('success', 'Usuario actualizado con éxito.');
+        return redirect()->route('users.index')->with('success', 'user actualizado con éxito.');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Usuario $usuario){
-        $usuario->delete();
-        return redirect()->route('Usuarios.index')->with('success', 'Usuario eliminado con éxito.');
+    public function destroy(user $user){
+        $user->delete();
+        return redirect()->route('users.index')->with('success', 'user eliminado con éxito.');
     }
 }

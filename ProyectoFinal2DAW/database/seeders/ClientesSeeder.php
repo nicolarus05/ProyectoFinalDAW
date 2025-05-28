@@ -15,10 +15,10 @@ class ClientesSeeder extends Seeder
      */
     public function run()
     {
-        // Insertar 2 clientes asociados a los usuarios
+        // Insertar 2 clientes asociados a los users
         DB::table('clientes')->insert([
             [
-                'id_usuario' => 1,  // ID del usuario Juan Pérez
+                'id_user' => 1,  // ID del user Juan Pérez
                 'direccion' => 'Calle Falsa 123, Ciudad X',
                 'notas_adicionales' => 'Cliente frecuente.',
                 'fecha_registro' => Carbon::now()->subDays(15), // Fecha de registro hace 15 días
@@ -26,7 +26,7 @@ class ClientesSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id_usuario' => 2,  // ID del usuario Ana Gómez
+                'id_user' => 2,  // ID del user Ana Gómez
                 'direccion' => 'Avenida Siempre Viva 456, Ciudad Y',
                 'notas_adicionales' => 'Primera vez que visita.',
                 'fecha_registro' => Carbon::now()->subDays(30), // Fecha de registro hace 30 días

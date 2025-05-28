@@ -28,8 +28,8 @@
         <tbody>
             @foreach ($cobros as $cobro)
                 <tr>
-                    <td>{{ $cobro->cita->cliente->usuario->nombre ?? '-' }}</td>
-                    <td>{{ $cobro->cita->empleado->usuario->nombre ?? '-' }}</td>
+                    <td>{{ $cobro->cita->cliente->user->nombre ?? '-' }}</td>
+                    <td>{{ $cobro->cita->empleado->user->nombre ?? '-' }}</td>
                     <td>{{ $cobro->cita->servicio->nombre ?? '-' }}</td>
                     <td>{{ $cobro->coste }}</td>
                     <td>{{ $cobro->descuento_porcentaje ?? 0 }}%</td>

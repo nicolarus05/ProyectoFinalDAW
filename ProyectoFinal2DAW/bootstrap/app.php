@@ -15,6 +15,9 @@ $app = Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         //
     })
+    ->withMiddleware(function (Middleware $middleware) {
+        $middleware->web();
+    })
     ->withExceptions(function (Exceptions $exceptions) {
         //
     })->create();

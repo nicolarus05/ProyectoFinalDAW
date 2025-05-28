@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Lista de Usuarios</title>
+    <title>Lista de usuarios</title>
     <link rel="stylesheet" type="text/css" href="{{ asset('css/') }}">
     <script>
         function confirmarEliminacion(id) {
@@ -13,12 +13,12 @@
     </script>
 </head>
 <body>
-    <h1>Usuarios registrados</h1>
+    <h1>users registrados</h1>
 
-    <a href="{{ route('Usuarios.create') }}" class="btn btn-primary">Añadir nuevo usuario</a>
+    <a href="{{ route('users.create') }}" class="btn btn-primary">Añadir nuevo user</a>
 
     @if(session('success'))
-        <div style="color: green; margin: 10px 0;">{{ session('success') }}</div>
+        <div style="color: green; margin: 10px 0;">{{ str_replace('user', 'usuario', session('success')) }}</div>
     @endif
 
     <table>
@@ -34,21 +34,21 @@
             </tr>
         </thead>
         <tbody>
-            @foreach ($usuarios as $usuario)
+            @foreach ($users as $user)
                 <tr>
-                    <td>{{ $usuario->nombre }} {{ $usuario->apellidos }}</td>
-                    <td>{{ $usuario->email }}</td>
-                    <td>{{ $usuario->telefono }}</td>
-                    <td>{{ $usuario->edad }}</td>
-                    <td>{{ $usuario->genero }}</td>
-                    <td>{{ ucfirst($usuario->rol) }}</td>
+                    <td>{{ $user->nombre }} {{ $user->apellidos }}</td>
+                    <td>{{ $user->email }}</td>
+                    <td>{{ $user->telefono }}</td>
+                    <td>{{ $user->edad }}</td>
+                    <td>{{ $user->genero }}</td>
+                    <td>{{ ucfirst($user->rol) }}</td>
                     <td>
-                        <a href="{{ route('Usuarios.show', $usuario->id) }}">Ver</a>
-                        <a href="{{ route('Usuarios.edit', $usuario->id) }}">Editar</a>
-                        <form id="delete-form-{{ $usuario->id }}" action="{{ route('Usuarios.destroy', $usuario->id) }}" method="POST" style="display:inline;">
+                        <a href="{{ route('users.show', $user->id) }}">Ver</a>
+                        <a href="{{ route('users.edit', $user->id) }}">Editar</a>
+                        <form id="delete-form-{{ $user->id }}" action="{{ route('users.destroy', $user->id) }}" method="POST" style="display:inline;">
                             @csrf
                             @method('DELETE')
-                            <button type="button" onclick="confirmarEliminacion({{ $usuario->id }})">Eliminar</button>
+                            <button type="button" onclick="confirmarEliminacion({{ $user->id }})">Eliminar</button>
                         </form>
                     </td>
                 </tr>

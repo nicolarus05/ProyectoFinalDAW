@@ -16,25 +16,25 @@ class CitaController extends Controller{
      * Display a listing of the resource.
      */
     public function index(){
-        $usuario = Auth::user();
+        $user = Auth::user();
 
-        if ($usuario->rol === 'cliente') {
-            $cliente = $usuario->cliente;
+        if ($user->rol === 'cliente') {
+            $cliente = $user->cliente;
             if (!$cliente) {
                 abort(403, 'No tienes permiso para acceder a esta sección.');
             }
             // Solo las citas del cliente
             $citas = $cliente->citas()->latest()->get();
 
-        } else if ($usuario->rol === 'empleado') {
-            $empleado = $usuario->empleado;
+        } else if ($user->rol === 'empleado') {
+            $empleado = $user->empleado;
             if (!$empleado) {
                 abort(403, 'No tienes permiso para acceder a esta sección.');
             }
             // Solo las citas del empleado
             $citas = Cita::where('id_empleado', $empleado->id)->latest()->get();
 
-        } else if ($usuario->rol === 'admin') {
+        } else if ($user->rol === 'admin') {
             // El admin ve todas las citas
             $citas = Cita::latest()->get();
 
@@ -51,9 +51,9 @@ class CitaController extends Controller{
      * Show the form for creating a new resource.
      */
     public function create(){
-        $usuario = Auth::user();
+        $user = Auth::user();
 
-        $clientes = $usuario->cliente;
+        $clientes = $user->cliente;
 
         
         $empleados = Empleado::all();

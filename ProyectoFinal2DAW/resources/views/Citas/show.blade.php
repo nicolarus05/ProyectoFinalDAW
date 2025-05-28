@@ -8,8 +8,8 @@
 <body>
     <h1>Detalle de la Cita</h1>
 
-    <p><strong>Cliente:</strong> {{ $cita->cliente->usuario->nombre }} {{ $cita->cliente->usuario->apellidos }}</p>
-    <p><strong>Empleado:</strong> {{ $cita->empleado->usuario->nombre }} {{ $cita->empleado->usuario->apellidos }}</p>
+    <p><strong>Cliente:</strong> {{ $cita->cliente->user->nombre }} {{ $cita->cliente->user->apellidos }}</p>
+    <p><strong>Empleado:</strong> {{ $cita->empleado->user->nombre }} {{ $cita->empleado->user->apellidos }}</p>
     @if ($cita->servicios)<strong>Servicios:</strong>
         @foreach ($cita->servicios as $servicio)
             {{ $servicio->nombre }}

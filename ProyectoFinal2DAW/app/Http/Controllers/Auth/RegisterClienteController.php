@@ -2,7 +2,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\Usuario;
+use App\Models\user;
 use App\Models\Cliente;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -31,7 +31,7 @@ class RegisterClienteController extends Controller
             'fecha_registro' => 'required|date',
         ]);
 
-        $user = Usuario::create([
+        $user = user::create([
             'nombre' => $request->nombre,
             'apellidos' => $request->apellidos,
             'telefono' => $request->telefono,
@@ -45,9 +45,9 @@ class RegisterClienteController extends Controller
             'fecha_registro' => $request->fecha_registro,
         ]);
 
-        // Crear registro en tabla clientes vinculado al usuario
+        // Crear registro en tabla clientes vinculado al user
         Cliente::create([
-            'id_usuario' => $user->id,
+            'id_user' => $user->id,
             'direccion' => $request->direccion,
             'notas_adicionales' => $request->notas_adicionales,
             'fecha_registro' => $request->fecha_registro,

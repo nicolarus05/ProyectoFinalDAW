@@ -17,7 +17,7 @@
         <select name="id_empleado" required>
             @foreach($empleados as $empleado)
                 <option value="{{ $empleado->id }}" {{ $horario->id_empleado == $empleado->id ? 'selected' : '' }}>
-                    {{ $empleado->usuario->nombre ?? '' }} {{ $empleado->usuario->apellidos ?? '' }}
+                    {{ $empleado->user->nombre ?? '' }} {{ $empleado->user->apellidos ?? '' }}
                 </option>
             @endforeach
         </select>

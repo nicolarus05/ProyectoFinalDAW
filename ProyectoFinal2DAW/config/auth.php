@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\App;
-use App\Models\Usuario;
+use App\Models\User;
 
 return [
 
@@ -20,13 +20,8 @@ return [
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model' => \App\Models\Usuario::class,
+            'model' => 'App\Models\User',
         ],
-
-        // 'users' => [
-        //     'driver' => 'database',
-        //     'table' => 'users',
-        // ],
     ],
 
     'passwords' => [

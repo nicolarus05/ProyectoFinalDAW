@@ -8,8 +8,8 @@
 <body>
     <h1>Detalle del Cobro</h1>
 
-    <p><strong>Cliente:</strong> {{ $cobro->cita->cliente->usuario->nombre ?? '-' }}</p>
-    <p><strong>Empleado:</strong> {{ $cobro->cita->empleado->usuario->nombre ?? '-' }}</p>
+    <p><strong>Cliente:</strong> {{ $cobro->cita->cliente->user->nombre ?? '-' }}</p>
+    <p><strong>Empleado:</strong> {{ $cobro->cita->empleado->user->nombre ?? '-' }}</p>
     <p><strong>Servicio:</strong> {{ $cobro->cita->servicio->nombre ?? '-' }}</p>
     <p><strong>Coste:</strong> {{ $cobro->coste }} €</p>
     <p><strong>Descuento %:</strong> {{ $cobro->descuento_porcentaje ?? 0 }}%</p>

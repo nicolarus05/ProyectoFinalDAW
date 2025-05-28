@@ -33,14 +33,14 @@
         <tbody>
             @foreach ($empleados as $empleado)
             <tr>
-                <td>{{ $empleado->usuario->nombre ?? '-' }}</td>
-                <td>{{ $empleado->usuario->apellidos ?? '-' }}</td>
-                <td>{{ $empleado->usuario->telefono ?? '-' }}</td>
-                <td>{{ $empleado->usuario->email ?? '-' }}</td>
-                <td>{{ $empleado->usuario->genero ?? '-' }}</td>
-                <td>{{ $empleado->usuario->edad ?? '-' }}</td>
+                <td>{{ $empleado->user->nombre ?? '-' }}</td>
+                <td>{{ $empleado->user->apellidos ?? '-' }}</td>
+                <td>{{ $empleado->user->telefono ?? '-' }}</td>
+                <td>{{ $empleado->user->email ?? '-' }}</td>
+                <td>{{ $empleado->user->genero ?? '-' }}</td>
+                <td>{{ $empleado->user->edad ?? '-' }}</td>
                 <td>{{ $empleado->especializacion ?? '-' }}</td>
-                <td>{{ $empleado->usuario->rol ?? '-' }}</td>
+                <td>{{ $empleado->user->rol ?? '-' }}</td>
                 <td>
                     <a href="{{ route('Empleados.show', $empleado->id) }}">Ver</a>
                     <a href="{{ route('Empleados.edit', $empleado->id) }}">Editar</a>

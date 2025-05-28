@@ -38,13 +38,13 @@
         <textarea name="notas_adicionales"></textarea>
 
         <input type="hidden" name="id_cliente" value="{{ $clientes->id }}">
-        <p>Cliente: {{ $clientes->usuario->nombre }} {{ $clientes->usuario->apellidos }}</p>
+        <p>Cliente: {{ $clientes->user->nombre }} {{ $clientes->user->apellidos }}</p>
 
 
         <label for="id_empleado">Empleado:</label>
         <select name="id_empleado" required>
             @foreach ($empleados as $empleado)
-                <option value="{{ $empleado->id }}">{{ $empleado->usuario->nombre }} {{ $empleado->usuario->apellidos }}</option>
+                <option value="{{ $empleado->id }}">{{ $empleado->user->nombre }} {{ $empleado->user->apellidos }}</option>
             @endforeach
         </select>
 

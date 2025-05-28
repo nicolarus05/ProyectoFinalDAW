@@ -6,11 +6,11 @@
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
 </head>
 <body>
-    <h1>Crear nuevo usuario</h1>
+    <h1>Crear nuevo user</h1>
 
-    <form action="{{ route('Usuarios.store') }}" method="POST">
+    <form action="{{ route('users.store') }}" method="POST">
         @csrf
-        <!--Campos Generales de todos los usuarios -->
+        <!--Campos Generales de todos los users -->
 
         <label>Nombre:</label>
         <input type="text" name="nombre" required><br>
@@ -72,7 +72,7 @@
         <button type="submit">Guardar</button>
     </form>
 
-    <a href="{{ route('Usuarios.index') }}">Volver a la lista</a>
+    <a href="{{ route('users.index') }}">Volver a la lista</a>
 
     <script>
         function mostrarCamposEspecificos() {

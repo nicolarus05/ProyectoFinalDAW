@@ -10,12 +10,12 @@
     <h1>Detalles del cliente</h1>
 
     <ul>
-        <li><strong>Nombre:</strong> {{ $cliente->usuario->nombre }}</li>
-        <li><strong>Apellidos:</strong> {{ $cliente->usuario->apellidos ?? '-' }}</li>
-        <li><strong>Teléfono:</strong> {{ $cliente->usuario->telefono ?? '-' }}</li>
-        <li><strong>Email:</strong> {{ $cliente->usuario->email }}</li>
-        <li><strong>Género:</strong> {{ $cliente->usuario->genero ?? '-' }}</li>
-        <li><strong>Edad:</strong> {{ $cliente->usuario->edad ?? '-' }}</li>
+        <li><strong>Nombre:</strong> {{ $cliente->user->nombre }}</li>
+        <li><strong>Apellidos:</strong> {{ $cliente->user->apellidos ?? '-' }}</li>
+        <li><strong>Teléfono:</strong> {{ $cliente->user->telefono ?? '-' }}</li>
+        <li><strong>Email:</strong> {{ $cliente->user->email }}</li>
+        <li><strong>Género:</strong> {{ $cliente->user->genero ?? '-' }}</li>
+        <li><strong>Edad:</strong> {{ $cliente->user->edad ?? '-' }}</li>
         <li><strong>Dirección:</strong> {{ $cliente->direccion ?? '-' }}</li>
         <li><strong>Notas Adicionales:</strong> {{ $cliente->notas_adicionales ?? '-' }}</li>
         <li><strong>Fecha de Registro:</strong> {{ $cliente->created_at ? $cliente->created_at->format('d/m/Y') : '-' }}</li>

@@ -28,13 +28,13 @@
             <select name="id_cliente" required>
                 @foreach ($clientes as $cliente)
                     <option value="{{ $cliente->id }}" {{ $cita->id_cliente == $cliente->id ? 'selected' : '' }}>
-                        {{ $cliente->usuario->nombre }} {{ $cliente->usuario->apellidos }}
+                        {{ $cliente->user->nombre }} {{ $cliente->user->apellidos }}
                     </option>
                 @endforeach
             </select>
         @else
             <input type="hidden" name="id_cliente" value="{{ $cita->id_cliente }}">
-            <p>Cliente: {{ $cita->cliente->usuario->nombre }} {{ $cita->cliente->usuario->apellidos }}</p>
+            <p>Cliente: {{ $cita->cliente->user->nombre }} {{ $cita->cliente->user->apellidos }}</p>
         @endif
 
 
@@ -42,7 +42,7 @@
         <select name="id_empleado" required>
             @foreach ($empleados as $empleado)
                 <option value="{{ $empleado->id }}" {{ $cita->id_empleado == $empleado->id ? 'selected' : '' }}>
-                    {{ $empleado->usuario->nombre }} {{ $empleado->usuario->apellidos }}
+                    {{ $empleado->user->nombre }} {{ $empleado->user->apellidos }}
                 </option>
             @endforeach
         </select>

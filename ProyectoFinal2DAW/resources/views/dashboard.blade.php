@@ -9,12 +9,12 @@
     <h1>Panel de Control</h1>
 
     @php
-        $usuario = Auth::user();
+        $user = Auth::user();
     @endphp
 
     <a href="{{ route('profile.edit') }}" title="Editar Perfil">
-        @if ($usuario && $usuario->foto_perfil)
-            <img src="{{ asset('storage/' . $usuario->foto_perfil) }}"
+        @if ($user && $user->foto_perfil)
+            <img src="{{ asset('storage/' . $user->foto_perfil) }}"
                 style="width: 50px; height: 50px; object-fit: cover; border-radius: 50%;">
         @else
             <span>Sin foto</span>
@@ -30,7 +30,7 @@
     <ul>
         {{-- Panel del ADMIN --}}
         @if ($rol === 'admin')
-            <li><a href="{{ route('Usuarios.index') }}">Gestionar Usuarios</a></li>
+            <li><a href="{{ route('users.index') }}">Gestionar Usuarios</a></li>
             <li><a href="{{ route('Clientes.index') }}">Gestionar Clientes</a></li>
             <li><a href="{{ route('Empleados.index') }}">Gestionar Empleados</a></li>
             <li><a href="{{ route('Servicios.index') }}">Gestionar Servicios</a></li>

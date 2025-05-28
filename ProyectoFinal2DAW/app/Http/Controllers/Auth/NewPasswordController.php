@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\Usuario; 
+use App\Models\user; 
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,9 +32,9 @@ class NewPasswordController extends Controller
 
         $status = Password::reset(
         $request->only('email', 'password', 'password_confirmation', 'token'),
-        function (Usuario $user) use ($request) {
+        function (user $user) use ($request) {
             // VERIFICAR SI ENTRA AQUÍ
-            Log::info("Entró al callback de reset con usuario: " . $user->email);
+            Log::info("Entró al callback de reset con user: " . $user->email);
 
             $user->forceFill([
                 'password' => Hash::make($request->password),

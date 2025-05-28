@@ -34,16 +34,16 @@
         <tbody>
             @foreach ($clientes as $cliente)
             <tr>
-                <td>{{ $cliente->usuario->nombre ?? '-' }}</td>
-                <td>{{ $cliente->usuario->apellidos ?? '-' }}</td>
-                <td>{{ $cliente->usuario->telefono ?? '-' }}</td>
-                <td>{{ $cliente->usuario->email ?? '-' }}</td>
-                <td>{{ $cliente->usuario->genero ?? '-' }}</td>
-                <td>{{ $cliente->usuario->edad ?? '-' }}</td>
+                <td>{{ $cliente->user->nombre ?? '-' }}</td>
+                <td>{{ $cliente->user->apellidos ?? '-' }}</td>
+                <td>{{ $cliente->user->telefono ?? '-' }}</td>
+                <td>{{ $cliente->user->email ?? '-' }}</td>
+                <td>{{ $cliente->user->genero ?? '-' }}</td>
+                <td>{{ $cliente->user->edad ?? '-' }}</td>
                 <td>{{ $cliente->direccion ?? '-' }}</td>
                 <td>{{ $cliente->notas_adicionales ?? '-' }}</td>
                 <td>{{ $cliente->fecha_registro ?? '-' }}</td>
-                <td>{{ $cliente->usuario->rol ?? '-' }}</td>
+                <td>{{ $cliente->user->rol ?? '-' }}</td>
                 
                 <td>
                     <a href="{{ route('Clientes.show', $cliente->id) }}">Ver</a>

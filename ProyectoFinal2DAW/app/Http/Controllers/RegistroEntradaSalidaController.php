@@ -11,7 +11,7 @@ class RegistroEntradaSalidaController extends Controller{
      * Display a listing of the resource.
      */
     public function index(){
-        $registros = RegistroEntradaSalida::with('empleado.usuario')->get();
+        $registros = RegistroEntradaSalida::with('empleado.user')->get();
         return view('registros.index', compact('registros'));
     }
 

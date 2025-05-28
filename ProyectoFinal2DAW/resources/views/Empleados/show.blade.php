@@ -10,12 +10,12 @@
     <h1>Detalles del empleado</h1>
 
     <ul>
-        <li><strong>Nombre:</strong> {{ $empleado->usuario->nombre }}</li>
-        <li><strong>Apellidos:</strong> {{ $empleado->usuario->apellidos ?? '-' }}</li>
-        <li><strong>Teléfono:</strong> {{ $empleado->usuario->telefono ?? '-' }}</li>
-        <li><strong>Email:</strong> {{ $empleado->usuario->email }}</li>
-        <li><strong>Género:</strong> {{ $empleado->usuario->genero ?? '-' }}</li>
-        <li><strong>Edad:</strong> {{ $empleado->usuario->edad ?? '-' }}</li>
+        <li><strong>Nombre:</strong> {{ $empleado->user->nombre }}</li>
+        <li><strong>Apellidos:</strong> {{ $empleado->user->apellidos ?? '-' }}</li>
+        <li><strong>Teléfono:</strong> {{ $empleado->user->telefono ?? '-' }}</li>
+        <li><strong>Email:</strong> {{ $empleado->user->email }}</li>
+        <li><strong>Género:</strong> {{ $empleado->user->genero ?? '-' }}</li>
+        <li><strong>Edad:</strong> {{ $empleado->user->edad ?? '-' }}</li>
         <li><strong>Epecializacion:</strong> {{ $empleado->especializacion ?? '-' }}</li>
     </ul>
 

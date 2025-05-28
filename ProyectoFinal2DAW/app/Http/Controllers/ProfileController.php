@@ -29,7 +29,7 @@ class ProfileController extends Controller{
             'nombre'     => 'required|string|max:255',
             'apellidos'  => 'required|string|max:255',
             'telefono'   => 'nullable|string|max:20',
-            'email'      => 'required|email|max:255|unique:usuarios,email,' . $user->id,
+            'email'      => 'required|email|max:255|unique:users,email,' . $user->id,
             'genero'     => 'required|string|in:masculino,femenino,otro',
             'edad'       => 'nullable|integer|min:0',
         ]);

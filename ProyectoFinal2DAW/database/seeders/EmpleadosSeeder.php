@@ -14,16 +14,16 @@ class EmpleadosSeeder extends Seeder
      */
     public function run()
     {
-        // Insertar 2 empleados asociados a los usuarios
+        // Insertar 2 empleados asociados a los users
         DB::table('empleados')->insert([
             [
-                'id_usuario' => 1,  // ID del usuario Juan Pérez
+                'id_user' => 1,  // ID del user Juan Pérez
                 'especializacion' => 'Peluquero',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
             [
-                'id_usuario' => 2,  // ID del usuario Ana Gómez
+                'id_user' => 2,  // ID del user Ana Gómez
                 'especializacion' => 'Esteticista',
                 'created_at' => now(),
                 'updated_at' => now(),

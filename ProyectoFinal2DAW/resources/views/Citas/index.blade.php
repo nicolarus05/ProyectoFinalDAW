@@ -32,8 +32,8 @@
         <tbody>
             @foreach ($citas as $cita)
                 <tr>
-                    <td>{{ $cita->cliente->usuario->nombre ?? '-' }} {{ $cita->cliente->usuario->apellidos ?? '' }}</td>
-                    <td>{{ $cita->empleado->usuario->nombre ?? '-' }} {{ $cita->empleado->usuario->apellidos ?? '' }}</td>
+                    <td>{{ $cita->cliente->user->nombre ?? '-' }} {{ $cita->cliente->user->apellidos ?? '' }}</td>
+                    <td>{{ $cita->empleado->user->nombre ?? '-' }} {{ $cita->empleado->user->apellidos ?? '' }}</td>
                     <td>
                         @if ($cita->servicios && count($cita->servicios))
                             @foreach ($cita->servicios as $servicio)

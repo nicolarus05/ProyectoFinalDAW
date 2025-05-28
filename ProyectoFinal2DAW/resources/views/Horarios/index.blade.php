@@ -31,7 +31,7 @@
         <tbody>
             @foreach ($horarios as $horario)
             <tr>
-                <td>{{ $horario->empleado->usuario->nombre ?? '-' }} {{ $horario->empleado->usuario->apellidos ?? '' }}</td>
+                <td>{{ $horario->empleado->user->nombre ?? '-' }} {{ $horario->empleado->user->apellidos ?? '' }}</td>
                 <td>{{ ucfirst($horario->dia_semana) }}</td>
                 <td>{{ $horario->hora_inicio }}</td>
                 <td>{{ $horario->hora_fin }}</td>

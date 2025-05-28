@@ -9,7 +9,7 @@
 <body>
     <h1>Detalle Horario de Trabajo</h1>
 
-    <p><strong>Empleado:</strong> {{ $horario->empleado->usuario->nombre ?? '-' }} {{ $horario->empleado->usuario->apellidos ?? '' }}</p>
+    <p><strong>Empleado:</strong> {{ $horario->empleado->user->nombre ?? '-' }} {{ $horario->empleado->user->apellidos ?? '' }}</p>
     <p><strong>Día de la semana:</strong> {{ ucfirst($horario->dia_semana) }}</p>
     <p><strong>Hora de inicio:</strong> {{ $horario->hora_inicio }}</p>
     <p><strong>Hora de fin:</strong> {{ $horario->hora_fin }}</p>

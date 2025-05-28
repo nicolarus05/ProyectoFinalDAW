@@ -14,22 +14,22 @@
         @method('PUT')
 
         <label for="nombre">Nombre:</label>
-        <input type="text" name="nombre" value="{{ $empleado->usuario->nombre }}" required>
+        <input type="text" name="nombre" value="{{ $empleado->user->nombre }}" required>
 
         <label for="apellidos">Apellidos:</label>
-        <input type="text" name="apellidos" value="{{ $empleado->usuario->apellidos }}">
+        <input type="text" name="apellidos" value="{{ $empleado->user->apellidos }}">
 
         <label for="telefono">Teléfono:</label>
-        <input type="text" name="telefono" value="{{ $empleado->usuario->telefono }}">
+        <input type="text" name="telefono" value="{{ $empleado->user->telefono }}">
 
         <label for="email">Email:</label>
-        <input type="email" name="email" value="{{ $empleado->usuario->email }}">
+        <input type="email" name="email" value="{{ $empleado->user->email }}">
 
         <label for="genero">Género:</label>
-        <input type="text" name="genero" value="{{ $empleado->usuario->genero }}">
+        <input type="text" name="genero" value="{{ $empleado->user->genero }}">
 
         <label for="edad">Edad:</label>
-        <input type="number" name="edad" value="{{ $empleado->usuario->edad }}">
+        <input type="number" name="edad" value="{{ $empleado->user->edad }}">
 
         <label for="especializacion">Especializacion:</label>
         <select name="especializacion"required>

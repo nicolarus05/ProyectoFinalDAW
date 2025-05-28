@@ -12,7 +12,7 @@
         @csrf
         @method('PUT')
 
-        <p><strong>Cliente:</strong> {{ $cobro->cita->cliente->usuario->nombre ?? '-' }}</p>
+        <p><strong>Cliente:</strong> {{ $cobro->cita->cliente->user->nombre ?? '-' }}</p>
         <p><strong>Servicio:</strong> {{ $cobro->cita->servicio->nombre ?? '-' }}</p>
         <p><strong>Coste:</strong> {{ $cobro->coste }} €</p>
         <p><strong>Total Final:</strong> {{ $cobro->total_final }} €</p>

@@ -11,7 +11,7 @@ class HorarioTrabajoController extends Controller{
      * Display a listing of the resource.
      */
     public function index(){
-        $horarios = HorarioTrabajo::with('empleado.usuario')->get();
+        $horarios = HorarioTrabajo::with('empleado.user')->get();
         return view('Horarios.index', compact('horarios'));
     }
 

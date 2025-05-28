@@ -41,7 +41,7 @@
                 // Muestro el nombre del cliente, el nombre del servicio y el precio de la cita seleccionada
                 
                 <option value="{{ $cita->id }}" data-coste="{{ $cita->servicio->precio ?? 0 }}">
-                    {{ $cita->cliente->usuario->nombre ?? '' }} - {{ $cita->servicio->nombre ?? '' }}
+                    {{ $cita->cliente->user->nombre ?? '' }} - {{ $cita->servicio->nombre ?? '' }}
                 </option>
             @endforeach
         </select>

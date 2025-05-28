@@ -1,10 +1,11 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\{
     ProfileController, ClienteController, EmpleadoController,
     CitaController, ServicioController, RegistroCobroController,
-    UsuarioController, HorarioTrabajoController,
+    userController, HorarioTrabajoController,
     Auth\AuthenticatedSessionController, Auth\RegisterClienteController, 
     Auth\PerfilController, Auth\PasswordResetLinkController,
     Auth\NewPasswordController
@@ -13,7 +14,7 @@ use App\Http\Controllers\{
 Route::get('/', fn () => view('welcome'));
 
 Route::get('/dashboard', fn () => view('dashboard'))
-    ->middleware(['auth', 'verified'])
+    ->middleware(['auth'])
     ->name('dashboard');
 
 Route::get('/login', [AuthenticatedSessionController::class, 'create'])
@@ -32,6 +33,7 @@ Route::get('/reset-password/{token}', [NewPasswordController::class, 'create'])
     ->middleware('guest')
     ->name('password.reset');
 
+
 Route::middleware(['auth'])->group(function () {
     // Perfil común
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -41,7 +43,7 @@ Route::middleware(['auth'])->group(function () {
 
 // Rutas solo para ADMIN
 Route::middleware(['auth', 'role:admin'])->group(function () {
-    Route::resource('usuarios', UsuarioController::class)->names('Usuarios');
+    Route::resource('users', userController::class)->names('users');
 
     Route::resource('clientes', ClienteController::class)->names('Clientes');
     Route::resource('empleados', EmpleadoController::class)->names('Empleados');
@@ -84,7 +86,7 @@ Route::middleware(['auth', 'role:admin,empleado,cliente'])->group(function () {
     Route::patch('/citas/{cita}', [CitaController::class, 'update'])->name('Citas.update');
 });
 
-// Rutas para que un usuario se pueda registrar
+// Rutas para que un user se pueda registrar
 Route::middleware('guest')->group(function () {
     Route::get('/register/cliente', [RegisterClienteController::class, 'create'])->name('register.cliente');
     Route::post('/register/cliente', [RegisterClienteController::class, 'store'])->name('register.cliente.store');
