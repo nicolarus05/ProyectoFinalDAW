@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Hash;
+use App\Models\User;
 
 class ProfileController extends Controller{
     /**
@@ -15,7 +16,7 @@ class ProfileController extends Controller{
      */
     public function edit(Request $request): View{
         return view('profile.edit', [
-            'user' => $request->user(),
+            'user' => Auth::user(),
         ]);
     }
 
@@ -23,7 +24,7 @@ class ProfileController extends Controller{
      * Update the user's profile information.
      */
     public function update(Request $request): RedirectResponse{
-        $user = $request->user();
+        $user = Auth::user();
 
         $validated = $request->validate([
             'nombre'     => 'required|string|max:255',
@@ -34,11 +35,18 @@ class ProfileController extends Controller{
             'edad'       => 'nullable|integer|min:0',
         ]);
 
-        $user->fill($validated);
+        $user->nombre = $validated['nombre'];
+        $user->apellidos = $validated['apellidos'];
+        $user->telefono = $validated['telefono'] ?? null;
+        $user->email = $validated['email'];
+        $user->genero = $validated['genero'];
+        $user->edad = $validated['edad'] ?? null;
 
         if ($user->isDirty('email')) {
             $user->email_verified_at = null;
         }
+
+
 
         if ($request->hasFile('foto_perfil')) {
             $path = $request->file('foto_perfil')->store('fotos_perfil', 'public');

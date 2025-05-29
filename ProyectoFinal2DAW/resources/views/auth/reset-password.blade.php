@@ -7,12 +7,10 @@
 <body>
     <h1>Restablecer Contraseña</h1>
 
-    <form method="POST" action="{{ route('password.update') }}">
+    <form method="POST" action="{{ route('password.store') }}">
         @csrf
         <input type="hidden" name="token" value="{{ request()->route('token') }}">
         <input type="hidden" name="token" value="{{ $token ?? '' }}">
-
-        @method('PUT')
 
         <label for="email">Correo electrónico:</label>
         <input type="email" name="email" value="{{ old('email', $request->email) }}" required>
