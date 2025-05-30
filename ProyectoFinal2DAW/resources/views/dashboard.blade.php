@@ -23,7 +23,7 @@
         <a href="{{ route('profile.edit') }}" title="Editar Perfil" class="flex items-center gap-2">
             @if ($user && $user->foto_perfil)
                 <img src="{{ asset('storage/' . $user->foto_perfil) }}"
-                    class="w-16 h-16 object-cover rounded-full border-2 border-black shadow">
+                    class="w-32 h-32 object-cover rounded-full border-2 border-black shadow">
             @else
                 <span class="w-16 h-16 flex items-center justify-center bg-gray-300 rounded-full text-gray-600">Sin foto</span>
             @endif
