@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+/* 🎨 Variables personalizadas si las necesitas en componentes extendidos */
+:root {
+  --color-negro: #000000;
+  --color-gris: #7a7a7a;
+  --color-plata: #c0c0c0;
+}
+
+/* ✅ Componentes reutilizables con @apply */
+.navbar {
+  @apply bg-black text-white px-6 py-4 flex justify-between items-center shadow;
+}
+
+.dropdown {
+  @apply bg-white border border-gray-300 rounded shadow-md absolute right-0 mt-2 min-w-[150px] z-50;
+}
+
+.dropdown-item {
+  @apply px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-700;
+}
+
+.btn {
+  @apply px-4 py-2 rounded text-white bg-black hover:bg-gray-800 transition duration-300;
+}
+
+.form-input {
+  @apply border border-gray-300 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-gray-400;
+}
+
+.table {
+  @apply w-full border-collapse text-sm;
+}
+
+.table th {
+  @apply bg-black text-white px-4 py-2 text-left;
+}
+
+.table td {
+  @apply border-t px-4 py-2;
+}
+
+/* 🌟 Pequeñas animaciones y transiciones */
+.fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

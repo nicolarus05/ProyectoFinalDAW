@@ -3,23 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <title>Bienvenido al Sistema de Gestión</title>
-    <link rel="stylesheet" href="{{ asset('css/styles.css') }}">
+    @vite(['resources/js/app.js'])
 </head>
-<body>
-    <h1>Bienvenido a Nuestro Sistema de Gestión de Citas</h1>
-    <p>Gestiona clientes, empleados, citas y más de forma sencilla.</p>
+<body class="min-h-screen bg-gray-100 flex flex-col items-center justify-center text-center p-4">
 
-    <div class="actions">
+    <header class="mb-8">
+        <h1 class="text-5xl font-extrabold text-black mb-4 transition-all duration-300">
+            Bienvenido a Nuestro Sistema
+        </h1>
+        <p class="text-gray-700 text-lg">Gestiona clientes, empleados, citas y más de forma sencilla.</p>
+    </header>
+
+    <div class="flex flex-col sm:flex-row gap-4">
         @auth
-            <a href="{{ route('dashboard') }}">Ir al Panel</a>
-            <form method="POST" action="{{ route('logout') }}" style="display:inline;">
+            <a href="{{ route('dashboard') }}"
+               class="bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors duration-300 font-semibold">
+                Ir al Panel
+            </a>
+
+            <form method="POST" action="{{ route('logout') }}">
                 @csrf
-                <button type="submit" style="background:none;border:none;color:#4f46e5;font-weight:bold;cursor:pointer;">Cerrar sesión</button>
+                <button type="submit"
+                        class="bg-white text-black px-6 py-3 rounded border border-black hover:bg-gray-200 transition-colors duration-300 font-semibold">
+                    Cerrar sesión
+                </button>
             </form>
         @else
-            <a href="{{ route('login') }}">Iniciar Sesión</a>
-            <a href="{{ route('register.cliente') }}">Registrarse</a>
+            <a href="{{ route('login') }}"
+               class="bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors duration-300 font-semibold">
+                Iniciar Sesión
+            </a>
+
+            <a href="{{ route('register.cliente') }}"
+               class="bg-white text-black px-6 py-3 rounded border border-black hover:bg-gray-200 transition-colors duration-300 font-semibold">
+                Registrarse
+            </a>
         @endauth
     </div>
+
 </body>
 </html>
