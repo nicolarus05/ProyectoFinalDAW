@@ -24,7 +24,8 @@
         <input type="email" name="email" value="{{ old('email') }}" required><br>
 
         <label>Contraseña:</label>
-        <input type="password" name="password" required><br>
+        <button type="button" class="ver-btn" data-target="miPassword">Ver</button>
+        <input type="password" name="password" id="miPassword" required><br>
 
         <label>Confirmar contraseña:</label>
         <input type="password" name="password_confirmation" required><br>
@@ -54,5 +55,6 @@
 
     <br>
     <a href="{{ route('login') }}">¿Ya tienes cuenta? Inicia sesión</a>
+    <script src="{{ asset('js/boton.js') }}" defer></script>
 </body>
 </html>

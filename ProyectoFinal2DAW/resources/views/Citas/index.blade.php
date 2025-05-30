@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Lista de Citas</title>
-    <link rel="stylesheet" type="text/css" href="{{ asset('css/indexCita.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ asset('css/style.css') }}">
     <script>
         function confirmarEliminacion(id) {
             if (confirm('¿Estás seguro de que quieres eliminar esta cita?')) {

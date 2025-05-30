@@ -65,7 +65,7 @@
         <input type="number" name="edad" value="{{ old('edad', $user->edad) }}">
 
         <label for="current_password">Contraseña Actual:</label>
-        <input type="password" name="current_password">
+        <input type="password" name="current_password" id="miPassword">
 
         <label for="password">Nueva Contraseña:</label>
         <input type="password" name="password">
