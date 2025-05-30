@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\File;
 use App\Models\User;
 
 class ProfileController extends Controller{
@@ -46,12 +47,13 @@ class ProfileController extends Controller{
             $user->email_verified_at = null;
         }
 
-
-
-        if ($request->hasFile('foto_perfil')) {
-            $path = $request->file('foto_perfil')->store('fotos_perfil', 'public');
-            $request->user()->foto_perfil = $path;
+        if($request->hasFile('foto_perfil')) {
+            File::delete(public_path('storage/' . $user->foto_perfil)); 
+            $foto = $request['foto_perfil']->store('profiles');
+        }else{
+            $foto = $user->foto_perfil; // Mantener la foto actual si no se subió una nueva
         }
+        $user->foto_perfil = $foto;
 
         $user->save();
 

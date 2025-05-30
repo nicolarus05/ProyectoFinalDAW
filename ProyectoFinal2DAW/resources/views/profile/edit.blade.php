@@ -34,7 +34,7 @@
         {{-- Foto actual --}}
         @if ($user->foto_perfil)
             <div>
-                <img src="{{ asset('storage/' . $user->foto_perfil) }}" alt="Foto de perfil" width="150">
+                <img src="{{ asset('storage/' . $user->foto_perfil) }}" width="150">
             </div>
         @endif
 
