@@ -4,24 +4,53 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Detalles del Cliente</title>
-    <link rel="stylesheet" href="{{ asset('css/styles.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body>
-    <h1>Detalles del cliente</h1>
-
-    <ul>
-        <li><strong>Nombre:</strong> {{ $cliente->user->nombre }}</li>
-        <li><strong>Apellidos:</strong> {{ $cliente->user->apellidos ?? '-' }}</li>
-        <li><strong>Teléfono:</strong> {{ $cliente->user->telefono ?? '-' }}</li>
-        <li><strong>Email:</strong> {{ $cliente->user->email }}</li>
-        <li><strong>Género:</strong> {{ $cliente->user->genero ?? '-' }}</li>
-        <li><strong>Edad:</strong> {{ $cliente->user->edad ?? '-' }}</li>
-        <li><strong>Dirección:</strong> {{ $cliente->direccion ?? '-' }}</li>
-        <li><strong>Notas Adicionales:</strong> {{ $cliente->notas_adicionales ?? '-' }}</li>
-        <li><strong>Fecha de Registro:</strong> {{ $cliente->created_at ? $cliente->created_at->format('d/m/Y') : '-' }}</li>
-    </ul>
-
-    <a href="{{ route('Clientes.edit', $cliente->id) }}">Editar</a>
-    <a href="{{ route('Clientes.index') }}">Volver a la lista</a>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto bg-white p-6 rounded shadow">
+        <h1 class="text-2xl font-semibold mb-6">Detalles del cliente</h1>
+        <ul class="space-y-3">
+            <li>
+                <span class="font-medium">Nombre:</span>
+                <span class="ml-2">{{ $cliente->user->nombre }}</span>
+            </li>
+            <li>
+                <span class="font-medium">Apellidos:</span>
+                <span class="ml-2">{{ $cliente->user->apellidos ?? '-' }}</span>
+            </li>
+            <li>
+                <span class="font-medium">Teléfono:</span>
+                <span class="ml-2">{{ $cliente->user->telefono ?? '-' }}</span>
+            </li>
+            <li>
+                <span class="font-medium">Email:</span>
+                <span class="ml-2">{{ $cliente->user->email }}</span>
+            </li>
+            <li>
+                <span class="font-medium">Género:</span>
+                <span class="ml-2">{{ $cliente->user->genero ?? '-' }}</span>
+            </li>
+            <li>
+                <span class="font-medium">Edad:</span>
+                <span class="ml-2">{{ $cliente->user->edad ?? '-' }}</span>
+            </li>
+            <li>
+                <span class="font-medium">Dirección:</span>
+                <span class="ml-2">{{ $cliente->direccion ?? '-' }}</span>
+            </li>
+            <li>
+                <span class="font-medium">Notas Adicionales:</span>
+                <span class="ml-2">{{ $cliente->notas_adicionales ?? '-' }}</span>
+            </li>
+            <li>
+                <span class="font-medium">Fecha de Registro:</span>
+                <span class="ml-2">{{ $cliente->created_at ? $cliente->created_at->format('d/m/Y') : '-' }}</span>
+            </li>
+        </ul>
+        <div class="flex justify-between mt-8">
+            <a href="{{ route('Clientes.edit', $cliente->id) }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Editar</a>
+            <a href="{{ route('Clientes.index') }}" class="text-blue-600 hover:underline">Volver a la lista</a>
+        </div>
+    </div>
 </body>
 </html>

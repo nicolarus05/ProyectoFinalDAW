@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Lista de Citas</title>
-    <link rel="stylesheet" type="text/css" href="{{ asset('css/style.css') }}">
+    @vite(['resources/js/app.js'])
     <script>
         function confirmarEliminacion(id) {
             if (confirm('¿Estás seguro de que quieres eliminar esta cita?')) {
@@ -12,55 +12,80 @@
         }
     </script>
 </head>
-<body>
-    <h1>Citas registradas</h1>
+<body class="min-h-screen bg-gray-100 flex flex-col items-center p-6">
 
-    <a href="{{ route('Citas.create') }}" class="btn btn-primary">Añadir nueva cita</a>
+    <header class="text-center mb-8">
+        <h1 class="text-4xl font-extrabold text-black mb-2">Citas Registradas</h1>
+        <a href="{{ route('Citas.create') }}"
+           class="inline-block bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition-colors duration-300 font-semibold mt-4">
+            Añadir Nueva Cita
+        </a>
+    </header>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Cliente</th>
-                <th>Empleado</th>
-                <th>Servicio</th>
-                <th>Notas Adicionales</th>
-                <th>Fecha y Hora</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach ($citas as $cita)
+    <div class="overflow-x-auto w-full max-w-7xl bg-white shadow-md rounded-lg">
+        <table class="min-w-full divide-y divide-gray-200 text-sm text-gray-800">
+            <thead class="bg-gray-50 text-xs uppercase text-gray-600">
                 <tr>
-                    <td>{{ $cita->cliente->user->nombre ?? '-' }} {{ $cita->cliente->user->apellidos ?? '' }}</td>
-                    <td>{{ $cita->empleado->user->nombre ?? '-' }} {{ $cita->empleado->user->apellidos ?? '' }}</td>
-                    <td>
-                        @if ($cita->servicios && count($cita->servicios))
-                            @foreach ($cita->servicios as $servicio)
-                                {{ $servicio->nombre }}@if (!$loop->last), @endif
-                            @endforeach
-                        @else
-                            No hay servicios asociados a esta cita.
-                        @endif
-                    </td>
-
-                    <td>{{ $cita->notas_adicionales ?? '-' }}</td>
-                    <td>{{ $cita->fecha_hora }}</td>
-                    <td>{{ ucfirst($cita->estado) }}</td>
-                    <td>
-                        <a href="{{ route('Citas.show', $cita->id) }}">Ver</a>
-                        <a href="{{ route('Citas.edit', $cita->id) }}">Editar</a>
-                        <form id="delete-form-{{ $cita->id }}" action="{{ route('Citas.destroy', $cita->id) }}" method="POST" style="display:inline;">
-                            @csrf
-                            @method('DELETE')
-                            <button type="button" onclick="confirmarEliminacion({{ $cita->id }})">Eliminar</button>
-                        </form>
-                    </td>
+                    <th class="px-4 py-3 text-left">Cliente</th>
+                    <th class="px-4 py-3 text-left">Empleado</th>
+                    <th class="px-4 py-3 text-left">Servicio</th>
+                    <th class="px-4 py-3 text-left">Notas Adicionales</th>
+                    <th class="px-4 py-3 text-left">Fecha y Hora</th>
+                    <th class="px-4 py-3 text-left">Estado</th>
+                    <th class="px-4 py-3 text-left">Acciones</th>
                 </tr>
-            @endforeach
-        </tbody>
-    </table>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                @foreach ($citas as $cita)
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-2">
+                            {{ $cita->cliente->user->nombre ?? '-' }} {{ $cita->cliente->user->apellidos ?? '' }}
+                        </td>
+                        <td class="px-4 py-2">
+                            {{ $cita->empleado->user->nombre ?? '-' }} {{ $cita->empleado->user->apellidos ?? '' }}
+                        </td>
+                        <td class="px-4 py-2">
+                            @if ($cita->servicios && count($cita->servicios))
+                                @foreach ($cita->servicios as $servicio)
+                                    {{ $servicio->nombre }}@if (!$loop->last), @endif
+                                @endforeach
+                            @else
+                                <span class="text-gray-400 italic">No hay servicios</span>
+                            @endif
+                        </td>
+                        <td class="px-4 py-2">{{ $cita->notas_adicionales ?? '-' }}</td>
+                        <td class="px-4 py-2">{{ $cita->fecha_hora }}</td>
+                        <td class="px-4 py-2">{{ ucfirst($cita->estado) }}</td>
+                        <td class="px-4 py-2 flex flex-col sm:flex-row sm:items-center gap-2">
+                            <a href="{{ route('Citas.show', $cita->id) }}"
+                               class="text-blue-600 hover:underline">Ver</a>
+                            <a href="{{ route('Citas.edit', $cita->id) }}"
+                               class="text-yellow-600 hover:underline">Editar</a>
+                            <form id="delete-form-{{ $cita->id }}"
+                                  action="{{ route('Citas.destroy', $cita->id) }}"
+                                  method="POST"
+                                  onsubmit="return false;">
+                                @csrf
+                                @method('DELETE')
+                                <button type="button"
+                                        onclick="confirmarEliminacion({{ $cita->id }})"
+                                        class="text-red-600 hover:underline">
+                                    Eliminar
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
 
-    <a href="{{ route('dashboard') }}">Volver al Inicio</a>
+    <div class="mt-6">
+        <a href="{{ route('dashboard') }}"
+           class="text-black px-4 py-2 rounded border border-black hover:bg-gray-200 transition-colors duration-300 font-semibold">
+            Volver al Inicio
+        </a>
+    </div>
+
 </body>
 </html>
