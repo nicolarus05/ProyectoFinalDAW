@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Registrar Cobro</title>
-    <link rel="stylesheet" href="{{ asset('css/styles.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script>
         function actualizarCosteYTotales() {
             const select = document.getElementById('id_cita');
@@ -29,52 +29,73 @@
         }
     </script>
 </head>
-<body>
-    <h1>Registrar Cobro</h1>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-xl mx-auto bg-white p-6 rounded shadow">
+        <h1 class="text-3xl font-bold mb-6">Registrar Cobro</h1>
 
-    <form action="{{ route('Cobros.store') }}" method="POST" oninput="calcularTotales()" onchange="actualizarCosteYTotales()">
-        @csrf
+        <form action="{{ route('Cobros.store') }}" method="POST" oninput="calcularTotales()" onchange="actualizarCosteYTotales()" class="space-y-4">
+            @csrf
 
-        <label for="id_cita">Cita:</label>
-        <select name="id_cita" id="id_cita" required>
-            @foreach($citas as $cita)
-                // Muestro el nombre del cliente, el nombre del servicio y el precio de la cita seleccionada
-                
-                <option value="{{ $cita->id }}" data-coste="{{ $cita->servicio->precio ?? 0 }}">
-                    {{ $cita->cliente->user->nombre ?? '' }} - {{ $cita->servicio->nombre ?? '' }}
-                </option>
-            @endforeach
-        </select>
+            <div>
+                <label for="id_cita" class="block font-semibold mb-1">Cita:</label>
+                <select name="id_cita" id="id_cita" required class="w-full border rounded px-3 py-2">
+                    @foreach($citas as $cita)
+                        @php
+                            $costeTotal = $cita->servicios->sum('precio');
+                            $nombresServicios = $cita->servicios->pluck('nombre')->implode(', ');
+                        @endphp
+                        <option value="{{ $cita->id }}" data-coste="{{ $costeTotal }}">
+                            {{ $cita->cliente->user->nombre ?? '' }} - {{ $nombresServicios }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
 
-        <label for="coste">Coste:</label>
-        <input type="number" name="coste" id="coste" step="0.01" readonly>
+            <div>
+                <label for="coste" class="block font-semibold mb-1">Coste:</label>
+                <input type="number" name="coste" id="coste" required class="w-full border rounded px-3 py-2" step="0.01">
+            </div>
 
-        <label for="descuento_porcentaje">Descuento %:</label>
-        <input type="number" name="descuento_porcentaje" id="descuento_porcentaje" step="0.01">
+            <div class="flex space-x-4">
+                <div class="flex-1">
+                    <label for="descuento_porcentaje" class="block font-semibold mb-1">Descuento %:</label>
+                    <input type="number" name="descuento_porcentaje" id="descuento_porcentaje" class="w-full border rounded px-3 py-2" step="0.01">
+                </div>
+                <div class="flex-1">
+                    <label for="descuento_euro" class="block font-semibold mb-1">Descuento €:</label>
+                    <input type="number" name="descuento_euro" id="descuento_euro" class="w-full border rounded px-3 py-2" step="0.01">
+                </div>
+            </div>
 
-        <label for="descuento_euro">Descuento €:</label>
-        <input type="number" name="descuento_euro" id="descuento_euro" step="0.01">
+            <div>
+                <label for="total_final" class="block font-semibold mb-1">Total Final:</label>
+                <input type="number" name="total_final" id="total_final" required class="w-full border rounded px-3 py-2" step="0.01">
+            </div>
 
-        <label for="total_final">Total Final:</label>
-        <input type="number" name="total_final" id="total_final" step="0.01" readonly>
+            <div>
+                <label for="dinero_cliente" class="block font-semibold mb-1">Dinero del Cliente:</label>
+                <input type="number" name="dinero_cliente" id="dinero_cliente" required class="w-full border rounded px-3 py-2" step="0.01">
+            </div>
 
-        <label for="dinero_cliente">Dinero del Cliente:</label>
-        <input type="number" name="dinero_cliente" id="dinero_cliente" step="0.01" required>
+            <div>
+                <label for="cambio" class="block font-semibold mb-1">Cambio:</label>
+                <input type="number" name="cambio" id="cambio" class="w-full border rounded px-3 py-2" step="0.01">
+            </div>
 
-        <label for="cambio">Cambio:</label>
-        <input type="number" name="cambio" id="cambio" step="0.01" readonly>
+            <div>
+                <label for="metodo_pago" class="block font-semibold mb-1">Método de Pago:</label>
+                <select name="metodo_pago" required class="w-full border rounded px-3 py-2">
+                    <option value="efectivo">Efectivo</option>
+                    <option value="tarjeta">Tarjeta</option>
+                </select>
+            </div>
 
-        <label for="metodo_pago">Método de Pago:</label>
-        <select name="metodo_pago" required>
-            <option value="efectivo">Efectivo</option>
-            <option value="tarjeta">Tarjeta</option>
-        </select>
-
-        <button type="submit">Registrar</button>
-    </form>
-
-    <a href="{{ route('Cobros.index') }}">Volver</a>
-
+            <div class="flex justify-between items-center mt-6">
+                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Registrar</button>
+                <a href="{{ route('Cobros.index') }}" class="text-blue-600 hover:underline">Volver</a>
+            </div>
+        </form>
+    </div>
     <script>
         window.onload = actualizarCosteYTotales;
     </script>
