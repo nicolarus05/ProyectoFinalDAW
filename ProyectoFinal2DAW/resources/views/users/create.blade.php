@@ -3,96 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <title>Crear Usuario</title>
-    <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body>
-    <h1>Crear nuevo user</h1>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-xl mx-auto bg-white p-8 rounded shadow">
+        <h1 class="text-3xl font-bold mb-6">Crear nuevo usuario</h1>
 
-    <form action="{{ route('users.store') }}" method="POST">
-        @csrf
-        <!--Campos Generales de todos los users -->
+        <form action="{{ route('users.store') }}" method="POST" class="space-y-4">
+            @csrf
 
-        <label>Nombre:</label>
-        <input type="text" name="nombre" required><br>
+            <!-- Nombre y Apellidos en línea -->
+            <div class="flex space-x-4">
+                <div class="flex-1">
+                    <label class="block font-semibold mb-1">Nombre:</label>
+                    <input type="text" name="nombre" required class="w-full border rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300">
+                </div>
+                <div class="flex-1">
+                    <label class="block font-semibold mb-1">Apellidos:</label>
+                    <input type="text" name="apellidos" required class="w-full border rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300">
+                </div>
+            </div>
 
-        <label>Apellidos:</label>
-        <input type="text" name="apellidos" required><br>
+            <div>
+                <label class="block font-semibold mb-1">Email:</label>
+                <input type="email" name="email" required class="w-full border rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300">
+            </div>
 
-        <label>Email:</label>
-        <input type="email" name="email" required><br>
+            <!-- Teléfono y Edad en línea -->
+            <div class="flex space-x-4">
+                <div class="flex-1">
+                    <label class="block font-semibold mb-1">Teléfono:</label>
+                    <input type="text" name="telefono" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300">
+                </div>
+                <div class="flex-1">
+                    <label class="block font-semibold mb-1">Edad:</label>
+                    <input type="number" name="edad" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300">
+                </div>
+            </div>
 
-        <label>Teléfono:</label>
-        <input type="text" name="telefono"><br>
+            <div>
+                <label class="block font-semibold mb-1">Género:</label>
+                <select name="genero" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300">
+                    <option value="Masculino">Masculino</option>
+                    <option value="Femenino">Femenino</option>
+                    <option value="Otro">Otro</option>
+                </select>
+            </div>
 
-        <label>Edad:</label>
-        <input type="number" name="edad"><br>
+            <div>
+                <label class="block font-semibold mb-1">Contraseña:</label>
+                <input type="password" name="password" required class="w-full border rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300">
+            </div>
 
-        <label>Género:</label>
-        <select name="genero">
-            <option value="Masculino">Masculino</option>
-            <option value="Femenino">Femenino</option>
-            <option value="Otro">Otro</option>
-        </select><br>
+            <div>
+                <label class="block font-semibold mb-1">Rol:</label>
+                <select name="rol" id="rol" onchange="mostrarCamposEspecificos()" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300">
+                    <option value="">-- Selecciona un rol --</option>
+                    <option value="cliente">Cliente</option>
+                    <option value="empleado">Empleado</option>
+                    <option value="admin">Administrador</option>
+                </select>
+            </div>
 
-        <label>Contraseña:</label>
-        <input type="password" name="password" required><br>
+            <!-- Campos específicos para empleados -->
+            <div id="campos-empleado" style="display:none;">
+                <label for="especializacion" class="block font-semibold mb-1">Especialización:</label>
+                <select name="especializacion" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300">
+                    <option value="">-- Seleccione --</option>
+                    <option value="Esteticien">Esteticista</option>
+                    <option value="Peluquera">Peluquera</option>
+                </select>
+            </div>
 
-        <label>Rol:</label>
-        <select name="rol" id="rol" onchange="mostrarCamposEspecificos()">
-            <option value="">-- Selecciona un rol --</option>
-            <option value="cliente">Cliente</option>
-            <option value="empleado">Empleado</option>
-            <option value="admin">Administrador</option>
-        </select><br>
+            <!-- Campos específicos para Clientes -->
+            <div id="campos-cliente" style="display:none;">
+                <div class="mt-4">
+                    <label class="block font-semibold mb-1">Dirección:</label>
+                    <input type="text" name="direccion" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300">
+                </div>
+                <div class="mt-4">
+                    <label class="block font-semibold mb-1">Fecha de Registro</label>
+                    <input type="date" name="fecha_registro" value="{{ date('Y-m-d') }}" readonly class="w-full border rounded px-3 py-2 bg-gray-100">
+                </div>
+                <div class="mt-4">
+                    <label class="block font-semibold mb-1">Notas Adicionales:</label>
+                    <textarea name="notas_adicionales" rows="4" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300"></textarea>
+                </div>
+            </div>
+            
+            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 font-semibold">Guardar</button>
+        </form>
 
-        <!-- Campos específicos para empleados -->
-        <div id="campos-empleado" style="display:none;">
-
-            <label for="especializacion">Especializacion:</label>
-            <select name="especializacion">
-                <option value="">-- Seleccione --</option>
-                <option value="Esteticien">Esteticista</option>
-                <option value="Peluquera">Peluquera</option>
-            </select>
+        <div class="mt-6">
+            <a href="{{ route('users.index') }}" class="text-blue-600 hover:underline">Volver a la lista</a>
         </div>
-
-        <!-- Campos específicos para Clientes -->
-        <div id="campos-cliente" style="display:none;">
-
-            <label>Dirección:</label>
-            <input type="text" name="direccion"><br>
-
-            <label>Fecha de Registro</label>
-            <input type="date" name="fecha_registro" value="{{ date('Y-m-d') }}" readonly><br>
-
-            <label>Notas Adicionales:</label>
-            <textarea name="notas_adicionales" rows="4" cols="50"></textarea><br>
-        </div>
-        
-        <button type="submit">Guardar</button>
-    </form>
-
-    <a href="{{ route('users.index') }}">Volver a la lista</a>
+    </div>
 
     <script>
         function mostrarCamposEspecificos() {
             const rol = document.getElementById('rol').value;
-
             const clienteFields = document.getElementById('campos-cliente');
             const empleadoFields = document.getElementById('campos-empleado');
-
             clienteFields.style.display = 'none';
             empleadoFields.style.display = 'none';
-
             if (rol === 'cliente') {
                 clienteFields.style.display = 'block';
             } else if (rol === 'empleado') {
                 empleadoFields.style.display = 'block';
             }
         }
-
         document.addEventListener('DOMContentLoaded', function () {
-            mostrarCamposEspecificos(); // por si ya está preseleccionado
+            mostrarCamposEspecificos();
         });
     </script>
 </body>

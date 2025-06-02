@@ -3,34 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <title>Editar Servicio</title>
-    <link rel="stylesheet" href="{{ asset('css/styles.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Tailwind CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body>
-    <h1>Editar servicio</h1>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-xl mx-auto bg-white p-6 rounded shadow">
+        <h1 class="text-3xl font-bold mb-6">Editar servicio</h1>
 
-    <form action="{{ route('Servicios.update', $servicio->id) }}" method="POST">
-        @csrf
-        @method('PUT')
+        <form action="{{ route('Servicios.update', $servicio->id) }}" method="POST" class="space-y-4">
+            @csrf
+            @method('PUT')
 
-        <label>Nombre:</label>
-        <input type="text" name="nombre" value="{{ $servicio->nombre }}" required>
+            <div>
+                <label class="block font-semibold mb-1">Nombre:</label>
+                <input type="text" name="nombre" value="{{ $servicio->nombre }}" required
+                    class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+            </div>
 
-        <label>Precio (€):</label>
-        <input type="number" name="precio" step="0.01" value="{{ $servicio->precio }}" required>
+            <div>
+                <label class="block font-semibold mb-1">Precio (€):</label>
+                <input type="number" name="precio" step="0.01" value="{{ $servicio->precio }}" required
+                    class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+            </div>
 
-        <label>Tiempo estimado (minutos):</label>
-        <input type="number" name="tiempo_estimado" value="{{ $servicio->tiempo_estimado }}" required>
+            <div>
+                <label class="block font-semibold mb-1">Tiempo estimado (minutos):</label>
+                <input type="number" name="tiempo_estimado" value="{{ $servicio->tiempo_estimado }}" required
+                    class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+            </div>
 
-        <label>Tipo:</label>
-        <select name="tipo" required>
-            <option value="">Seleccione</option>
-            <option value="Peluqueria" {{ $servicio->tipo == 'Peluqueria' ? 'selected' : '' }}>Peluqueria</option>
-            <option value="Estetica" {{ $servicio->tipo == 'Estetica' ? 'selected' : '' }}>Estetica</option>
-        </select>
+            <div>
+                <label class="block font-semibold mb-1">Tipo:</label>
+                <select name="tipo" required
+                    class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    <option value="">Seleccione</option>
+                    <option value="Peluqueria" {{ $servicio->tipo == 'Peluqueria' ? 'selected' : '' }}>Peluqueria</option>
+                    <option value="Estetica" {{ $servicio->tipo == 'Estetica' ? 'selected' : '' }}>Estetica</option>
+                </select>
+            </div>
 
-        <button type="submit">Actualizar</button>
-    </form>
-
-    <a href="{{ route('Servicios.index') }}">Volver</a>
+            <div class="flex items-center space-x-4">
+                <button type="submit"
+                    class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-semibold">Actualizar</button>
+                <a href="{{ route('Servicios.index') }}"
+                    class="text-blue-600 hover:underline">Volver</a>
+            </div>
+        </form>
+    </div>
 </body>
 </html>
