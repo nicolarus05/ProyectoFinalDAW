@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Panel de Control</title>
-    @vite(['resources/js/app.js'])
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-gray-100 flex flex-col items-center justify-center text-center p-4">
 

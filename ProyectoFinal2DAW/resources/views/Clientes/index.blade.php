@@ -14,12 +14,12 @@
     </script>
 </head>
 <body class="bg-gray-100 p-6">
-    <div class="max-w-7xl mx-auto bg-white shadow-md rounded p-6">
+    <div class="w-full max-w-none mx-auto bg-white shadow-md rounded p-6">
         <h1 class="text-3xl font-bold mb-4">Clientes registrados</h1>
         <a href="{{ route('Clientes.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Añadir un nuevo cliente</a>
 
-        <div class="overflow-x-auto mt-4">
-            <table class="min-w-full text-sm text-left">
+        <div class="mt-4">
+            <table class="w-full table-auto text-sm text-left break-words">
                 <thead class="bg-gray-200">
                     <tr>
                         <th class="px-4 py-2">Nombre</th>
