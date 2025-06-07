@@ -49,7 +49,7 @@ class ProfileController extends Controller{
 
         if($request->hasFile('foto_perfil')) {
             File::delete(public_path('storage/' . $user->foto_perfil)); 
-            $foto = $request['foto_perfil']->store('profiles');
+            $foto = $request['foto_perfil']->store('profiles', 'public');
         }else{
             $foto = $user->foto_perfil; // Mantener la foto actual si no se subió una nueva
         }
