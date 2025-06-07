@@ -26,7 +26,7 @@
                 <thead class="bg-gray-200">
                     <tr>
                         <th class="p-2 border">Empleado</th>
-                        <th class="p-2 border">Día de la Semana</th>
+                        <th class="p-2 border">Fecha</th>
                         <th class="p-2 border">Hora Inicio</th>
                         <th class="p-2 border">Hora Fin</th>
                         <th class="p-2 border">Disponible</th>
@@ -37,7 +37,7 @@
                     @foreach ($horarios as $horario)
                     <tr class="text-center border-t">
                         <td class="p-2 border">{{ $horario->empleado->user->nombre ?? '-' }} {{ $horario->empleado->user->apellidos ?? '' }}</td>
-                        <td class="p-2 border">{{ ucfirst($horario->dia_semana) }}</td>
+                        <td class="p-2 border">{{ \Carbon\Carbon::parse($horario->fecha)->format('d/m/Y') }}</td>
                         <td class="p-2 border">{{ $horario->hora_inicio }}</td>
                         <td class="p-2 border">{{ $horario->hora_fin }}</td>
                         <td class="p-2 border">{{ $horario->disponible ? 'Sí' : 'No' }}</td>

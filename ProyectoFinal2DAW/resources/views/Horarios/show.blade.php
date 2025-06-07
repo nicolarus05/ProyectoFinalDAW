@@ -16,9 +16,10 @@
                 <span>{{ $horario->empleado->user->nombre ?? '-' }} {{ $horario->empleado->user->apellidos ?? '' }}</span>
             </div>
             <div>
-                <span class="font-semibold">Día de la semana:</span>
-                <span>{{ ucfirst($horario->dia_semana) }}</span>
+                <span class="font-semibold">Fecha:</span>
+                <span>{{ \Carbon\Carbon::parse($horario->fecha)->format('d/m/Y') }}</span>
             </div>
+
             <div>
                 <span class="font-semibold">Hora de inicio:</span>
                 <span>{{ $horario->hora_inicio }}</span>

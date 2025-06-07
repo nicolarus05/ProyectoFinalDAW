@@ -26,15 +26,10 @@
             </div>
 
             <div>
-                <label for="dia_semana" class="block font-semibold mb-1">Día de la semana:</label>
-                <select name="dia_semana" required class="w-full border border-gray-300 rounded px-3 py-2">
-                    @foreach(['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'] as $dia)
-                        <option value="{{ $dia }}" {{ $horario->dia_semana == $dia ? 'selected' : '' }}>
-                            {{ ucfirst($dia) }}
-                        </option>
-                    @endforeach
-                </select>
+                <label for="fecha" class="block font-semibold mb-1">Fecha:</label>
+                <input type="date" name="fecha" id="fecha" value="{{ $horario->fecha }}" required class="w-full border border-gray-300 rounded px-3 py-2">
             </div>
+
 
             <div>
                 <label for="hora_inicio" class="block font-semibold mb-1">Hora inicio:</label>

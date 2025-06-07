@@ -29,11 +29,12 @@ class HorarioTrabajoController extends Controller{
     public function store(Request $request){
         $data = $request->validate([
             'id_empleado' => 'required|exists:empleados,id',
-            'dia_semana' => 'required|in:lunes,martes,miércoles,jueves,viernes,sábado',
+            'fecha' => 'required|date|after_or_equal:today',
             'hora_inicio' => 'required|date_format:H:i',
-            'hora_fin' => 'required|date_format:H:i',
+            'hora_fin' => 'required|date_format:H:i|after:hora_inicio',
             'disponible' => 'boolean',
         ]);
+
 
         HorarioTrabajo::create($data);
         return redirect()->route('Horarios.index');
@@ -59,15 +60,14 @@ class HorarioTrabajoController extends Controller{
      */
     public function update(Request $request, HorarioTrabajo $horario){
 
-        //dd($request->all());
-
         $data = $request->validate([
             'id_empleado' => 'required|exists:empleados,id',
-            'dia_semana' => 'required|in:lunes,martes,miércoles,jueves,viernes,sábado',
-            'hora_inicio' => 'required|date_format:H:i:s',
-            'hora_fin' => 'required|date_format:H:i:s',
+            'fecha' => 'required|date|after_or_equal:today',
+            'hora_inicio' => 'required|date_format:H:i',
+            'hora_fin' => 'required|date_format:H:i|after:hora_inicio',
             'disponible' => 'boolean',
         ]);
+
 
         $horario->update($data);
         return redirect()->route('Horarios.index')->with('success', 'El horario ha sido actualizado con éxito.');

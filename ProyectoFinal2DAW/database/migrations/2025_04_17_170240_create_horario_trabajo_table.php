@@ -14,11 +14,13 @@ return new class extends Migration
         Schema::create('horario_trabajo', function (Blueprint $table) {
             $table->id();
             $table->foreignId('id_empleado')->constrained('empleados')->onDelete('cascade');
-            $table->enum('dia_semana', ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']);
+            $table->date('fecha');
             $table->time('hora_inicio');
             $table->time('hora_fin');
             $table->boolean('disponible')->default(true); // Indica si el empleado está disponible en ese horario
             $table->timestamps();
+
+            $table->unique(['id_empleado', 'fecha', 'hora_inicio']);
         });
     }
 

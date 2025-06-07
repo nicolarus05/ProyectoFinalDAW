@@ -26,17 +26,10 @@
             </div>
 
             <div>
-                <label for="dia_semana" class="block font-semibold mb-1">Día de la semana:</label>
-                <select name="dia_semana" id="dia_semana" required class="w-full border border-gray-300 rounded px-3 py-2">
-                    <option value="">Seleccione un día</option>
-                    <option value="lunes">Lunes</option>
-                    <option value="martes">Martes</option>
-                    <option value="miércoles">Miércoles</option>
-                    <option value="jueves">Jueves</option>
-                    <option value="viernes">Viernes</option>
-                    <option value="sábado">Sábado</option>
-                </select>
+                <label for="fecha" class="block font-semibold mb-1">Fecha:</label>
+                <input type="date" name="fecha" id="fecha" required class="w-full border border-gray-300 rounded px-3 py-2">
             </div>
+
 
             <div>
                 <label for="hora_inicio" class="block font-semibold mb-1">Hora de inicio:</label>

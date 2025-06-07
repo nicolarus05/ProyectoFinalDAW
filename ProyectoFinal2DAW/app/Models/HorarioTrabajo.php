@@ -13,7 +13,7 @@ class HorarioTrabajo extends Model{
     // Definición de las columnas de la tabla
     protected $fillable = [
         'id_empleado',
-        'dia_semana',
+        'fecha',
         'hora_inicio',
         'hora_fin',
         'disponible',
