@@ -88,7 +88,7 @@
 
         <div>
             <label class="block text-gray-700 font-semibold mb-1">Fecha de registro:</label>
-            <input type="date" name="fecha_registro" value="{{ old('fecha_registro', date('Y-m-d')) }}" required
+            <input type="date" name="fecha_registro" value="{{ old('fecha_registro', date('Y-m-d')) }}" required readonly
                 class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black">
         </div>
 
