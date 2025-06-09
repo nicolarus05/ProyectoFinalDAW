@@ -51,8 +51,28 @@
                       class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"></textarea>
         </div>
 
-        <input type="hidden" name="id_cliente" value="{{ $clientes->id }}">
-        <p class="text-gray-800 text-sm font-medium">Cliente: {{ $clientes->user->nombre }} {{ $clientes->user->apellidos }}</p>
+        @if(Auth::user()->rol === 'cliente')
+            {{-- Cliente autenticado: campo oculto --}}
+            <input type="hidden" name="id_cliente" value="{{ $clientes->id }}">
+            <p class="text-gray-800 text-sm font-medium">
+                Cliente: {{ $clientes->user->nombre }} {{ $clientes->user->apellidos }}
+            </p>
+        @else
+            {{-- Admin o empleado: selección de cliente --}}
+            <div>
+                <label for="id_cliente" class="block text-gray-700 font-semibold mb-1">Cliente:</label>
+                <select name="id_cliente" required
+                        class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    <option value="">Seleccione un cliente</option>
+                    @foreach($clientes as $cliente)
+                        <option value="{{ $cliente->id }}">
+                            {{ $cliente->user->nombre }} {{ $cliente->user->apellidos }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+        @endif
+
 
         <div>
             <label for="id_empleado" class="block text-gray-700 font-semibold mb-1">Empleado:</label>
