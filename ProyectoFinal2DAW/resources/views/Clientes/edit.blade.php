@@ -10,7 +10,7 @@
     <div class="max-w-4xl mx-auto bg-white p-6 rounded shadow">
         <h1 class="text-2xl font-semibold mb-6">Editar cliente</h1>
 
-        <form action="{{ route('Clientes.update', $cliente->id) }}" method="POST" class="space-y-4">
+        <form action="{{ route('clientes.update', $cliente->id) }}" method="POST" class="space-y-4">
             @csrf
             @method('PUT')
 
@@ -68,7 +68,7 @@
 
             <div class="flex justify-between mt-6">
                 <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Actualizar</button>
-                <a href="{{ route('Clientes.index') }}" class="text-blue-600 hover:underline">Volver a la lista</a>
+                <a href="{{ route('clientes.index') }}" class="text-blue-600 hover:underline">Volver a la lista</a>
             </div>
         </form>
     </div>

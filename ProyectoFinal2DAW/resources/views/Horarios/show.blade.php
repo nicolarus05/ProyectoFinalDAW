@@ -35,7 +35,7 @@
         </div>
 
         <div class="mt-6">
-            <a href="{{ route('Horarios.index') }}" class="text-blue-600 hover:underline">Volver a la lista</a>
+            <a href="{{ route('horarios.index') }}" class="text-blue-600 hover:underline">Volver a la lista</a>
         </div>
     </div>
 </body>

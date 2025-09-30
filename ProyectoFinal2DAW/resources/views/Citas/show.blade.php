@@ -32,7 +32,7 @@
         </div>
 
         <div class="mt-6 text-center">
-            <a href="{{ route('Citas.index') }}"
+            <a href="{{ route('citas.index') }}"
                class="inline-block bg-black text-white px-6 py-2 rounded hover:bg-gray-800 transition-colors duration-300 font-semibold">
                 Volver
             </a>

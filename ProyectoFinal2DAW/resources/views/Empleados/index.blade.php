@@ -18,7 +18,7 @@
         <h1 class="text-3xl font-bold mb-6">Empleados registrados</h1>
 
         <div class="mb-4">
-            <a href="{{ route('Empleados.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Añadir un nuevo empleado</a>
+            <a href="{{ route('empleados.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Añadir un nuevo empleado</a>
         </div>
 
         <div class="overflow-x-auto">
@@ -46,9 +46,9 @@
                         <td class="p-2 border">{{ $empleado->user->edad ?? '-' }}</td>
                         <td class="p-2 border">{{ $empleado->especializacion ?? '-' }}</td>
                         <td class="p-2 border space-y-1">
-                            <a href="{{ route('Empleados.show', $empleado->id) }}" class="text-blue-600 hover:underline block">Ver</a>
-                            <a href="{{ route('Empleados.edit', $empleado->id) }}" class="text-yellow-600 hover:underline block">Editar</a>
-                            <form id="delete-form-{{ $empleado->id }}" action="{{ route('Empleados.destroy', $empleado->id) }}" method="POST" style="display:inline;" onsubmit="return false;">
+                            <a href="{{ route('empleados.show', $empleado->id) }}" class="text-blue-600 hover:underline block">Ver</a>
+                            <a href="{{ route('empleados.edit', $empleado->id) }}" class="text-yellow-600 hover:underline block">Editar</a>
+                            <form id="delete-form-{{ $empleado->id }}" action="{{ route('empleados.destroy', $empleado->id) }}" method="POST" style="display:inline;" onsubmit="return false;">
                                 @csrf
                                 @method('DELETE')
                                 <button type="button" class="text-red-600 hover:underline" onclick="confirmarEliminacion({{ $empleado->id }})">Eliminar</button>

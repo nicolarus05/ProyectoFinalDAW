@@ -12,13 +12,13 @@ class RegistroEntradaSalida extends Model{
 
     // Definición de las columnas de la tabla
     protected $fillable = [
-        'empleado_id',
+        'id_empleado',
         'fecha',
         'hora_entrada',
         'hora_salida',
     ];
 
     public function empleado(){
-        return $this->belongsTo(Empleado::class, 'empleado_id');
+        return $this->belongsTo(Empleado::class, 'id_empleado');
     }
 }

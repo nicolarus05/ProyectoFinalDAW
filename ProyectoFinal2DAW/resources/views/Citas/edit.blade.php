@@ -11,7 +11,7 @@
         <h1 class="text-4xl font-extrabold text-black mb-2">Editar Cita</h1>
     </header>
 
-    <form action="{{ route('Citas.update', $cita->id) }}" method="POST"
+    <form action="{{ route('citas.update', $cita->id) }}" method="POST"
           class="bg-white shadow-md rounded px-8 pt-6 pb-8 w-full max-w-xl space-y-4">
         @csrf
         @method('PUT')

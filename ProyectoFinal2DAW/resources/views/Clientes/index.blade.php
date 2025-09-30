@@ -16,7 +16,7 @@
 <body class="bg-gray-100 p-6">
     <div class="w-full max-w-none mx-auto bg-white shadow-md rounded p-6">
         <h1 class="text-3xl font-bold mb-4">Clientes registrados</h1>
-        <a href="{{ route('Clientes.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Añadir un nuevo cliente</a>
+        <a href="{{ route('clientes.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Añadir un nuevo cliente</a>
 
         <div class="mt-4">
             <table class="w-full table-auto text-sm text-left break-words">
@@ -49,9 +49,9 @@
                         <td class="px-4 py-2">{{ $cliente->fecha_registro ?? '-' }}</td>
                         <td class="px-4 py-2">{{ $cliente->user->rol ?? '-' }}</td>
                         <td class="px-4 py-2 space-x-2">
-                            <a href="{{ route('Clientes.show', $cliente->id) }}" class="text-blue-600 hover:underline">Ver</a>
-                            <a href="{{ route('Clientes.edit', $cliente->id) }}" class="text-yellow-600 hover:underline">Editar</a>
-                            <form id="delete-form-{{ $cliente->id }}" action="{{ route('Clientes.destroy', $cliente->id) }}" method="POST" class="inline">
+                            <a href="{{ route('clientes.show', $cliente->id) }}" class="text-blue-600 hover:underline">Ver</a>
+                            <a href="{{ route('clientes.edit', $cliente->id) }}" class="text-yellow-600 hover:underline">Editar</a>
+                            <form id="delete-form-{{ $cliente->id }}" action="{{ route('clientes.destroy', $cliente->id) }}" method="POST" class="inline">
                                 @csrf
                                 @method('DELETE')
                                 <button type="button" onclick="confirmarEliminacion({{ $cliente->id }})" class="text-red-600 hover:underline">Eliminar</button>

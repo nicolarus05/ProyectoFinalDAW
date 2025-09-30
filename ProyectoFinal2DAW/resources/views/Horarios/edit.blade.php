@@ -10,7 +10,7 @@
     <div class="max-w-xl mx-auto bg-white p-6 rounded shadow">
         <h1 class="text-3xl font-bold mb-6">Editar Horario de Trabajo</h1>
 
-        <form action="{{ route('Horarios.update', $horario->id) }}" method="POST" class="space-y-4">
+        <form action="{{ route('horarios.update', $horario->id) }}" method="POST" class="space-y-4">
             @csrf
             @method('PUT')
 
@@ -53,7 +53,7 @@
         </form>
 
         <div class="mt-6">
-            <a href="{{ route('Horarios.index') }}" class="text-blue-600 hover:underline">Volver a la lista</a>
+            <a href="{{ route('horarios.index') }}" class="text-blue-600 hover:underline">Volver a la lista</a>
         </div>
     </div>
 </body>

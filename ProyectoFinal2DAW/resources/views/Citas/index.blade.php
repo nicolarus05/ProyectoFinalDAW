@@ -16,7 +16,7 @@
 
     <header class="text-center mb-8">
         <h1 class="text-4xl font-extrabold text-black mb-2">Citas Registradas</h1>
-        <a href="{{ route('Citas.create') }}"
+        <a href="{{ route('citas.create') }}"
            class="inline-block bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition-colors duration-300 font-semibold mt-4">
             Añadir Nueva Cita
         </a>
@@ -57,12 +57,12 @@
                         <td class="px-4 py-2">{{ $cita->fecha_hora }}</td>
                         <td class="px-4 py-2">{{ ucfirst($cita->estado) }}</td>
                         <td class="px-4 py-2 flex flex-col sm:flex-row sm:items-center gap-2">
-                            <a href="{{ route('Citas.show', $cita->id) }}"
+                            <a href="{{ route('citas.show', $cita->id) }}"
                                class="text-blue-600 hover:underline">Ver</a>
-                            <a href="{{ route('Citas.edit', $cita->id) }}"
+                            <a href="{{ route('citas.edit', $cita->id) }}"
                                class="text-yellow-600 hover:underline">Editar</a>
                             <form id="delete-form-{{ $cita->id }}"
-                                  action="{{ route('Citas.destroy', $cita->id) }}"
+                                  action="{{ route('citas.destroy', $cita->id) }}"
                                   method="POST"
                                   onsubmit="return false;">
                                 @csrf

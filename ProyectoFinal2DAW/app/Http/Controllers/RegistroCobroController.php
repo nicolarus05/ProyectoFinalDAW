@@ -35,6 +35,25 @@ class RegistroCobroController extends Controller{
             'metodo_pago' => 'required|in:efectivo,tarjeta',
         ]);
 
+        // Agregar validaciones adicionales
+        $cita = Cita::with('servicios')->findOrFail($data['id_cita']);
+        
+        if ($cita->estado !== 'completada') {
+            return back()
+                ->withInput()
+                ->withErrors(['id_cita' => 'Solo se pueden registrar cobros de citas completadas.']);
+        }
+
+        // Verificar que no tenga ya un cobro registrado
+        if ($cita->cobro) {
+            return back()
+                ->withInput()
+                ->withErrors(['id_cita' => 'Esta cita ya tiene un cobro registrado.']);
+        }
+        
+        $coste = $cita->servicios->sum('precio');
+        $data['coste'] = $coste;
+
         $cita = Cita::with('servicios')->findOrFail($data['id_cita']);
         $coste = $cita->servicios->sum('precio');
         $data['coste'] = $coste;
@@ -52,7 +71,7 @@ class RegistroCobroController extends Controller{
         RegistroCobro::create($data);
 
         return redirect()->route('Cobros.index')->with('success', 'Cobro registrado correctamente.');
-}
+    }
 
 
 

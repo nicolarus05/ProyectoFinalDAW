@@ -28,7 +28,7 @@ class RegistroEntradaSalidaController extends Controller{
      */
     public function store(Request $request){
         $data = $request->validate([
-            'empleado_id' => 'required|exists:empleados,id',
+            'id_empleado' => 'required|exists:empleados,id',
             'fecha' => 'required|date',
             'hora_entrada' => 'nullable|date_format:H:i',
             'hora_salida' => 'nullable|date_format:H:i',
@@ -58,6 +58,9 @@ class RegistroEntradaSalidaController extends Controller{
      */
     public function update(Request $request, RegistroEntradaSalida $registro){
         $data = $request->validate([
+            'id_empleado' => 'required|exists:empleados,id',
+            'fecha' => 'required|date',
+            'hora_entrada' => 'nullable|date_format:H:i',
             'hora_salida' => 'nullable|date_format:H:i',
         ]);
 

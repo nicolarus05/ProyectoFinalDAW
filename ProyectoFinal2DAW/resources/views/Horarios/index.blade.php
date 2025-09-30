@@ -18,7 +18,7 @@
         <h1 class="text-3xl font-bold mb-6">Horarios de Trabajo</h1>
 
         <div class="mb-4">
-            <a href="{{ route('Horarios.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Añadir nuevo horario</a>
+            <a href="{{ route('horarios.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Añadir nuevo horario</a>
         </div>
 
         <div class="overflow-x-auto">
@@ -42,9 +42,9 @@
                         <td class="p-2 border">{{ $horario->hora_fin }}</td>
                         <td class="p-2 border">{{ $horario->disponible ? 'Sí' : 'No' }}</td>
                         <td class="p-2 border space-y-1">
-                            <a href="{{ route('Horarios.show', $horario->id) }}" class="text-blue-600 hover:underline block">Ver</a>
-                            <a href="{{ route('Horarios.edit', $horario->id) }}" class="text-yellow-600 hover:underline block">Editar</a>
-                            <form id="delete-form-{{ $horario->id }}" action="{{ route('Horarios.destroy', $horario->id) }}" method="POST" style="display:inline;" onsubmit="return false;">
+                            <a href="{{ route('horarios.show', $horario->id) }}" class="text-blue-600 hover:underline block">Ver</a>
+                            <a href="{{ route('horarios.edit', $horario->id) }}" class="text-yellow-600 hover:underline block">Editar</a>
+                            <form id="delete-form-{{ $horario->id }}" action="{{ route('horarios.destroy', $horario->id) }}" method="POST" style="display:inline;" onsubmit="return false;">
                                 @csrf
                                 @method('DELETE')
                                 <button type="button" class="text-red-600 hover:underline" onclick="confirmarEliminacion({{ $horario->id }})">Eliminar</button>

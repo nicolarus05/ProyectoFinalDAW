@@ -58,7 +58,7 @@
         </div>
 
         <div class="mt-8 flex justify-between">
-            <a href="{{ route('Cobros.index') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Volver a la lista</a>
+            <a href="{{ route('cobros.index') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Volver a la lista</a>
             <a href="{{ route('dashboard') }}" class="text-blue-600 hover:underline self-center">Volver al inicio</a>
         </div>
     </div>

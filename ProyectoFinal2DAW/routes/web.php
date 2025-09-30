@@ -44,45 +44,45 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::resource('users', userController::class)->names('users');
 
-    Route::resource('clientes', ClienteController::class)->names('Clientes');
-    Route::resource('empleados', EmpleadoController::class)->names('Empleados');
-    Route::resource('servicios', ServicioController::class)->names('Servicios');
+    Route::resource('clientes', ClienteController::class)->names('clientes');
+    Route::resource('empleados', EmpleadoController::class)->names('empleados');
+    Route::resource('servicios', ServicioController::class)->names('servicios');
 
     // Rutas anidadas de servicios
-    Route::get('/servicios/{servicio}/empleados/create', [ServicioController::class, 'createEmpleado'])->name('Servicios.createEmpleado');
-    Route::post('/servicios/{servicio}/empleados/store', [ServicioController::class, 'storeEmpleado'])->name('Servicios.storeEmpleado');
-    Route::get('/servicios/{servicio}/empleados/{empleado}/edit', [ServicioController::class, 'editEmpleado'])->name('Servicios.editEmpleado');
-    Route::put('/servicios/{servicio}/empleados/{empleado}', [ServicioController::class, 'updateEmpleado'])->name('Servicios.updateEmpleado');
-    Route::delete('/servicios/{servicio}/empleados/{empleado}', [ServicioController::class, 'removeEmpleado'])->name('Servicios.removeEmpleado');
+    Route::get('/servicios/{servicio}/empleados/create', [ServicioController::class, 'createEmpleado'])->name('servicios.createempleado');
+    Route::post('/servicios/{servicio}/empleados/store', [ServicioController::class, 'storeEmpleado'])->name('servicios.storeempleado');
+    Route::get('/servicios/{servicio}/empleados/{empleado}/edit', [ServicioController::class, 'editEmpleado'])->name('servicios.editempleado');
+    Route::put('/servicios/{servicio}/empleados/{empleado}', [ServicioController::class, 'updateEmpleado'])->name('servicios.updateempleado');
+    Route::delete('/servicios/{servicio}/empleados/{empleado}', [ServicioController::class, 'removeEmpleado'])->name('servicios.removeempleado');
 
-    Route::get('/servicios/{servicio}/citas/create', [ServicioController::class, 'createCita'])->name('Servicios.createCita');
-    Route::post('/servicios/{servicio}/citas/store', [ServicioController::class, 'storeCita'])->name('Servicios.storeCita');
-    Route::get('/servicios/{servicio}/citas/{cita}/edit', [ServicioController::class, 'editCita'])->name('Servicios.editCita');
-    Route::delete('/servicios/{servicio}/citas/{cita}', [ServicioController::class, 'removeCita'])->name('Servicios.removeCita');
+    Route::get('/servicios/{servicio}/citas/create', [ServicioController::class, 'createCita'])->name('servicios.createcita');
+    Route::post('/servicios/{servicio}/citas/store', [ServicioController::class, 'storeCita'])->name('servicios.storecita');
+    Route::get('/servicios/{servicio}/citas/{cita}/edit', [ServicioController::class, 'editCita'])->name('servicios.editcita');
+    Route::delete('/servicios/{servicio}/citas/{cita}', [ServicioController::class, 'removeCita'])->name('servicios.removecita');
 
-    Route::get('/servicios/{servicio}/empleados', [ServicioController::class, 'empleados'])->name('Servicios.empleados');
-    Route::post('/servicios/{servicio}/empleados', [ServicioController::class, 'addEmpleado'])->name('Servicios.addEmpleado');
-    Route::get('/servicios/{servicio}/citas', [ServicioController::class, 'citas'])->name('Servicios.citas');
-    Route::post('/servicios/{servicio}/citas', [ServicioController::class, 'addCita'])->name('Servicios.addCita');
+    Route::get('/servicios/{servicio}/empleados', [ServicioController::class, 'empleados'])->name('servicios.empleados');
+    Route::post('/servicios/{servicio}/empleados', [ServicioController::class, 'addEmpleado'])->name('servicios.addempleado');
+    Route::get('/servicios/{servicio}/citas', [ServicioController::class, 'citas'])->name('servicios.citas');
+    Route::post('/servicios/{servicio}/citas', [ServicioController::class, 'addCita'])->name('servicios.addcita');
 
-    Route::resource('horarios', HorarioTrabajoController::class)->names('Horarios');
-    Route::resource('cobros', RegistroCobroController::class)->names('Cobros');
+    Route::resource('horarios', HorarioTrabajoController::class)->names('horarios');
+    Route::resource('cobros', RegistroCobroController::class)->names('cobros');
 });
 
 // Rutas accesibles por ADMIN y EMPLEADO
 Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
-    Route::resource('citas', CitaController::class)->names('Citas');
+    Route::resource('citas', CitaController::class)->names('citas');
 });
 
 // Rutas de citas accesibles por ADMIN, EMPLEADO y CLIENTE
 Route::middleware(['auth', 'role:admin,empleado,cliente'])->group(function () {
-    Route::get('/citas', [CitaController::class, 'index'])->name('Citas.index');
-    Route::get('/citas/create', [CitaController::class, 'create'])->name('Citas.create');
-    Route::post('/citas', [CitaController::class, 'store'])->name('Citas.store');
-    Route::get('/citas/{cita}', [CitaController::class, 'show'])->name('Citas.show');
-    Route::get('/citas/{cita}/edit', [CitaController::class, 'edit'])->name('Citas.edit');
-    Route::put('/citas/{cita}', [CitaController::class, 'update'])->name('Citas.update');
-    Route::patch('/citas/{cita}', [CitaController::class, 'update'])->name('Citas.update');
+    Route::get('/citas', [CitaController::class, 'index'])->name('citas.index');
+    Route::get('/citas/create', [CitaController::class, 'create'])->name('citas.create');
+    Route::post('/citas', [CitaController::class, 'store'])->name('citas.store');
+    Route::get('/citas/{cita}', [CitaController::class, 'show'])->name('citas.show');
+    Route::get('/citas/{cita}/edit', [CitaController::class, 'edit'])->name('citas.edit');
+    Route::put('/citas/{cita}', [CitaController::class, 'update'])->name('citas.update');
+    Route::patch('/citas/{cita}', [CitaController::class, 'update'])->name('citas.update');
 });
 
 // Rutas para que un user se pueda registrar
@@ -98,7 +98,5 @@ Route::middleware('auth')->group(function(){
 });
 
 Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
-
-
 
 require __DIR__.'/auth.php';

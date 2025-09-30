@@ -33,7 +33,7 @@
     <div class="max-w-xl mx-auto bg-white p-6 rounded shadow">
         <h1 class="text-3xl font-bold mb-6">Registrar Cobro</h1>
 
-        <form action="{{ route('Cobros.store') }}" method="POST" oninput="calcularTotales()" onchange="actualizarCosteYTotales()" class="space-y-4">
+        <form action="{{ route('cobros.store') }}" method="POST" oninput="calcularTotales()" onchange="actualizarCosteYTotales()" class="space-y-4">
             @csrf
 
             <div>
@@ -92,7 +92,7 @@
 
             <div class="flex justify-between items-center mt-6">
                 <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Registrar</button>
-                <a href="{{ route('Cobros.index') }}" class="text-blue-600 hover:underline">Volver</a>
+                <a href="{{ route('cobros.index') }}" class="text-blue-600 hover:underline">Volver</a>
             </div>
         </form>
     </div>

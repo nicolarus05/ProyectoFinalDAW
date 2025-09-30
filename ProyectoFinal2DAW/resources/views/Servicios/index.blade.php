@@ -18,7 +18,7 @@
         <h1 class="text-3xl font-bold mb-6">Servicios disponibles</h1>
 
         <div class="mb-4">
-            <a href="{{ route('Servicios.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Añadir nuevo servicio</a>
+            <a href="{{ route('servicios.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Añadir nuevo servicio</a>
         </div>
 
         <div class="overflow-x-auto">
@@ -40,9 +40,9 @@
                             <td class="p-2 border">{{ $servicio->tiempo_estimado }}</td>
                             <td class="p-2 border">{{ $servicio->tipo }}</td>
                             <td class="p-2 border space-y-1">
-                                <a href="{{ route('Servicios.show', $servicio->id) }}" class="text-blue-600 hover:underline block">Ver</a>
-                                <a href="{{ route('Servicios.edit', $servicio->id) }}" class="text-yellow-600 hover:underline block">Editar</a>
-                                <form id="delete-form-{{ $servicio->id }}" action="{{ route('Servicios.destroy', $servicio->id) }}" method="POST" style="display:inline;" onsubmit="return false;">
+                                <a href="{{ route('servicios.show', $servicio->id) }}" class="text-blue-600 hover:underline block">Ver</a>
+                                <a href="{{ route('servicios.edit', $servicio->id) }}" class="text-yellow-600 hover:underline block">Editar</a>
+                                <form id="delete-form-{{ $servicio->id }}" action="{{ route('servicios.destroy', $servicio->id) }}" method="POST" style="display:inline;" onsubmit="return false;">
                                     @csrf
                                     @method('DELETE')
                                     <button type="button" class="text-red-600 hover:underline" onclick="confirmarEliminacion({{ $servicio->id }})">Eliminar</button>

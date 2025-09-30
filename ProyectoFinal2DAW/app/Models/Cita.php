@@ -22,7 +22,6 @@ class Cita extends Model{
         'notas_adicionales',
         'id_cliente',
         'id_empleado',
-        'id_servicio',
     ];
 
     public function cliente(){

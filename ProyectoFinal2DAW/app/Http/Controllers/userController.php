@@ -35,15 +35,15 @@ class userController extends Controller
             'apellidos' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'telefono' => 'nullable|string|max:20',
-            'password' => 'required|string|min:6',
-            'genero' => 'nullable|string|in:Masculino,Femenino,Otro',
+            'password' => 'required|string|min:8',
+            'genero' => 'nullable|string|in:masculino,femenino,otro',
             'edad' => 'nullable|integer|min:0|max:120',
-            'rol' => 'required|in:cliente,empleado',
+            'rol' => 'required|in:cliente,empleado, admin',
 
             // Campos específicos para cada rol
-            'especializacion' => 'nullable|string|max:255',
-            'fecha_registro' => 'nullable|date',
-            'direccion' => 'nullable|string|max:255',
+            'especializacion' => 'required_if:rol,empleado|nullable|string|max:255',
+            'fecha_registro' => 'required_if:rol,cliente|nullable|date',
+            'direccion' => 'required_if:rol,cliente|nullable|string|max:255',
             'notas_adicionales' => 'nullable|string|max:1000',
         ]);
 

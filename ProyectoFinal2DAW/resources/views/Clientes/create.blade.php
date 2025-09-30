@@ -10,7 +10,7 @@
     <div class="max-w-4xl mx-auto bg-white p-6 rounded shadow">
         <h1 class="text-2xl font-semibold mb-6">Crear nuevo cliente</h1>
 
-        <form action="{{ route('Clientes.store') }}" method="POST" class="space-y-4">
+        <form action="{{ route('clientes.store') }}" method="POST" class="space-y-4">
             @csrf
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -72,7 +72,7 @@
 
             <div class="flex justify-between mt-6">
                 <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Guardar</button>
-                <a href="{{ route('Clientes.index') }}" class="text-blue-600 hover:underline">Volver a la lista</a>
+                <a href="{{ route('clientes.index') }}" class="text-blue-600 hover:underline">Volver a la lista</a>
             </div>
         </form>
     </div>

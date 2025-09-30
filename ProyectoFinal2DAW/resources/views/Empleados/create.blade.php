@@ -10,7 +10,7 @@
     <div class="max-w-xl mx-auto bg-white p-8 rounded shadow">
         <h1 class="text-3xl font-bold mb-6">Crear nuevo empleado</h1>
 
-        <form action="{{ route('Empleados.store') }}" method="POST" class="space-y-4">
+        <form action="{{ route('empleados.store') }}" method="POST" class="space-y-4">
             @csrf
 
             <div>
@@ -68,7 +68,7 @@
         </form>
 
         <div class="mt-6">
-            <a href="{{ route('Empleados.index') }}" class="text-blue-600 hover:underline">Volver a la lista</a>
+            <a href="{{ route('empleados.index') }}" class="text-blue-600 hover:underline">Volver a la lista</a>
         </div>
     </div>
 </body>

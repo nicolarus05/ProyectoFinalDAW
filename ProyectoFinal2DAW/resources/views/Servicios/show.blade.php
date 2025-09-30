@@ -17,7 +17,7 @@
             <p><span class="font-semibold">Tipo:</span> {{ $servicio->tipo }}</p>
         </div>
 
-        <a href="{{ route('Servicios.index') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Volver</a>
+        <a href="{{ route('servicios.index') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Volver</a>
     </div>
 </body>
 </html>

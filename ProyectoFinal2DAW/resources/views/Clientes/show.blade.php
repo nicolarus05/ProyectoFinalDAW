@@ -48,8 +48,8 @@
             </li>
         </ul>
         <div class="flex justify-between mt-8">
-            <a href="{{ route('Clientes.edit', $cliente->id) }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Editar</a>
-            <a href="{{ route('Clientes.index') }}" class="text-blue-600 hover:underline">Volver a la lista</a>
+            <a href="{{ route('clientes.edit', $cliente->id) }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Editar</a>
+            <a href="{{ route('clientes.index') }}" class="text-blue-600 hover:underline">Volver a la lista</a>
         </div>
     </div>
 </body>

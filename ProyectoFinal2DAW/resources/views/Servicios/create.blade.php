@@ -10,7 +10,7 @@
     <div class="max-w-lg mx-auto bg-white p-6 rounded shadow">
         <h1 class="text-3xl font-bold mb-6">Añadir nuevo servicio</h1>
 
-        <form action="{{ route('Servicios.store') }}" method="POST" class="space-y-4">
+        <form action="{{ route('servicios.store') }}" method="POST" class="space-y-4">
             @csrf
             <div>
                 <label class="block font-semibold mb-1">Nombre:</label>
@@ -38,7 +38,7 @@
 
             <div class="flex justify-between items-center">
                 <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Guardar</button>
-                <a href="{{ route('Servicios.index') }}" class="text-blue-600 hover:underline">Volver</a>
+                <a href="{{ route('servicios.index') }}" class="text-blue-600 hover:underline">Volver</a>
             </div>
         </form>
     </div>

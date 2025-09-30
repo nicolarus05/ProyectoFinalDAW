@@ -39,40 +39,40 @@
                 <a href="{{ route('users.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Gestionar Usuarios</a>
             </li>
             <li>
-                <a href="{{ route('Clientes.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Gestionar Clientes</a>
+                <a href="{{ route('clientes.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Gestionar Clientes</a>
             </li>
             <li>
-                <a href="{{ route('Empleados.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Gestionar Empleados</a>
+                <a href="{{ route('empleados.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Gestionar Empleados</a>
             </li>
             <li>
-                <a href="{{ route('Servicios.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Gestionar Servicios</a>
+                <a href="{{ route('servicios.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Gestionar Servicios</a>
             </li>
             <li>
-                <a href="{{ route('Horarios.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Gestionar Horarios</a>
+                <a href="{{ route('horarios.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Gestionar Horarios</a>
             </li>
             <li>
-                <a href="{{ route('Cobros.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Registro de Cobros</a>
+                <a href="{{ route('cobros.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Registro de Cobros</a>
             </li>
             <li>
-                <a href="{{ route('Citas.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Todas las Citas</a>
+                <a href="{{ route('citas.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Todas las Citas</a>
             </li>
         @endif
 
         @if ($rol === 'empleado')
             <li>
-                <a href="{{ route('Citas.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Mis Citas</a>
+                <a href="{{ route('citas.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Mis Citas</a>
             </li>
             <li>
-                <a href="{{ route('Servicios.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Servicios</a>
+                <a href="{{ route('servicios.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Servicios</a>
             </li>
         @endif
 
         @if ($rol === 'cliente')
             <li>
-                <a href="{{ route('Citas.create') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Reservar Cita</a>
+                <a href="{{ route('citas.create') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Reservar Cita</a>
             </li>
             <li>
-                <a href="{{ route('Citas.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Mis Citas</a>
+                <a href="{{ route('citas.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Mis Citas</a>
             </li>
         @endif
     </ul>
