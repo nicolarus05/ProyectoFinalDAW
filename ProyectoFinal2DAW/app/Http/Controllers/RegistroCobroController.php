@@ -12,7 +12,7 @@ class RegistroCobroController extends Controller{
      */
     public function index(){
         $cobros = RegistroCobro::with('cita.cliente.user','cita.empleado.user','cita.servicios')->get();
-        return view('Cobros.index', compact('cobros'));
+        return view('cobros.index', compact('cobros'));
     }
 
     /**
@@ -20,7 +20,7 @@ class RegistroCobroController extends Controller{
      */
     public function create(){
         $citas = Cita::whereDoesntHave('cobro')->get();
-        return view('Cobros.create', compact('citas'));
+        return view('cobros.create', compact('citas'));
     }
 
     /**
@@ -70,7 +70,7 @@ class RegistroCobroController extends Controller{
 
         RegistroCobro::create($data);
 
-        return redirect()->route('Cobros.index')->with('success', 'Cobro registrado correctamente.');
+        return redirect()->route('cobros.index')->with('success', 'Cobro registrado correctamente.');
     }
 
 
@@ -79,7 +79,7 @@ class RegistroCobroController extends Controller{
      * Display the specified resource.
      */
     public function show(RegistroCobro $cobro){
-        return view('Cobros.show', compact('cobro'));
+        return view('cobros.show', compact('cobro'));
     }
 
     /**
@@ -91,7 +91,7 @@ class RegistroCobroController extends Controller{
             ->with('cliente.user', 'servicios')
             ->get();
 
-        return view('Cobros.edit', compact('cobro', 'citas'));
+        return view('cobros.edit', compact('cobro', 'citas'));
     }
 
 
@@ -134,7 +134,7 @@ class RegistroCobroController extends Controller{
             'metodo_pago' => $data['metodo_pago'],
         ]);
 
-        return redirect()->route('Cobros.index')->with('success', 'Cobro actualizado correctamente.');
+        return redirect()->route('cobros.index')->with('success', 'Cobro actualizado correctamente.');
     }
 
 
@@ -143,6 +143,6 @@ class RegistroCobroController extends Controller{
      */
     public function destroy(RegistroCobro $cobro){
         $cobro->delete();
-        return redirect()->route('Cobros.index');
+        return redirect()->route('cobros.index');
     }
 }

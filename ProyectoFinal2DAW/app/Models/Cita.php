@@ -4,6 +4,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Auth\Passwords\CanResetPassword;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Cliente;
 use App\Models\Empleado;
 use App\Models\Servicio;
@@ -11,7 +15,7 @@ use App\Models\RegistroCobro;
 
 class Cita extends Model{
 
-    use HasFactory;
+    use HasFactory, HasApiTokens, Notifiable, CanResetPassword, SoftDeletes;
     
     protected $table = 'citas';
 

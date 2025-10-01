@@ -42,7 +42,7 @@ class CitaController extends Controller{
             abort(403, 'No tienes permiso para acceder a esta sección.');
         }
 
-        return view('Citas.index', compact('citas'));
+        return view('citas.index', compact('citas'));
     }
 
 
@@ -64,7 +64,7 @@ class CitaController extends Controller{
             $clientes = $user->cliente;
         }
 
-        return view('Citas.create', compact('clientes', 'empleados', 'servicios'));
+        return view('citas.create', compact('clientes', 'empleados', 'servicios'));
     }
 
 
@@ -123,7 +123,7 @@ class CitaController extends Controller{
         $cita = Cita::create($data);
         $cita->servicios()->attach($servicios);
 
-        return redirect()->route('Citas.index')->with('success', 'Cita creada correctamente con múltiples servicios.');
+        return redirect()->route('citas.index')->with('success', 'Cita creada correctamente con múltiples servicios.');
     }
 
 
@@ -133,7 +133,7 @@ class CitaController extends Controller{
      * Display the specified resource.
      */
     public function show(Cita $cita){
-        return view('Citas.show', compact('cita'));
+        return view('citas.show', compact('cita'));
     }
 
     /**
@@ -143,7 +143,7 @@ class CitaController extends Controller{
         $clientes = Cliente::all();
         $empleados = Empleado::all();
         $servicios = Servicio::all();
-        return view('Citas.edit', compact('cita','clientes','empleados','servicios'));
+        return view('citas.edit', compact('cita','clientes','empleados','servicios'));
     }
 
     /**
@@ -155,7 +155,7 @@ class CitaController extends Controller{
         ]);
 
         $cita->update($data);
-        return redirect()->route('Citas.index');
+        return redirect()->route('citas.index');
     }
 
     /**
@@ -163,6 +163,6 @@ class CitaController extends Controller{
      */
     public function destroy(Cita $cita){
         $cita->delete();
-        return redirect()->route('Citas.index')->with('success', 'La cita ha sido eliminada con exito.');
+        return redirect()->route('citas.index')->with('success', 'La cita ha sido eliminada con exito.');
     }
 }

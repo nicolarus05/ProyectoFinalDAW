@@ -6,13 +6,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Cliente;
 use App\Models\Empleado;
 use Illuminate\Auth\Passwords\CanResetPassword;
 
 class User extends Authenticatable
 {
-    use HasFactory, HasApiTokens, Notifiable, CanResetPassword;
+    use HasFactory, HasApiTokens, Notifiable, CanResetPassword, SoftDeletes;
 
     protected $table = 'users';
 

@@ -11,14 +11,14 @@ class ServicioController extends Controller{
      */
     public function index(){
         $servicios = Servicio::all();
-        return view('Servicios.index', compact('servicios'));
+        return view('servicios.index', compact('servicios'));
     }
 
     /**
      * Show the form for creating a new resource.
      */
     public function create(){
-        return view('Servicios.create');
+        return view('servicios.create');
     }
 
     /**
@@ -33,21 +33,21 @@ class ServicioController extends Controller{
         ]);
 
         Servicio::create($data);
-        return redirect()->route('Servicios.index');
+        return redirect()->route('servicios.index');
     }
 
     /**
      * Display the specified resource.
      */
     public function show(Servicio $servicio){
-        return view('Servicios.show', compact('servicio'));
+        return view('servicios.show', compact('servicio'));
     }
 
     /**
      * Show the form for editing the specified resource.
      */
     public function edit(Servicio $servicio){
-        return view('Servicios.edit', compact('servicio'));
+        return view('servicios.edit', compact('servicio'));
     }
 
     /**
@@ -62,7 +62,7 @@ class ServicioController extends Controller{
         ]);
 
         $servicio->update($data);
-        return redirect()->route('Servicios.index');
+        return redirect()->route('servicios.index');
     }
 
     /**
@@ -70,6 +70,6 @@ class ServicioController extends Controller{
      */
     public function destroy(Servicio $servicio){
         $servicio->delete();
-        return redirect()->route('Servicios.index')->with('success', 'El servicio ha sido eliminado con exito.');
+        return redirect()->route('servicios.index')->with('success', 'El servicio ha sido eliminado con exito.');
     }
 }

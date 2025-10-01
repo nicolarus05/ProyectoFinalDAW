@@ -22,6 +22,6 @@ $app = Application::configure(basePath: dirname(__DIR__))
         //
     })->create();
 
-$app->router->aliasMiddleware('role', \App\Http\Middleware\RoleMiddleware::class);
+$app->router->aliasMiddleware('role', \App\Http\Middleware\CheckRole::class);
 
 return $app;

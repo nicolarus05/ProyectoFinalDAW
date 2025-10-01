@@ -12,7 +12,7 @@ class EmpleadoController extends Controller{
      */
     public function index(){
         $empleados = Empleado::with('user')->get();
-        return view('Empleados.index', compact('empleados'));
+        return view('empleados.index', compact('empleados'));
     }
 
     /**
@@ -20,7 +20,7 @@ class EmpleadoController extends Controller{
      */
     public function create(){
         $users = user::where('rol', 'empleado')->get();
-        return view('Empleados.create', compact('users'));
+        return view('empleados.create', compact('users'));
     }
 
     /**
@@ -59,14 +59,14 @@ class EmpleadoController extends Controller{
         ]);
         
         // Redirigir a la lista de empleados
-        return redirect()->route('Empleados.index')->with('success', 'El empleado ha sido creado con éxito.');
+        return redirect()->route('empleados.index')->with('success', 'El empleado ha sido creado con éxito.');
     }
 
     /**
      * Display the specified resource.
      */
     public function show(Empleado $empleado){
-        return view('Empleados.show', compact('empleado'));
+        return view('empleados.show', compact('empleado'));
     }
 
     /**
@@ -74,7 +74,7 @@ class EmpleadoController extends Controller{
      */
     public function edit(Empleado $empleado){
         $users = user::where('rol', 'empleado')->get();
-        return view('Empleados.edit', compact('empleado', 'users'));
+        return view('empleados.edit', compact('empleado', 'users'));
     }
 
     /**
@@ -108,7 +108,7 @@ class EmpleadoController extends Controller{
             'especializacion' => $request->input('especializacion'),
         ]);
 
-        return redirect()->route('Empleados.index')->with('success', 'El empleado ha sido actualizado con éxito.');
+        return redirect()->route('empleados.index')->with('success', 'El empleado ha sido actualizado con éxito.');
     }
 
     /**
@@ -116,6 +116,6 @@ class EmpleadoController extends Controller{
      */
     public function destroy(Empleado $empleado){
         $empleado->delete();
-        return redirect()->route('Empleados.index')->with('success', 'El empleado ha sido eliminado con éxito.');
+        return redirect()->route('empleados.index')->with('success', 'El empleado ha sido eliminado con éxito.');
     }
 }

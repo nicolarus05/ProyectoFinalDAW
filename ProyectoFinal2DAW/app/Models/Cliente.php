@@ -4,10 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Auth\Passwords\CanResetPassword;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Cita;
 
 class Cliente extends Model{
-    use HasFactory;
+    use HasFactory, SoftDeletes, Notifiable, CanResetPassword, HasApiTokens;
 
     protected $table = 'clientes';
 

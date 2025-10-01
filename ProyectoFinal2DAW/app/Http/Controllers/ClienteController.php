@@ -13,7 +13,7 @@ class ClienteController extends Controller{
      */
     public function index(){
         $clientes = Cliente::with('user')->get();
-        return view('Clientes.index', compact('clientes'));
+        return view('clientes.index', compact('clientes'));
     }
 
     /**
@@ -21,7 +21,7 @@ class ClienteController extends Controller{
      */
     public function create(){
         $users = user::where('rol', 'cliente')->get();
-        return view('Clientes.create', compact('users'));
+        return view('clientes.create', compact('users'));
     }
 
     /**
@@ -61,14 +61,14 @@ class ClienteController extends Controller{
             'fecha_registro' => $request->input('fecha_registro'),
         ]);
 
-        return redirect()->route('Clientes.index')->with('success', 'El Cliente ha sido creado con exito.');
+        return redirect()->route('clientes.index')->with('success', 'El Cliente ha sido creado con exito.');
     }
 
     /**
      * Display the specified resource.
      */
     public function show(Cliente $cliente){
-        return view('Clientes.show', compact('cliente'));
+        return view('clientes.show', compact('cliente'));
     }
 
     /**
@@ -76,7 +76,7 @@ class ClienteController extends Controller{
      */
     public function edit(Cliente $cliente){
         $users = user::where('rol', 'cliente')->get();
-        return view('Clientes.edit', compact('cliente', 'users'));
+        return view('clientes.edit', compact('cliente', 'users'));
     }
 
     /**
@@ -113,7 +113,7 @@ class ClienteController extends Controller{
             'fecha_registro' => $request->input('fecha_registro'),
         ]);
 
-        return redirect()->route('Clientes.index')->with('success', 'El Cliente ha sido actualizado con éxito.');
+        return redirect()->route('clientes.index')->with('success', 'El Cliente ha sido actualizado con éxito.');
     }
 
 
@@ -122,6 +122,7 @@ class ClienteController extends Controller{
      */
     public function destroy(Cliente $cliente){
         $cliente->delete();
-        return redirect()->route('Clientes.index')->with('success', 'El Cliente ha sido eliminado con exito.');
+        return redirect()->route('clientes.index')->with('success', 'El Cliente ha sido eliminado con exito.');
     }
 }
+

@@ -12,7 +12,7 @@ class HorarioTrabajoController extends Controller{
      */
     public function index(){
         $horarios = HorarioTrabajo::with('empleado.user')->get();
-        return view('Horarios.index', compact('horarios'));
+        return view('horarios.index', compact('horarios'));
     }
 
     /**
@@ -20,7 +20,7 @@ class HorarioTrabajoController extends Controller{
      */
     public function create(){
         $empleados = Empleado::all();
-        return view('Horarios.create', compact('empleados'));
+        return view('horarios.create', compact('empleados'));
     }
 
     /**
@@ -37,14 +37,14 @@ class HorarioTrabajoController extends Controller{
 
 
         HorarioTrabajo::create($data);
-        return redirect()->route('Horarios.index');
+        return redirect()->route('horarios.index');
     }
 
     /**
      * Display the specified resource.
      */
     public function show(HorarioTrabajo $horario){
-        return view('Horarios.show', compact('horario'));
+        return view('horarios.show', compact('horario'));
     }
 
     /**
@@ -52,7 +52,7 @@ class HorarioTrabajoController extends Controller{
      */
     public function edit(HorarioTrabajo $horario){
         $empleados = Empleado::all();
-        return view('Horarios.edit', compact('horario', 'empleados'));
+        return view('horarios.edit', compact('horario', 'empleados'));
     }
 
     /**
@@ -70,7 +70,7 @@ class HorarioTrabajoController extends Controller{
 
 
         $horario->update($data);
-        return redirect()->route('Horarios.index')->with('success', 'El horario ha sido actualizado con éxito.');
+        return redirect()->route('horarios.index')->with('success', 'El horario ha sido actualizado con éxito.');
     }
 
     /**
@@ -78,6 +78,6 @@ class HorarioTrabajoController extends Controller{
      */
     public function destroy(HorarioTrabajo $horario){
         $horario->delete();
-        return redirect()->route('Horarios.index')->with('success', 'El horario ha sido eliminado con éxito.');
+        return redirect()->route('horarios.index')->with('success', 'El horario ha sido eliminado con éxito.');
     }
 }
