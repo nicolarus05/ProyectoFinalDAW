@@ -29,6 +29,7 @@
                         <th class="p-2 border">Precio</th>
                         <th class="p-2 border">Tiempo estimado (min)</th>
                         <th class="p-2 border">Tipo</th>
+                        <th class="p-2 border">Activo</th>
                         <th class="p-2 border">Acciones</th>
                     </tr>
                 </thead>
@@ -39,6 +40,7 @@
                             <td class="p-2 border">{{ $servicio->precio }} €</td>
                             <td class="p-2 border">{{ $servicio->tiempo_estimado }}</td>
                             <td class="p-2 border">{{ $servicio->tipo }}</td>
+                            <td class="p-2 border">{{ $servicio->activo ? 'Sí' : 'No' }}</td>
                             <td class="p-2 border space-y-1">
                                 <a href="{{ route('servicios.show', $servicio->id) }}" class="text-blue-600 hover:underline block">Ver</a>
                                 <a href="{{ route('servicios.edit', $servicio->id) }}" class="text-yellow-600 hover:underline block">Editar</a>

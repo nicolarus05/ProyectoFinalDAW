@@ -8,7 +8,8 @@ use App\Http\Controllers\{
     userController, HorarioTrabajoController,
     Auth\AuthenticatedSessionController, Auth\RegisterClienteController, 
     Auth\PerfilController, Auth\PasswordResetLinkController,
-    Auth\NewPasswordController
+    Auth\NewPasswordController,
+    CajaDiariaController
 };
 
 Route::get('/', fn () => view('welcome'));
@@ -71,6 +72,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
 // Rutas accesibles por ADMIN y EMPLEADO
 Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
+    Route::get('/caja', [CajaDiariaController::class, 'index'])->name('caja.index');
     Route::resource('citas', CitaController::class)->names('citas');
 });
 

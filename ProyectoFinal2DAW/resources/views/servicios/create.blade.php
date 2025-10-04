@@ -36,6 +36,14 @@
                 </select>
             </div>
 
+            <div>
+                <label class="block font-semibold mb-1">Activo:</label>
+                <select name="activo" required class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    <option value="1" {{ $servicio->activo ? 'selected' : '' }}>Sí</option>
+                    <option value="0" {{ !$servicio->activo ? 'selected' : '' }}>No</option>
+                </select>
+            </div>
+
             <div class="flex justify-between items-center">
                 <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Guardar</button>
                 <a href="{{ route('servicios.index') }}" class="text-blue-600 hover:underline">Volver</a>

@@ -17,6 +17,7 @@ return new class extends Migration
             $table->integer('tiempo_estimado'); // Duración del servicio en minutos
             $table->decimal('precio', 8, 2); // Precio del servicio
             $table->string('tipo'); // Tipo de servicio (ej. "peluquería", "estética")
+            $table->boolean('activo')->default(true); // Estado del servicio (activo/inactivo)
             $table->timestamps();
         });
     }

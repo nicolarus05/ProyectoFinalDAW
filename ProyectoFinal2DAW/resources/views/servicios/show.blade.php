@@ -15,6 +15,7 @@
             <p><span class="font-semibold">Precio:</span> {{ $servicio->precio }} €</p>
             <p><span class="font-semibold">Tiempo estimado:</span> {{ $servicio->tiempo_estimado }} minutos</p>
             <p><span class="font-semibold">Tipo:</span> {{ $servicio->tipo }}</p>
+            <p><span class="font-semibold">Activo:</span> {{ $servicio->activo ? 'Sí' : 'No' }}</p>
         </div>
 
         <a href="{{ route('servicios.index') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Volver</a>

@@ -10,7 +10,7 @@ class ServicioController extends Controller{
      * Display a listing of the resource.
      */
     public function index(){
-        $servicios = Servicio::all();
+        $servicios = Servicio::where('activo', true)->get();
         return view('servicios.index', compact('servicios'));
     }
 
@@ -26,11 +26,13 @@ class ServicioController extends Controller{
      */
     public function store(Request $request){
         $data = $request->validate([
-            'nombre' => 'required|string',
-            'tiempo_estimado' => 'required|integer',
-            'precio' => 'required|numeric',
-            'tipo' => 'required|string',
+            'nombre' => 'required|string|max:100',
+            'tiempo_estimado' => 'required|integer|min:1',
+            'precio' => 'required|numeric|min:0',
+            'tipo' => 'required|string|max:50',
+            'activo' => 'boolean'
         ]);
+
 
         Servicio::create($data);
         return redirect()->route('servicios.index');
@@ -55,11 +57,13 @@ class ServicioController extends Controller{
      */
     public function update(Request $request, Servicio $servicio){
         $data = $request->validate([
-            'nombre' => 'required|string',
-            'tiempo_estimado' => 'required|integer',
-            'precio' => 'required|numeric',
-            'tipo' => 'required|string',
+            'nombre' => 'required|string|max:100',
+            'tiempo_estimado' => 'required|integer|min:1',
+            'precio' => 'required|numeric|min:0',
+            'tipo' => 'required|string|max:50',
+            'activo' => 'boolean'
         ]);
+
 
         $servicio->update($data);
         return redirect()->route('servicios.index');

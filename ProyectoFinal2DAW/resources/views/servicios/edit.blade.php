@@ -42,6 +42,15 @@
                     <option value="Estetica" {{ $servicio->tipo == 'Estetica' ? 'selected' : '' }}>Estetica</option>
                 </select>
             </div>
+            
+            <div>
+                <label class="block font-semibold mb-1">Activo:</label>
+                <select name="activo" required
+                    class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    <option value="1" {{ $servicio->activo ? 'selected' : '' }}>Sí</option>
+                    <option value="0" {{ !$servicio->activo ? 'selected' : '' }}>No</option>
+                </select>
+            </div>
 
             <div class="flex items-center space-x-4">
                 <button type="submit"
