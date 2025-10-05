@@ -27,51 +27,54 @@ class RegistroCobroController extends Controller{
      * Store a newly created resource in storage.
      */
     public function store(Request $request){
+        
         $data = $request->validate([
             'id_cita' => 'required|exists:citas,id',
+            'coste' => 'required|numeric|min:0',
             'descuento_porcentaje' => 'nullable|numeric|min:0|max:100',
             'descuento_euro' => 'nullable|numeric|min:0',
-            'dinero_cliente' => 'nullable|numeric|min:0',
+            'total_final' => 'required|numeric|min:0',
+            'dinero_cliente' => 'required|numeric|min:0',
+            'cambio' => 'nullable|numeric|min:0',
             'metodo_pago' => 'required|in:efectivo,tarjeta',
         ]);
 
-        // Agregar validaciones adicionales
-        $cita = Cita::with('servicios')->findOrFail($data['id_cita']);
-        
+
+        $cita = Cita::with(['servicios','cliente','empleado'])->findOrFail($data['id_cita']);
+
         if ($cita->estado !== 'completada') {
-            return back()
-                ->withInput()
-                ->withErrors(['id_cita' => 'Solo se pueden registrar cobros de citas completadas.']);
+            return back()->withInput()->withErrors(['id_cita' => 'Solo se pueden registrar cobros de citas completadas.']);
         }
 
-        // Verificar que no tenga ya un cobro registrado
         if ($cita->cobro) {
-            return back()
-                ->withInput()
-                ->withErrors(['id_cita' => 'Esta cita ya tiene un cobro registrado.']);
+            return back()->withInput()->withErrors(['id_cita' => 'Esta cita ya tiene un cobro registrado.']);
         }
-        
-        $coste = $cita->servicios->sum('precio');
-        $data['coste'] = $coste;
 
-        $cita = Cita::with('servicios')->findOrFail($data['id_cita']);
+        // Calcular totales
         $coste = $cita->servicios->sum('precio');
-        $data['coste'] = $coste;
-
         $descuentoPorcentaje = $data['descuento_porcentaje'] ?? 0;
         $descuentoEuro = $data['descuento_euro'] ?? 0;
         $dineroCliente = $data['dinero_cliente'] ?? 0;
 
         $descuentoTotal = ($coste * ($descuentoPorcentaje / 100)) + $descuentoEuro;
         $totalFinal = $coste - $descuentoTotal;
-        $data['total_final'] = round($totalFinal, 2);
 
+        $data['coste'] = $coste;
+        $data['total_final'] = round($totalFinal, 2);
         $data['cambio'] = $dineroCliente > 0 ? round($dineroCliente - $data['total_final'], 2) : null;
 
+        // 🔹 Opcional: si quieres asociar cliente y empleado automáticamente
+        $data['id_cliente'] = $cita->id_cliente ?? null;
+        $data['id_empleado'] = $cita->id_empleado ?? null;
+
+        // 🔹 Por defecto la deuda es 0
+        $data['deuda'] = 0;
+        
         RegistroCobro::create($data);
 
         return redirect()->route('cobros.index')->with('success', 'Cobro registrado correctamente.');
     }
+
 
 
 

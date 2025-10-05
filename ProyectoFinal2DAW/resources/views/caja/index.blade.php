@@ -15,9 +15,7 @@
             <ul class="list-disc pl-6 space-y-1">
                 <li>Efectivo: €{{ number_format($totalEfectivo, 2) }}</li>
                 <li>Tarjeta: €{{ number_format($totalTarjeta, 2) }}</li>
-                <li>Bono: €{{ number_format($totalBono, 2) }}</li>
-                <li><strong>Total pagado (sum dinero recibido): €{{ number_format($totalPagado, 2) }}</strong></li>
-                <li>Total de servicios (sum total_final): €{{ number_format($totalServicios, 2) }}</li>
+                <li><strong>Total pagado: €{{ number_format($totalPagado, 2) }}</strong></li>
             </ul>
         </div>
 
@@ -62,7 +60,9 @@
                 <tbody>
                     @foreach($detalleServicios as $item)
                         <tr class="border-t">
-                            <td class="px-4 py-2">{{ $item->created_at->format('H:i') }}</td>
+                            <td class="px-4 py-2">
+                                {{ optional($item->cita)->fecha_hora ? \Carbon\Carbon::parse($item->cita->fecha_hora)->format('H:i') : '-' }}
+                            </td>
                             <td class="px-4 py-2">{{ optional($item->cliente->user)->nombre }} {{ optional($item->cliente->user)->apellidos }}</td>
                             <td class="px-4 py-2">
                                 @if($item->cita && $item->cita->servicios)

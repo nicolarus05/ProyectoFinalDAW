@@ -65,19 +65,28 @@
         </div>
 
         <div>
-            <label for="id_servicio" class="block text-gray-700 font-semibold mb-1">Servicio:</label>
-            <select name="id_servicio" required
+            <label for="servicios" class="block text-gray-700 font-semibold mb-1">Servicios:</label>
+            <select name="servicios[]" multiple required
                     class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400">
                 @foreach ($servicios as $servicio)
-                    <option value="{{ $servicio->id }}" {{ $cita->id_servicio == $servicio->id ? 'selected' : '' }}>
+                    <option value="{{ $servicio->id }}"
+                        {{ (collect($cita->servicios->pluck('id'))->contains($servicio->id)) ? 'selected' : '' }}>
                         {{ $servicio->nombre }}
                     </option>
                 @endforeach
             </select>
+            <small class="text-gray-500">Mantén presionada la tecla Ctrl (Windows) o Cmd (Mac) para seleccionar varios servicios.</small>
+        </div>
+
+        <div>
+            <label for="notas_adicionales" class="block text-gray-700 font-semibold mb-1">Notas Adicionales:</label>
+            <textarea name="notas_adicionales" rows="3"
+                      class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            >{{ old('notas_adicionales', $cita->notas_adicionales) }}</textarea>
         </div>
 
         <div class="flex justify-between items-center mt-6">
-            <a href="{{ route('Citas.index') }}"
+            <a href="{{ route('citas.index') }}"
                class="text-black px-4 py-2 rounded border border-black hover:bg-gray-200 transition-colors duration-300 font-semibold">
                 Volver
             </a>

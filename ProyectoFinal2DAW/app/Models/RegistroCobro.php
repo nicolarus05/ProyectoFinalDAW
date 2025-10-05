@@ -22,8 +22,6 @@ class RegistroCobro extends Model {
         'dinero_cliente',
         'cambio',
         'deuda',
-        'created_at',
-        'updated_at',
     ];
 
     // Relación directa con cita

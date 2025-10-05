@@ -56,6 +56,9 @@
             <li>
                 <a href="{{ route('citas.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Todas las Citas</a>
             </li>
+            <li>
+                <a href="{{ route('caja.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Ver Caja del Día</a>
+            </li>
         @endif
 
         @if ($rol === 'empleado')

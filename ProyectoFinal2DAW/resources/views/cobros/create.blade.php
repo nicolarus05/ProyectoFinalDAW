@@ -32,6 +32,17 @@
 <body class="bg-gray-100 p-8">
     <div class="max-w-xl mx-auto bg-white p-6 rounded shadow">
         <h1 class="text-3xl font-bold mb-6">Registrar Cobro</h1>
+        
+        @if ($errors->any())
+            <div class="bg-red-100 text-red-700 p-4 mb-4 rounded">
+                <strong>Errores encontrados:</strong>
+                <ul class="list-disc list-inside">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
 
         <form action="{{ route('cobros.store') }}" method="POST" oninput="calcularTotales()" onchange="actualizarCosteYTotales()" class="space-y-4">
             @csrf

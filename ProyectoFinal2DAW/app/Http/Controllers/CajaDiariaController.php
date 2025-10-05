@@ -9,13 +9,13 @@ use Carbon\Carbon;
 class CajaDiariaController extends Controller{
     public function index(Request $request){
         
-        // Fecha que queremos ver (formato YYYY-MM-DD). Por defecto hoy.
+        // Fecha que queremos ver Por defecto hoy.
         $fecha = $request->input('fecha', Carbon::today()->toDateString());
 
-        // Totales por metodo de pago (usamos dinero_cliente -> lo realmente ingresado)
+        // Totales por metodo de pago (usamos total_final -> el precio real del servicio realizado)
         $totalEfectivo = RegistroCobro::whereDate('created_at', $fecha)
             ->where('metodo_pago', 'efectivo')
-            ->sum('dinero_cliente');
+            ->sum('total_final');
 
         $totalTarjeta  = RegistroCobro::whereDate('created_at', $fecha)
             ->where('metodo_pago', 'tarjeta')
@@ -25,9 +25,9 @@ class CajaDiariaController extends Controller{
             ->where('metodo_pago', 'bono')
             ->sum('dinero_cliente');
 
-        $totalPagado = RegistroCobro::whereDate('created_at', $fecha)->sum('dinero_cliente');
+        $totalPagado = RegistroCobro::whereDate('created_at', $fecha)->sum('total_final');
 
-        // Total de servicios realizados (suma de total_final)
+        // Total de servicios realizados
         $totalServicios = RegistroCobro::whereDate('created_at', $fecha)->sum('total_final');
 
         // Clientes que han dejado deuda ese día
