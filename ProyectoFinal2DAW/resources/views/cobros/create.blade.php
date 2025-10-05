@@ -27,6 +27,24 @@
             document.getElementById('total_final').value = totalFinal.toFixed(2);
             document.getElementById('cambio').value = cambio.toFixed(2);
         }
+
+        function toggleEfectivoCampos() {
+            const metodoPago = document.getElementById('metodo_pago').value;
+            const efectivoCampos = document.getElementById('efectivo_campos');
+
+            if (metodoPago === 'tarjeta') {
+                efectivoCampos.style.display = 'none';
+                document.getElementById('dinero_cliente').value = '';
+                document.getElementById('cambio').value = '';
+            } else {
+                efectivoCampos.style.display = 'block';
+            }
+        }
+
+        window.onload = function() {
+            actualizarCosteYTotales();
+            toggleEfectivoCampos();
+        };
     </script>
 </head>
 <body class="bg-gray-100 p-8">
@@ -84,22 +102,25 @@
             </div>
 
             <div>
-                <label for="dinero_cliente" class="block font-semibold mb-1">Dinero del Cliente:</label>
-                <input type="number" name="dinero_cliente" id="dinero_cliente" required class="w-full border rounded px-3 py-2" step="0.01">
-            </div>
-
-            <div>
-                <label for="cambio" class="block font-semibold mb-1">Cambio:</label>
-                <input type="number" name="cambio" id="cambio" class="w-full border rounded px-3 py-2" step="0.01">
-            </div>
-
-            <div>
                 <label for="metodo_pago" class="block font-semibold mb-1">Método de Pago:</label>
-                <select name="metodo_pago" required class="w-full border rounded px-3 py-2">
+                <select name="metodo_pago" id="metodo_pago" required class="w-full border rounded px-3 py-2" onchange="toggleEfectivoCampos()">
                     <option value="efectivo">Efectivo</option>
                     <option value="tarjeta">Tarjeta</option>
                 </select>
             </div>
+
+            <div id="efectivo_campos">
+                <div>
+                    <label for="dinero_cliente" class="block font-semibold mb-1">Dinero del Cliente:</label>
+                    <input type="number" name="dinero_cliente" id="dinero_cliente" class="w-full border rounded px-3 py-2" step="0.01">
+                </div>
+
+                <div>
+                    <label for="cambio" class="block font-semibold mb-1">Cambio:</label>
+                    <input type="number" name="cambio" id="cambio" class="w-full border rounded px-3 py-2" step="0.01">
+                </div>
+            </div>
+
 
             <div class="flex justify-between items-center mt-6">
                 <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Registrar</button>

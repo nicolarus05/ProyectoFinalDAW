@@ -30,7 +30,8 @@
         <div>
             <label for="fecha_hora" class="block text-gray-700 font-semibold mb-1">Fecha y Hora:</label>
             <input type="datetime-local" name="fecha_hora" required
-                   class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+               min="{{ \Carbon\Carbon::now()->format('Y-m-d\TH:i') }}"
+               class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400">
         </div>
 
         <div>

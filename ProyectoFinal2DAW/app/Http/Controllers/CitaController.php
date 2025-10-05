@@ -74,7 +74,7 @@ class CitaController extends Controller{
 
     public function store(Request $request){
         $data = $request->validate([
-            'fecha_hora' => 'required|date',
+            'fecha_hora' => 'required|date|after:now',
             'estado' => 'required|in:pendiente,confirmada,cancelada,completada',
             'notas_adicionales' => 'nullable|string|max:255',
             'id_cliente' => 'required|exists:clientes,id',
