@@ -27,7 +27,7 @@
 
             <div>
                 <label for="fecha" class="block font-semibold mb-1">Fecha:</label>
-                <input type="date" name="fecha" id="fecha" required class="w-full border border-gray-300 rounded px-3 py-2">
+                <input type="date" name="fecha" id="fecha" required class="w-full border border-gray-300 rounded px-3 py-2" min="{{ \Carbon\Carbon::now()->format('Y-m-d') }}">
             </div>
 
 

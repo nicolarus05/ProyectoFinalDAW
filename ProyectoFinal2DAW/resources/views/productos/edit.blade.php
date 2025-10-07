@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Editar Producto</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-xl mx-auto bg-white p-6 rounded shadow">
+        <h1 class="text-3xl font-bold mb-6">Editar Producto</h1>
+
+        @if ($errors->any())
+            <div class="bg-red-100 text-red-700 p-4 mb-4 rounded">
+                <strong>Errores encontrados:</strong>
+                <ul class="list-disc list-inside">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        <form action="{{ route('productos.update', $producto) }}" method="POST" class="space-y-4">
+            @csrf
+            @method('PUT')
+
+            <div>
+                <label for="nombre" class="block font-semibold mb-1">Nombre</label>
+                <input type="text" name="nombre" id="nombre" value="{{ old('nombre', $producto->nombre) }}" required class="w-full border rounded px-3 py-2">
+            </div>
+
+            <div>
+                <label for="descripcion" class="block font-semibold mb-1">Descripción</label>
+                <textarea name="descripcion" id="descripcion" rows="4" class="w-full border rounded px-3 py-2">{{ old('descripcion', $producto->descripcion) }}</textarea>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4">
+                <div>
+                    <label for="precio_venta" class="block font-semibold mb-1">Precio venta (€)</label>
+                    <input type="number" name="precio_venta" id="precio_venta" value="{{ old('precio_venta', $producto->precio_venta) }}" step="0.01" min="0" required class="w-full border rounded px-3 py-2">
+                </div>
+
+                <div>
+                    <label for="precio_coste" class="block font-semibold mb-1">Precio coste (€)</label>
+                    <input type="number" name="precio_coste" id="precio_coste" value="{{ old('precio_coste', $producto->precio_coste) }}" step="0.01" min="0" class="w-full border rounded px-3 py-2">
+                </div>
+
+                <div>
+                    <label for="stock" class="block font-semibold mb-1">Stock</label>
+                    <input type="number" name="stock" id="stock" value="{{ old('stock', $producto->stock) }}" min="0" required class="w-full border rounded px-3 py-2">
+                </div>
+            </div>
+
+            <div>
+                <label class="inline-flex items-center">
+                    <input type="checkbox" name="activo" value="1" {{ old('activo', $producto->activo) ? 'checked' : '' }} class="form-checkbox mr-2">
+                    <span>Activo</span>
+                </label>
+            </div>
+
+            <div class="flex justify-between items-center mt-6">
+                <a href="{{ route('productos.index') }}" class="text-blue-600 hover:underline">Volver</a>
+                <div>
+                    <a href="{{ route('productos.index') }}" class="text-gray-600 mr-4">Cancelar</a>
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Guardar cambios</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

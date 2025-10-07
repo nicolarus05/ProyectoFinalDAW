@@ -38,4 +38,16 @@ class RegistroCobro extends Model {
     public function empleado() {
         return $this->belongsTo(Empleado::class, 'id_empleado');
     }
+
+     public function productos()
+    {
+        return $this->belongsToMany(
+            \App\Models\Productos::class,
+            'registro_cobro_productos',
+            'id_registro_cobro',
+            'id_producto'
+        )
+        ->withPivot(['cantidad','precio_unitario','subtotal'])
+        ->withTimestamps();
+    }
 }

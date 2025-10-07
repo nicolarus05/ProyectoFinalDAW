@@ -9,7 +9,7 @@ use App\Http\Controllers\{
     Auth\AuthenticatedSessionController, Auth\RegisterClienteController, 
     Auth\PerfilController, Auth\PasswordResetLinkController,
     Auth\NewPasswordController,
-    CajaDiariaController
+    CajaDiariaController, ProductosController
 };
 
 Route::get('/', fn () => view('welcome'));
@@ -69,11 +69,11 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::resource('horarios', HorarioTrabajoController::class)->names('horarios');
     Route::resource('cobros', RegistroCobroController::class)->names('cobros');
 });
-
 // Rutas accesibles por ADMIN y EMPLEADO
 Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
     Route::get('/caja', [CajaDiariaController::class, 'index'])->name('caja.index');
     Route::resource('citas', CitaController::class)->names('citas');
+    Route::get('productos/available', [ProductosController::class, 'available'])->name('productos.available');
 });
 
 // Rutas de citas accesibles por ADMIN, EMPLEADO y CLIENTE
@@ -85,6 +85,7 @@ Route::middleware(['auth', 'role:admin,empleado,cliente'])->group(function () {
     Route::get('/citas/{cita}/edit', [CitaController::class, 'edit'])->name('citas.edit');
     Route::put('/citas/{cita}', [CitaController::class, 'update'])->name('citas.update');
     Route::patch('/citas/{cita}', [CitaController::class, 'update'])->name('citas.update');
+    Route::resource('productos', ProductosController::class)->names('productos');
 });
 
 // Rutas para que un user se pueda registrar

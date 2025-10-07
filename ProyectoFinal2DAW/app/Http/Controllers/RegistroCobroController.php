@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\RegistroCobro;
 use App\Models\Cita;
+use App\Models\user;
+use App\Models\Productos;
+
 
 class RegistroCobroController extends Controller{
     /**
@@ -27,55 +30,79 @@ class RegistroCobroController extends Controller{
      * Store a newly created resource in storage.
      */
     public function store(Request $request){
-        
+        // --- Validación base ---
         $data = $request->validate([
             'id_cita' => 'required|exists:citas,id',
             'coste' => 'required|numeric|min:0',
-            'descuento_porcentaje' => 'nullable|numeric|min:0|max:100',
+            'descuento_porcentaje' => 'nullable|numeric|min:0',
             'descuento_euro' => 'nullable|numeric|min:0',
             'total_final' => 'required|numeric|min:0',
-            'dinero_cliente' => 'required|numeric|min:0',
-            'cambio' => 'nullable|numeric|min:0',
             'metodo_pago' => 'required|in:efectivo,tarjeta',
+            'dinero_cliente' => 'nullable|numeric|min:0',
+            'cambio' => 'nullable|numeric|min:0',
         ]);
 
+        // --- Lógica según método de pago ---
+        if ($data['metodo_pago'] === 'efectivo') {
+            // Si es efectivo → dinero_cliente es obligatorio y debe cubrir el total
+            if (empty($data['dinero_cliente'])) {
+                return back()
+                    ->withErrors(['dinero_cliente' => 'El campo Dinero del Cliente es obligatorio para pagos en efectivo.'])
+                    ->withInput();
+            }
 
-        $cita = Cita::with(['servicios','cliente','empleado'])->findOrFail($data['id_cita']);
+            if ($data['dinero_cliente'] < $data['total_final']) {
+                return back()
+                    ->withErrors(['dinero_cliente' => 'El dinero del cliente debe ser igual o superior al total final.'])
+                    ->withInput();
+            }
 
-        if ($cita->estado !== 'completada') {
-            return back()->withInput()->withErrors(['id_cita' => 'Solo se pueden registrar cobros de citas completadas.']);
+            // Calcular el cambio
+            $data['cambio'] = $data['dinero_cliente'] - $data['total_final'];
+        } 
+        elseif ($data['metodo_pago'] === 'tarjeta') {
+            // Si es tarjeta → se llena automáticamente
+            $data['dinero_cliente'] = $data['total_final'];
+            $data['cambio'] = 0;
         }
 
-        if ($cita->cobro) {
-            return back()->withInput()->withErrors(['id_cita' => 'Esta cita ya tiene un cobro registrado.']);
+        // --- Crear el registro principal ---
+        $cobro = RegistroCobro::create([
+            'id_cita' => $data['id_cita'],
+            'coste' => $data['coste'],
+            'descuento_porcentaje' => $data['descuento_porcentaje'] ?? 0,
+            'descuento_euro' => $data['descuento_euro'] ?? 0,
+            'total_final' => $data['total_final'],
+            'dinero_cliente' => $data['dinero_cliente'],
+            'cambio' => $data['cambio'],
+            'metodo_pago' => $data['metodo_pago'],
+            'id_cliente' => $data['id_cliente'] ?? null,
+            'id_empleado' => $data['id_empleado'] ?? (auth()->user()->empleado->id ?? null),
+
+            'deuda' => 0,
+        ]);
+
+        // --- Guardar productos asociados (si existen) ---
+        if ($request->has('products')) {
+            foreach ($request->products as $p) {
+                $cantidad = (int) $p['cantidad'];
+                $precio = (float) $p['precio_venta'];
+                $subtotal = $cantidad * $precio;
+
+                $cobro->productos()->attach($p['id'], [
+                    'cantidad' => $cantidad,
+                    'precio_unitario' => $precio,
+                    'subtotal' => $subtotal,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
         }
 
-        // Calcular totales
-        $coste = $cita->servicios->sum('precio');
-        $descuentoPorcentaje = $data['descuento_porcentaje'] ?? 0;
-        $descuentoEuro = $data['descuento_euro'] ?? 0;
-        $dineroCliente = $data['dinero_cliente'] ?? 0;
-
-        $descuentoTotal = ($coste * ($descuentoPorcentaje / 100)) + $descuentoEuro;
-        $totalFinal = $coste - $descuentoTotal;
-
-        $data['coste'] = $coste;
-        $data['total_final'] = round($totalFinal, 2);
-        $data['cambio'] = $dineroCliente > 0 ? round($dineroCliente - $data['total_final'], 2) : null;
-
-        // 🔹 Opcional: si quieres asociar cliente y empleado automáticamente
-        $data['id_cliente'] = $cita->id_cliente ?? null;
-        $data['id_empleado'] = $cita->id_empleado ?? null;
-
-        // 🔹 Por defecto la deuda es 0
-        $data['deuda'] = 0;
-        
-        RegistroCobro::create($data);
-
-        return redirect()->route('cobros.index')->with('success', 'Cobro registrado correctamente.');
+        return redirect()
+            ->route('cobros.index')
+            ->with('success', 'Cobro registrado correctamente.');
     }
-
-
 
 
     /**

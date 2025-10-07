@@ -51,6 +51,9 @@
                 <a href="{{ route('horarios.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Gestionar Horarios</a>
             </li>
             <li>
+                <a href="{{ route('productos.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Gestionar Productos</a>
+            </li>
+            <li>
                 <a href="{{ route('cobros.index') }}" class="block bg-black text-white px-6 py-3 rounded hover:bg-gray-800 transition-colors font-semibold">Registro de Cobros</a>
             </li>
             <li>
