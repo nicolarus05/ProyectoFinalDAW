@@ -7,6 +7,7 @@ use App\Models\RegistroCobro;
 use App\Models\Cita;
 use App\Models\user;
 use App\Models\Productos;
+use App\Models\Cliente;
 
 
 class RegistroCobroController extends Controller{
@@ -66,6 +67,9 @@ class RegistroCobroController extends Controller{
             $data['cambio'] = 0;
         }
 
+        // --- Calcular deuda si el dinero del cliente es menor que el total ---
+        $deuda = max(0, $data['total_final'] - ($data['dinero_cliente'] ?? 0));
+
         // --- Crear el registro principal ---
         $cobro = RegistroCobro::create([
             'id_cita' => $data['id_cita'],
@@ -73,14 +77,25 @@ class RegistroCobroController extends Controller{
             'descuento_porcentaje' => $data['descuento_porcentaje'] ?? 0,
             'descuento_euro' => $data['descuento_euro'] ?? 0,
             'total_final' => $data['total_final'],
-            'dinero_cliente' => $data['dinero_cliente'],
-            'cambio' => $data['cambio'],
+            'dinero_cliente' => $data['dinero_cliente'] ?? 0,
+            'cambio' => $data['cambio'] ?? 0,
             'metodo_pago' => $data['metodo_pago'],
             'id_cliente' => $data['id_cliente'] ?? null,
             'id_empleado' => $data['id_empleado'] ?? (auth()->user()->empleado->id ?? null),
-
-            'deuda' => 0,
+            'deuda' => $deuda,
         ]);
+
+        // --- Si hay deuda, registrarla en el sistema de deudas ---
+        if ($deuda > 0) {
+            $cita = Cita::find($data['id_cita']);
+            $cliente = Cliente::find($cita->id_cliente);
+            
+            if ($cliente) {
+                $deudaCliente = $cliente->obtenerDeuda();
+                $nota = "Cobro #" . $cobro->id . " - Cita #" . $cobro->id_cita;
+                $deudaCliente->registrarCargo($deuda, $nota, null, $cobro->id);
+            }
+        }
 
         // --- Guardar productos asociados (si existen) ---
         if ($request->has('products')) {

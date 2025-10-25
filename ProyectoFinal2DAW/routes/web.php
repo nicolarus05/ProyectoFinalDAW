@@ -9,7 +9,7 @@ use App\Http\Controllers\{
     Auth\AuthenticatedSessionController, Auth\RegisterClienteController, 
     Auth\PerfilController, Auth\PasswordResetLinkController,
     Auth\NewPasswordController,
-    CajaDiariaController, ProductosController
+    CajaDiariaController, ProductosController, DeudaController
 };
 
 Route::get('/', fn () => view('welcome'));
@@ -74,6 +74,15 @@ Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
     Route::get('/caja', [CajaDiariaController::class, 'index'])->name('caja.index');
     Route::resource('citas', CitaController::class)->names('citas');
     Route::get('productos/available', [ProductosController::class, 'available'])->name('productos.available');
+    
+    // Rutas de deudas
+    Route::prefix('deudas')->name('deudas.')->group(function () {
+        Route::get('/', [DeudaController::class, 'index'])->name('index');
+        Route::get('/cliente/{cliente}', [DeudaController::class, 'show'])->name('show');
+        Route::get('/cliente/{cliente}/pago', [DeudaController::class, 'crearPago'])->name('pago.create');
+        Route::post('/cliente/{cliente}/pago', [DeudaController::class, 'registrarPago'])->name('pago.store');
+        Route::get('/cliente/{cliente}/historial', [DeudaController::class, 'historial'])->name('historial');
+    });
 });
 
 // Rutas de citas accesibles por ADMIN, EMPLEADO y CLIENTE
