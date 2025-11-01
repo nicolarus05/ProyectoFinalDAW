@@ -8,6 +8,7 @@ class Productos extends Model{
     
     protected $fillable = [
         'nombre',
+        'categoria',
         'descripcion',
         'precio_venta',
         'precio_coste',

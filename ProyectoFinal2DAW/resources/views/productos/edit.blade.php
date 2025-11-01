@@ -31,6 +31,15 @@
             </div>
 
             <div>
+                <label for="categoria" class="block font-semibold mb-1">Categoría</label>
+                <select name="categoria" id="categoria" required class="w-full border rounded px-3 py-2">
+                    <option value="">Seleccionar categoría</option>
+                    <option value="peluqueria" {{ old('categoria', $producto->categoria) == 'peluqueria' ? 'selected' : '' }}>💇 Peluquería</option>
+                    <option value="estetica" {{ old('categoria', $producto->categoria) == 'estetica' ? 'selected' : '' }}>💅 Estética</option>
+                </select>
+            </div>
+
+            <div>
                 <label for="descripcion" class="block font-semibold mb-1">Descripción</label>
                 <textarea name="descripcion" id="descripcion" rows="4" class="w-full border rounded px-3 py-2">{{ old('descripcion', $producto->descripcion) }}</textarea>
             </div>

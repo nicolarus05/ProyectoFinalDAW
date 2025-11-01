@@ -38,10 +38,11 @@ class ProductosController extends Controller{
      */
     public function store(Request $request)
     {
-        $data = $request->only(['nombre', 'descripcion', 'precio_venta', 'precio_coste', 'stock', 'activo']);
+        $data = $request->only(['nombre', 'categoria', 'descripcion', 'precio_venta', 'precio_coste', 'stock', 'activo']);
 
         $validator = Validator::make($data, [
             'nombre' => 'required|string|max:255|unique:productos,nombre',
+            'categoria' => 'required|in:peluqueria,estetica',
             'descripcion' => 'nullable|string',
             'precio_venta' => 'required|numeric|min:0',
             'precio_coste' => 'nullable|numeric|min:0',
@@ -56,6 +57,7 @@ class ProductosController extends Controller{
         try {
             Productos::create([
                 'nombre' => $data['nombre'],
+                'categoria' => $data['categoria'],
                 'descripcion' => $data['descripcion'] ?? null,
                 'precio_venta' => $data['precio_venta'],
                 'precio_coste' => $data['precio_coste'] ?? 0,
@@ -91,10 +93,11 @@ class ProductosController extends Controller{
      */
     public function update(Request $request, Productos $producto)
     {
-        $data = $request->only(['nombre', 'descripcion', 'precio_venta', 'precio_coste', 'stock', 'activo']);
+        $data = $request->only(['nombre', 'categoria', 'descripcion', 'precio_venta', 'precio_coste', 'stock', 'activo']);
 
         $validator = Validator::make($data, [
             'nombre' => 'required|string|max:255|unique:productos,nombre,' . $producto->id,
+            'categoria' => 'required|in:peluqueria,estetica',
             'descripcion' => 'nullable|string',
             'precio_venta' => 'required|numeric|min:0',
             'precio_coste' => 'nullable|numeric|min:0',
@@ -109,6 +112,7 @@ class ProductosController extends Controller{
         try {
             $producto->update([
                 'nombre' => $data['nombre'],
+                'categoria' => $data['categoria'],
                 'descripcion' => $data['descripcion'] ?? null,
                 'precio_venta' => $data['precio_venta'],
                 'precio_coste' => $data['precio_coste'] ?? $producto->precio_coste,
