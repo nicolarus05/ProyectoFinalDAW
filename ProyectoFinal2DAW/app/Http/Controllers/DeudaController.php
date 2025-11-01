@@ -23,7 +23,13 @@ class DeudaController extends Controller
     public function show(Cliente $cliente)
     {
         $deuda = $cliente->obtenerDeuda();
-        $movimientos = $deuda->movimientos()->with('usuarioRegistro')->paginate(15);
+        $movimientos = $deuda->movimientos()
+            ->with([
+                'usuarioRegistro',
+                'registroCobro.cita.servicios',
+                'registroCobro.productos'
+            ])
+            ->paginate(15);
 
         return view('deudas.show', compact('cliente', 'deuda', 'movimientos'));
     }
@@ -51,6 +57,12 @@ class DeudaController extends Controller
         $deuda = $cliente->obtenerDeuda();
 
         if (!$deuda->tieneDeuda()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Este cliente no tiene deudas pendientes.'
+                ], 400);
+            }
             return redirect()->route('deudas.show', $cliente)
                 ->with('error', 'Este cliente no tiene deudas pendientes.');
         }
@@ -58,6 +70,12 @@ class DeudaController extends Controller
         $monto = $request->monto;
 
         if ($monto > $deuda->saldo_pendiente) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El monto no puede ser mayor a la deuda pendiente (€' . number_format($deuda->saldo_pendiente, 2) . ')'
+                ], 400);
+            }
             return back()->withErrors([
                 'monto' => 'El monto no puede ser mayor a la deuda pendiente (€' . number_format($deuda->saldo_pendiente, 2) . ')'
             ])->withInput();
@@ -72,6 +90,14 @@ class DeudaController extends Controller
         $mensaje = $deuda->saldo_pendiente > 0
             ? 'Pago registrado. Deuda restante: €' . number_format($deuda->saldo_pendiente, 2)
             : 'Pago registrado. Deuda saldada completamente.';
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $mensaje,
+                'deuda_restante' => $deuda->saldo_pendiente
+            ]);
+        }
 
         return redirect()->route('deudas.show', $cliente)
             ->with('success', $mensaje);

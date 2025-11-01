@@ -34,6 +34,7 @@ class ProfileController extends Controller{
             'email'      => 'required|email|max:255|unique:users,email,' . $user->id,
             'genero'     => 'required|string|in:masculino,femenino,otro',
             'edad'       => 'nullable|integer|min:0',
+            'foto_perfil' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
         $user->nombre = $validated['nombre'];
@@ -47,13 +48,17 @@ class ProfileController extends Controller{
             $user->email_verified_at = null;
         }
 
-        if($request->hasFile('foto_perfil')) {
-            File::delete(public_path('storage/' . $user->foto_perfil)); 
-            $foto = $request['foto_perfil']->store('profiles', 'public');
-        }else{
-            $foto = $user->foto_perfil; // Mantener la foto actual si no se subió una nueva
+        // Manejo de la foto de perfil
+        if ($request->hasFile('foto_perfil')) {
+            // Eliminar la foto anterior si existe
+            if ($user->foto_perfil && File::exists(storage_path('app/public/' . $user->foto_perfil))) {
+                File::delete(storage_path('app/public/' . $user->foto_perfil));
+            }
+            
+            // Guardar la nueva foto
+            $fotoPath = $request->file('foto_perfil')->store('profiles', 'public');
+            $user->foto_perfil = $fotoPath;
         }
-        $user->foto_perfil = $foto;
 
         $user->save();
 

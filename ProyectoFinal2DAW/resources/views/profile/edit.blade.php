@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <title>Editar Perfil</title>
     @vite(['resources/js/app.js'])
+    <style>
+        .foto-perfil-redonda {
+            width: 128px;
+            height: 128px;
+            object-fit: cover;
+            object-position: center;
+            aspect-ratio: 1/1;
+        }
+    </style>
 </head>
 <body class="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6">
 
@@ -41,7 +50,7 @@
         {{-- Imagen de perfil --}}
         @if ($user->foto_perfil)
             <div class="mb-4">
-                <img src="{{ asset('storage/' . $user->foto_perfil) }}" alt="Foto de perfil" class="w-32 h-32 object-cover rounded-full mx-auto">
+                <img src="{{ asset('storage/' . $user->foto_perfil) }}" alt="Foto de perfil" class="foto-perfil-redonda rounded-full mx-auto border-2 border-gray-300">
             </div>
         @endif
 

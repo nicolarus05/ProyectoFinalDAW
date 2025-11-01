@@ -23,7 +23,9 @@ class RegistroCobroController extends Controller{
      * Show the form for creating a new resource.
      */
     public function create(){
-        $citas = Cita::whereDoesntHave('cobro')->get();
+        $citas = Cita::whereDoesntHave('cobro')
+            ->with(['cliente.user', 'cliente.deuda', 'servicios'])
+            ->get();
         return view('cobros.create', compact('citas'));
     }
 
@@ -45,24 +47,23 @@ class RegistroCobroController extends Controller{
 
         // --- Lógica según método de pago ---
         if ($data['metodo_pago'] === 'efectivo') {
-            // Si es efectivo → dinero_cliente es obligatorio y debe cubrir el total
-            if (empty($data['dinero_cliente'])) {
+            // Si es efectivo, el dinero_cliente puede ser menor que el total (genera deuda)
+            // Solo es obligatorio si no está vacío, validar que sea >= 0
+            if (!isset($data['dinero_cliente'])) {
+                $data['dinero_cliente'] = 0; // Si está vacío, se asume que no paga nada (deuda completa)
+            }
+
+            if ($data['dinero_cliente'] < 0) {
                 return back()
-                    ->withErrors(['dinero_cliente' => 'El campo Dinero del Cliente es obligatorio para pagos en efectivo.'])
+                    ->withErrors(['dinero_cliente' => 'El dinero del cliente no puede ser negativo.'])
                     ->withInput();
             }
 
-            if ($data['dinero_cliente'] < $data['total_final']) {
-                return back()
-                    ->withErrors(['dinero_cliente' => 'El dinero del cliente debe ser igual o superior al total final.'])
-                    ->withInput();
-            }
-
-            // Calcular el cambio
-            $data['cambio'] = $data['dinero_cliente'] - $data['total_final'];
+            // Calcular el cambio (solo si paga más del total)
+            $data['cambio'] = max(0, $data['dinero_cliente'] - $data['total_final']);
         } 
         elseif ($data['metodo_pago'] === 'tarjeta') {
-            // Si es tarjeta → se llena automáticamente
+            // Si es tarjeta → se llena automáticamente (no genera deuda)
             $data['dinero_cliente'] = $data['total_final'];
             $data['cambio'] = 0;
         }
@@ -104,6 +105,27 @@ class RegistroCobroController extends Controller{
                 $precio = (float) $p['precio_venta'];
                 $subtotal = $cantidad * $precio;
 
+                // Obtener el producto para actualizar el stock
+                $producto = Productos::find($p['id']);
+                
+                if (!$producto) {
+                    return back()
+                        ->withErrors(['products' => 'Producto no encontrado: ID ' . $p['id']])
+                        ->withInput();
+                }
+
+                // Verificar que hay suficiente stock
+                if ($producto->stock < $cantidad) {
+                    return back()
+                        ->withErrors(['products' => 'Stock insuficiente para el producto: ' . $producto->nombre . '. Stock disponible: ' . $producto->stock])
+                        ->withInput();
+                }
+
+                // Descontar del stock
+                $producto->stock -= $cantidad;
+                $producto->save();
+
+                // Asociar el producto al cobro en la tabla pivot
                 $cobro->productos()->attach($p['id'], [
                     'cantidad' => $cantidad,
                     'precio_unitario' => $precio,
@@ -114,9 +136,15 @@ class RegistroCobroController extends Controller{
             }
         }
 
+        // Mensaje de éxito con información de deuda si aplica
+        $mensaje = 'Cobro registrado correctamente.';
+        if ($deuda > 0) {
+            $mensaje .= ' Deuda registrada: €' . number_format($deuda, 2);
+        }
+
         return redirect()
             ->route('cobros.index')
-            ->with('success', 'Cobro registrado correctamente.');
+            ->with('success', $mensaje);
     }
 
 
@@ -187,7 +215,14 @@ class RegistroCobroController extends Controller{
      * Remove the specified resource from storage.
      */
     public function destroy(RegistroCobro $cobro){
+        // Restaurar el stock de los productos antes de eliminar el cobro
+        foreach ($cobro->productos as $producto) {
+            $cantidad = $producto->pivot->cantidad;
+            $producto->stock += $cantidad;
+            $producto->save();
+        }
+
         $cobro->delete();
-        return redirect()->route('cobros.index');
+        return redirect()->route('cobros.index')->with('success', 'Cobro eliminado y stock restaurado.');
     }
 }

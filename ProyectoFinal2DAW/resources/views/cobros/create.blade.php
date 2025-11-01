@@ -30,13 +30,18 @@
 
             <div>
                 <label for="id_cita" class="block font-semibold mb-1">Cita:</label>
-                <select name="id_cita" id="id_cita" required class="w-full border rounded px-3 py-2">
+                <select name="id_cita" id="id_cita" required class="w-full border rounded px-3 py-2" onchange="actualizarClienteInfo()">
                     @foreach($citas as $cita)
                         @php
                             $costeTotal = $cita->servicios->sum('precio');
                             $nombresServicios = $cita->servicios->pluck('nombre')->implode(', ');
+                            $deudaExistente = $cita->cliente->deuda ? $cita->cliente->deuda->saldo_pendiente : 0;
                         @endphp
-                        <option value="{{ $cita->id }}" data-coste="{{ $costeTotal }}">
+                        <option value="{{ $cita->id }}" 
+                                data-coste="{{ $costeTotal }}"
+                                data-cliente-id="{{ $cita->cliente->id }}"
+                                data-cliente-nombre="{{ $cita->cliente->user->nombre ?? '' }} {{ $cita->cliente->user->apellidos ?? '' }}"
+                                data-deuda-existente="{{ $deudaExistente }}">
                             {{ $cita->cliente->user->nombre ?? '' }} - {{ $nombresServicios }}
                         </option>
                     @endforeach
@@ -96,6 +101,30 @@
                 <input type="number" name="total_final" id="total_final" required class="w-full border rounded px-3 py-2" step="0.01" value="0.00" readonly>
             </div>
 
+            <!-- Alerta de deuda en tiempo real -->
+            <div id="alerta-deuda" class="hidden p-4 rounded border">
+                <div class="flex items-start gap-3">
+                    <div class="text-2xl">⚠️</div>
+                    <div class="flex-1">
+                        <h3 class="font-bold text-lg mb-1">Información de Deuda</h3>
+                        <div class="text-sm space-y-1">
+                            <p id="alerta-deuda-existente" class="hidden">
+                                <span class="font-semibold">Deuda existente:</span> 
+                                <span class="text-red-600 font-bold" id="alerta-deuda-existente-monto"></span>
+                            </p>
+                            <p id="alerta-deuda-nueva">
+                                <span class="font-semibold">Deuda nueva (este cobro):</span> 
+                                <span class="text-yellow-600 font-bold" id="alerta-deuda-nueva-monto"></span>
+                            </p>
+                            <p class="border-t pt-1 mt-2">
+                                <span class="font-semibold">Total deuda acumulada:</span> 
+                                <span class="text-gray-800 font-bold text-lg" id="alerta-deuda-total-monto"></span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div>
                 <label for="metodo_pago" class="block font-semibold mb-1">Método de Pago:</label>
                 <select name="metodo_pago" id="metodo_pago" required class="w-full border rounded px-3 py-2" onchange="toggleEfectivoCampos()">
@@ -107,7 +136,7 @@
             <div id="efectivo_campos">
                 <div>
                     <label for="dinero_cliente" class="block font-semibold mb-1">Dinero del Cliente:</label>
-                    <input type="number" name="dinero_cliente" id="dinero_cliente" class="w-full border rounded px-3 py-2" step="0.01" value="">
+                    <input type="number" name="dinero_cliente" id="dinero_cliente" class="w-full border rounded px-3 py-2" step="0.01" value="" oninput="calcularTotales()">
                 </div>
 
                 <div>
@@ -117,7 +146,12 @@
             </div>
 
             <div class="flex justify-between items-center mt-6">
-                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Registrar</button>
+                <div class="flex gap-2">
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Registrar</button>
+                    <button type="button" id="btn-ver-deuda" class="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700">
+                        Ver Deuda del Cliente
+                    </button>
+                </div>
                 <a href="{{ route('cobros.index') }}" class="text-blue-600 hover:underline">Volver</a>
             </div>
         </form>
@@ -149,6 +183,117 @@
           <!-- Se rellena dinámicamente con JS -->
         </tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- ========== MODAL DE DEUDA ========== -->
+<div id="deuda-modal" class="fixed inset-0 hidden items-center justify-center z-50">
+  <div class="absolute inset-0 modal-backdrop" onclick="cerrarModalDeuda()"></div>
+  <div class="bg-white rounded shadow-lg z-10 w-11/12 max-w-3xl p-6 max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-2xl font-bold">Gestión de Deuda del Cliente</h3>
+      <button onclick="cerrarModalDeuda()" class="text-gray-600 hover:text-gray-900 text-2xl">&times;</button>
+    </div>
+
+    <div class="mb-4 p-4 bg-blue-50 rounded">
+      <h4 class="font-semibold text-lg mb-2">Cliente</h4>
+      <p id="deuda-cliente-nombre" class="text-lg"></p>
+    </div>
+
+    <div id="deuda-existente-section" class="mb-4 p-4 bg-red-50 rounded border border-red-200">
+      <h4 class="font-semibold text-lg mb-2 text-red-700">⚠️ Deuda Existente</h4>
+      <p class="text-2xl font-bold text-red-600" id="deuda-existente-monto">€0.00</p>
+      <p class="text-sm text-gray-600 mt-1">El cliente tiene deuda pendiente de pagos anteriores</p>
+      
+      <!-- Formulario de pago de deuda existente -->
+      <div class="mt-4 p-3 bg-white rounded border border-red-300">
+        <h5 class="font-semibold text-sm mb-2">Registrar Pago de Deuda Existente</h5>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-gray-600">Monto a Pagar</label>
+            <input type="number" 
+                   id="pago-deuda-existente" 
+                   step="0.01" 
+                   min="0" 
+                   class="w-full border rounded px-2 py-1 text-sm"
+                   placeholder="0.00">
+            <p class="text-xs text-gray-500 mt-1">Máximo: <span id="max-pago-existente">€0.00</span></p>
+          </div>
+          <div>
+            <label class="text-xs text-gray-600">Método de Pago</label>
+            <select id="metodo-pago-existente" class="w-full border rounded px-2 py-1 text-sm">
+              <option value="efectivo">Efectivo</option>
+              <option value="tarjeta">Tarjeta</option>
+              <option value="transferencia">Transferencia</option>
+            </select>
+          </div>
+        </div>
+        <button type="button" 
+                onclick="registrarPagoDeudaExistente()"
+                class="mt-2 w-full bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 text-sm font-semibold">
+          💰 Registrar Pago de Deuda Existente
+        </button>
+      </div>
+    </div>
+
+    <div class="mb-4 p-4 bg-yellow-50 rounded border border-yellow-200">
+      <h4 class="font-semibold text-lg mb-2 text-yellow-700">Nueva Deuda (Este Cobro)</h4>
+      <div class="grid grid-cols-2 gap-4 text-sm mb-2">
+        <div>
+          <p class="text-gray-600">Total a Pagar:</p>
+          <p class="font-semibold" id="deuda-total-pagar">€0.00</p>
+        </div>
+        <div>
+          <p class="text-gray-600">Dinero del Cliente:</p>
+          <p class="font-semibold" id="deuda-dinero-cliente">€0.00</p>
+        </div>
+      </div>
+      
+      <!-- Modificar dinero del cliente -->
+      <div class="mt-3 p-3 bg-white rounded border border-yellow-300">
+        <h5 class="font-semibold text-sm mb-2">Ajustar Pago del Cliente</h5>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-gray-600">Nuevo Monto que Paga</label>
+            <input type="number" 
+                   id="nuevo-dinero-cliente" 
+                   step="0.01" 
+                   min="0" 
+                   class="w-full border rounded px-2 py-1 text-sm"
+                   placeholder="0.00"
+                   oninput="actualizarDineroClienteDesdeModal()">
+            <p class="text-xs text-gray-500 mt-1">Total cobro: <span id="total-cobro-modal">€0.00</span></p>
+          </div>
+          <div class="flex items-end">
+            <button type="button"
+                    onclick="pagarTodoModal()"
+                    class="w-full bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-sm">
+              Pagar Todo
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="border-t pt-2 mt-2">
+        <p class="text-gray-600">Deuda que quedará:</p>
+        <p class="text-2xl font-bold text-yellow-600" id="deuda-nueva-monto">€0.00</p>
+      </div>
+    </div>
+
+    <div class="p-4 bg-gray-50 rounded border border-gray-200">
+      <h4 class="font-semibold text-lg mb-2">Deuda Total Acumulada (Después del Cobro)</h4>
+      <p class="text-3xl font-bold text-gray-800" id="deuda-total-acumulada">€0.00</p>
+      <p class="text-sm text-gray-600 mt-1">Suma de deuda existente + deuda nueva</p>
+    </div>
+
+    <div class="mt-6 flex justify-end gap-2">
+      <button onclick="cerrarModalDeuda()" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+        Cerrar
+      </button>
+      <button onclick="aplicarCambiosYCerrar()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+        Aplicar y Continuar
+      </button>
     </div>
   </div>
 </div>
@@ -321,6 +466,48 @@ function calcularTotales() {
   const cambio = Math.max(dineroCliente - totalFinal, 0);
   document.getElementById('total_final').value = formatMoney(totalFinal);
   document.getElementById('cambio').value = formatMoney(cambio);
+  
+  // Actualizar alerta de deuda en tiempo real
+  actualizarAlertaDeuda(totalFinal);
+}
+
+function actualizarAlertaDeuda(totalFinal) {
+  const select = document.getElementById('id_cita');
+  const selectedOption = select.options[select.selectedIndex];
+  const deudaExistente = parseFloat(selectedOption?.getAttribute('data-deuda-existente')) || 0;
+  const dineroCliente = parseFloat(document.getElementById('dinero_cliente').value) || 0;
+  const metodoPago = document.getElementById('metodo_pago').value;
+  const dineroReal = metodoPago === 'tarjeta' ? totalFinal : dineroCliente;
+  const nuevaDeuda = Math.max(0, totalFinal - dineroReal);
+  const totalAcumulada = deudaExistente + nuevaDeuda;
+  
+  const alertaDeuda = document.getElementById('alerta-deuda');
+  const alertaDeudaExistente = document.getElementById('alerta-deuda-existente');
+  
+  // Mostrar u ocultar alerta
+  if (nuevaDeuda > 0 || deudaExistente > 0) {
+    alertaDeuda.classList.remove('hidden');
+    alertaDeuda.classList.remove('bg-gray-50', 'border-gray-200');
+    
+    if (nuevaDeuda > 0) {
+      alertaDeuda.classList.add('bg-yellow-50', 'border-yellow-300');
+    } else {
+      alertaDeuda.classList.add('bg-blue-50', 'border-blue-300');
+    }
+  } else {
+    alertaDeuda.classList.add('hidden');
+  }
+  
+  // Actualizar valores
+  if (deudaExistente > 0) {
+    alertaDeudaExistente.classList.remove('hidden');
+    document.getElementById('alerta-deuda-existente-monto').textContent = '€' + formatMoney(deudaExistente);
+  } else {
+    alertaDeudaExistente.classList.add('hidden');
+  }
+  
+  document.getElementById('alerta-deuda-nueva-monto').textContent = '€' + formatMoney(nuevaDeuda);
+  document.getElementById('alerta-deuda-total-monto').textContent = '€' + formatMoney(totalAcumulada);
 }
 
 function toggleEfectivoCampos() {
@@ -333,12 +520,190 @@ function toggleEfectivoCampos() {
   } else {
     efectivoCampos.style.display = 'block';
   }
+  calcularTotales();
 }
 
 window.addEventListener('load', () => {
   actualizarCosteYTotales();
   toggleEfectivoCampos();
+  actualizarClienteInfo();
 });
+
+// ========== FUNCIONES PARA MODAL DE DEUDA ==========
+const btnVerDeuda = document.getElementById('btn-ver-deuda');
+const deudaModal = document.getElementById('deuda-modal');
+
+btnVerDeuda.addEventListener('click', abrirModalDeuda);
+
+function abrirModalDeuda() {
+  calcularYMostrarDeuda();
+  deudaModal.classList.remove('hidden');
+  deudaModal.classList.add('flex');
+}
+
+function cerrarModalDeuda() {
+  deudaModal.classList.add('hidden');
+  deudaModal.classList.remove('flex');
+}
+
+function actualizarClienteInfo() {
+  const select = document.getElementById('id_cita');
+  const selectedOption = select.options[select.selectedIndex];
+  const costeServicio = parseFloat(selectedOption?.getAttribute('data-coste')) || 0;
+  document.getElementById('coste').value = formatMoney(costeServicio);
+  calcularTotales();
+}
+
+function calcularYMostrarDeuda() {
+  const select = document.getElementById('id_cita');
+  const selectedOption = select.options[select.selectedIndex];
+  
+  const clienteNombre = selectedOption?.getAttribute('data-cliente-nombre') || 'N/A';
+  const deudaExistente = parseFloat(selectedOption?.getAttribute('data-deuda-existente')) || 0;
+  const totalFinal = parseFloat(document.getElementById('total_final').value) || 0;
+  const dineroCliente = parseFloat(document.getElementById('dinero_cliente').value) || 0;
+  const metodoPago = document.getElementById('metodo_pago').value;
+  
+  // Si es tarjeta, el dinero del cliente es igual al total
+  const dineroReal = metodoPago === 'tarjeta' ? totalFinal : dineroCliente;
+  
+  // Calcular nueva deuda
+  const nuevaDeuda = Math.max(0, totalFinal - dineroReal);
+  const totalAcumulada = deudaExistente + nuevaDeuda;
+  
+  // Actualizar modal
+  document.getElementById('deuda-cliente-nombre').textContent = clienteNombre;
+  document.getElementById('deuda-existente-monto').textContent = '€' + formatMoney(deudaExistente);
+  document.getElementById('deuda-total-pagar').textContent = '€' + formatMoney(totalFinal);
+  document.getElementById('deuda-dinero-cliente').textContent = '€' + formatMoney(dineroReal);
+  document.getElementById('deuda-nueva-monto').textContent = '€' + formatMoney(nuevaDeuda);
+  document.getElementById('deuda-total-acumulada').textContent = '€' + formatMoney(totalAcumulada);
+  
+  // Configurar campos del modal
+  document.getElementById('max-pago-existente').textContent = '€' + formatMoney(deudaExistente);
+  document.getElementById('pago-deuda-existente').max = deudaExistente;
+  document.getElementById('pago-deuda-existente').value = '';
+  document.getElementById('nuevo-dinero-cliente').value = formatMoney(dineroReal);
+  document.getElementById('total-cobro-modal').textContent = '€' + formatMoney(totalFinal);
+  
+  // Mostrar/ocultar sección de deuda existente
+  const deudaExistenteSection = document.getElementById('deuda-existente-section');
+  if (deudaExistente > 0) {
+    deudaExistenteSection.classList.remove('hidden');
+  } else {
+    deudaExistenteSection.classList.add('hidden');
+  }
+}
+
+// Actualizar dinero del cliente desde el modal
+function actualizarDineroClienteDesdeModal() {
+  const nuevoDinero = parseFloat(document.getElementById('nuevo-dinero-cliente').value) || 0;
+  const totalFinal = parseFloat(document.getElementById('total_final').value) || 0;
+  const select = document.getElementById('id_cita');
+  const selectedOption = select.options[select.selectedIndex];
+  const deudaExistente = parseFloat(selectedOption?.getAttribute('data-deuda-existente')) || 0;
+  
+  // Calcular nueva deuda
+  const nuevaDeuda = Math.max(0, totalFinal - nuevoDinero);
+  const totalAcumulada = deudaExistente + nuevaDeuda;
+  
+  // Actualizar visualización en el modal
+  document.getElementById('deuda-dinero-cliente').textContent = '€' + formatMoney(nuevoDinero);
+  document.getElementById('deuda-nueva-monto').textContent = '€' + formatMoney(nuevaDeuda);
+  document.getElementById('deuda-total-acumulada').textContent = '€' + formatMoney(totalAcumulada);
+}
+
+// Pagar todo desde el modal
+function pagarTodoModal() {
+  const totalFinal = parseFloat(document.getElementById('total_final').value) || 0;
+  document.getElementById('nuevo-dinero-cliente').value = formatMoney(totalFinal);
+  actualizarDineroClienteDesdeModal();
+}
+
+// Aplicar cambios y cerrar modal
+function aplicarCambiosYCerrar() {
+  const nuevoDinero = parseFloat(document.getElementById('nuevo-dinero-cliente').value) || 0;
+  const metodoPago = document.getElementById('metodo_pago').value;
+  
+  // Solo actualizar si es efectivo
+  if (metodoPago === 'efectivo') {
+    document.getElementById('dinero_cliente').value = formatMoney(nuevoDinero);
+    calcularTotales();
+  }
+  
+  cerrarModalDeuda();
+}
+
+// Registrar pago de deuda existente
+async function registrarPagoDeudaExistente() {
+  const select = document.getElementById('id_cita');
+  const selectedOption = select.options[select.selectedIndex];
+  const clienteId = selectedOption?.getAttribute('data-cliente-id');
+  const montoPago = parseFloat(document.getElementById('pago-deuda-existente').value) || 0;
+  const metodoPago = document.getElementById('metodo-pago-existente').value;
+  const deudaExistente = parseFloat(selectedOption?.getAttribute('data-deuda-existente')) || 0;
+  
+  // Validaciones
+  if (!clienteId) {
+    alert('Error: No se ha seleccionado un cliente válido.');
+    return;
+  }
+  
+  if (montoPago <= 0) {
+    alert('Por favor ingresa un monto válido mayor a 0.');
+    return;
+  }
+  
+  if (montoPago > deudaExistente) {
+    alert(`El monto no puede ser mayor a la deuda existente (€${formatMoney(deudaExistente)})`);
+    return;
+  }
+  
+  if (!confirm(`¿Confirmar pago de €${formatMoney(montoPago)} para la deuda existente?`)) {
+    return;
+  }
+  
+  try {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const response = await fetch(`/deudas/cliente/${clienteId}/pago`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': csrfToken,
+        'Accept': 'application/json'
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        monto: montoPago,
+        metodo_pago: metodoPago,
+        nota: 'Pago registrado desde formulario de cobro'
+      })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Error al registrar el pago');
+    }
+    
+    const result = await response.json();
+    
+    // Actualizar la deuda existente en el select
+    const nuevaDeudaExistente = deudaExistente - montoPago;
+    selectedOption.setAttribute('data-deuda-existente', nuevaDeudaExistente);
+    
+    // Mostrar mensaje de éxito
+    alert(`✓ Pago registrado exitosamente.\nDeuda restante: €${formatMoney(nuevaDeudaExistente)}`);
+    
+    // Actualizar el modal
+    calcularYMostrarDeuda();
+    calcularTotales();
+    
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error al registrar el pago: ' + error.message);
+  }
+}
+
 </script>
 </body>
 </html>

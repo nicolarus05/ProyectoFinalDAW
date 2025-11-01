@@ -38,7 +38,7 @@
                 </div>
                 <div>
                     <p><strong>Email:</strong> {{ $cliente->user->email }}</p>
-                    <p><strong>Cliente desde:</strong> {{ $cliente->fecha_registro->format('d/m/Y') }}</p>
+                    
                 </div>
             </div>
         </div>
@@ -82,7 +82,7 @@
                         <th class="px-4 py-2">Tipo</th>
                         <th class="px-4 py-2">Monto</th>
                         <th class="px-4 py-2">Método Pago</th>
-                        <th class="px-4 py-2">Nota</th>
+                        <th class="px-4 py-2">Detalle</th>
                         <th class="px-4 py-2">Registrado por</th>
                     </tr>
                 </thead>
@@ -107,7 +107,43 @@
                         <td class="px-4 py-2">
                             {{ $movimiento->metodo_pago ? ucfirst($movimiento->metodo_pago) : '-' }}
                         </td>
-                        <td class="px-4 py-2">{{ $movimiento->nota ?? '-' }}</td>
+                        <td class="px-4 py-2">
+                            @if($movimiento->tipo === 'cargo' && $movimiento->registroCobro)
+                                {{-- Mostrar Servicios --}}
+                                @php
+                                    $servicios = $movimiento->registroCobro->cita?->servicios ?? collect();
+                                    $productos = $movimiento->registroCobro->productos ?? collect();
+                                @endphp
+                                
+                                @if($servicios->isNotEmpty())
+                                    <div class="mb-1">
+                                        <span class="font-semibold text-blue-700">Servicios:</span>
+                                        <ul class="list-disc list-inside text-sm">
+                                            @foreach($servicios as $servicio)
+                                                <li>{{ $servicio->nombre }}</li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                @endif
+
+                                @if($productos->isNotEmpty())
+                                    <div>
+                                        <span class="font-semibold text-green-700">Productos:</span>
+                                        <ul class="list-disc list-inside text-sm">
+                                            @foreach($productos as $producto)
+                                                <li>{{ $producto->nombre }} (x{{ $producto->pivot->cantidad }})</li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                @endif
+
+                                @if($servicios->isEmpty() && $productos->isEmpty())
+                                    <span class="text-gray-500 italic">{{ $movimiento->nota ?? 'Cargo a deuda' }}</span>
+                                @endif
+                            @else
+                                <span class="text-gray-600">{{ $movimiento->nota ?? 'Pago de deuda' }}</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-2">
                             {{ $movimiento->usuarioRegistro->nombre ?? '-' }}
                         </td>
