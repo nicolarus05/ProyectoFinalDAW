@@ -51,6 +51,7 @@
                         <td class="px-4 py-2 space-x-2">
                             <a href="{{ route('clientes.show', $cliente->id) }}" class="text-blue-600 hover:underline">Ver</a>
                             <a href="{{ route('clientes.edit', $cliente->id) }}" class="text-yellow-600 hover:underline">Editar</a>
+                            <a href="{{ route('bonos.misClientes', $cliente->id) }}" class="text-purple-600 hover:underline">🎫 Bonos</a>
                             <form id="delete-form-{{ $cliente->id }}" action="{{ route('clientes.destroy', $cliente->id) }}" method="POST" class="inline">
                                 @csrf
                                 @method('DELETE')

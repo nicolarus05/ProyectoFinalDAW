@@ -36,6 +36,11 @@ class Cliente extends Model{
         return $this->hasOne(Deuda::class, 'id_cliente');
     }
 
+    public function bonos()
+    {
+        return $this->hasMany(BonoCliente::class, 'cliente_id');
+    }
+
     public function obtenerDeuda()
     {
         if (!$this->deuda) {

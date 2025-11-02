@@ -5,118 +5,260 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Caja del día</title>
     @vite(['resources/js/app.js'])
+    <style>
+        .seccion-caja {
+            background: white;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .titulo-seccion {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .tabla-caja { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        .tabla-caja th { background-color: #f3f4f6; padding: 0.75rem; text-align: left; font-weight: 600; border-bottom: 2px solid #e5e7eb; font-size: 0.875rem; }
+        .tabla-caja td { padding: 0.75rem; border-bottom: 1px solid #e5e7eb; font-size: 0.875rem; }
+        .tabla-caja tr:hover { background-color: #f9fafb; }
+        .total-box { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1.5rem; }
+        .total-item { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.2); }
+        .total-item:last-child { border-bottom: none; margin-top: 0.5rem; padding-top: 1rem; border-top: 2px solid rgba(255,255,255,0.3); font-size: 1.25rem; font-weight: bold; }
+    </style>
 </head>
 <body class="bg-gray-100 p-6">
-    <div class="w-full max-w-none mx-auto bg-white shadow-md rounded p-6">
-        <h1 class="text-3xl font-bold mb-4">Caja del día: {{ $fecha }}</h1>
-
-        <div class="mb-6">
-            <h3 class="text-xl font-semibold mb-2">Totales</h3>
-            <ul class="list-disc pl-6 space-y-1">
-                <li>Efectivo: €{{ number_format($totalEfectivo, 2) }}</li>
-                <li>Tarjeta: €{{ number_format($totalTarjeta, 2) }}</li>
-                <li><strong>Total pagado: €{{ number_format($totalPagado, 2) }}</strong></li>
-                <li class="text-red-600"><strong>Total deuda: €{{ number_format($totalDeuda, 2) }}</strong></li>
-            </ul>
+    <div class="w-full max-w-none mx-auto">
+        <div class="mb-6 flex justify-between items-center">
+            <h1 class="text-4xl font-bold text-gray-800">💰 Caja del día: {{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</h1>
+            <a href="{{ route('dashboard') }}" class="inline-block bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-semibold">← Volver</a>
         </div>
 
-        <div class="mb-6">
-            <h3 class="text-xl font-semibold mb-2">Totales por Categoría</h3>
-            <ul class="list-disc pl-6 space-y-1">
-                <li class="text-blue-700">💇 Peluquería (servicios + productos): €{{ number_format($totalPeluqueria, 2) }}</li>
-                <li class="text-pink-700">💅 Estética (servicios + productos): €{{ number_format($totalEstetica, 2) }}</li>
-            </ul>
+        <div class="total-box">
+            <h2 class="text-2xl font-bold mb-4">📊 TOTALES GENERALES DEL DÍA</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <div class="total-item"><span>💵 Efectivo (Servicios):</span><span class="font-bold">€{{ number_format($totalEfectivo, 2) }}</span></div>
+                    <div class="total-item"><span>💳 Tarjeta (Servicios):</span><span class="font-bold">€{{ number_format($totalTarjeta, 2) }}</span></div>
+                    <div class="total-item"><span>🎫 Bono (Servicios):</span><span class="font-bold">€{{ number_format($totalBono, 2) }}</span></div>
+                </div>
+                <div>
+                    <div class="total-item"><span>💵 Efectivo (Bonos vendidos):</span><span class="font-bold">€{{ number_format($totalBonosEfectivo, 2) }}</span></div>
+                    <div class="total-item"><span>💳 Tarjeta (Bonos vendidos):</span><span class="font-bold">€{{ number_format($totalBonosTarjeta, 2) }}</span></div>
+                    <div class="total-item"><span>❌ Deudas generadas:</span><span class="font-bold text-red-300">€{{ number_format($totalDeuda, 2) }}</span></div>
+                </div>
+            </div>
+            <div class="total-item"><span>💰 TOTAL INGRESADO:</span><span>€{{ number_format($totalPagado, 2) }}</span></div>
         </div>
 
-        <div>
-            <h3 class="text-xl font-semibold mb-2">Detalle de servicios realizados</h3>
-            <table class="w-full table-auto text-sm text-left break-words">
-                <thead class="bg-gray-200">
-                    <tr>
-                        <th class="px-4 py-2">Hora</th>
-                        <th class="px-4 py-2">Cliente</th>
-                        <th class="px-4 py-2">Servicio(s)</th>
-                        <th class="px-4 py-2">Empleado</th>
-                        <th class="px-4 py-2">Método de pago</th>
-                        <th class="px-4 py-2">Pagado</th>
-                        <th class="px-4 py-2">Deuda</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($detalleServicios as $item)
-                        <tr class="border-t">
-                            <td class="px-4 py-2">
-                                {{ optional($item->cita)->fecha_hora ? \Carbon\Carbon::parse($item->cita->fecha_hora)->format('H:i') : '-' }}
-                            </td>
-                            <td class="px-4 py-2">
-                                @if($item->cliente && $item->cliente->user)
-                                    {{ $item->cliente->user->nombre }} {{ $item->cliente->user->apellidos }}
-                                @elseif($item->cita && $item->cita->cliente && $item->cita->cliente->user)
-                                    {{ $item->cita->cliente->user->nombre }} {{ $item->cita->cliente->user->apellidos }}
-                                @else
-                                    -
-                                @endif
-                            </td>
-                            <td class="px-4 py-2">
-                                @if($item->cita && $item->cita->servicios)
-                                    @foreach($item->cita->servicios as $servicio)
-                                        @if($servicio->tipo === 'peluqueria')
-                                            <span class="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs mr-1 mb-1">
-                                                💇 {{ $servicio->nombre }}
-                                            </span>
-                                        @elseif($servicio->tipo === 'estetica')
-                                            <span class="inline-block px-2 py-1 bg-pink-100 text-pink-700 rounded text-xs mr-1 mb-1">
-                                                💅 {{ $servicio->nombre }}
-                                            </span>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="seccion-caja" style="border-left: 4px solid #3b82f6;">
+                <h3 class="titulo-seccion text-blue-700">💇 PELUQUERÍA</h3>
+                <div class="space-y-2">
+                    <div class="flex justify-between"><span class="text-gray-600">💵 Efectivo:</span><span class="font-bold">€{{ number_format($totalPeluqueriaEfectivo, 2) }}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-600">💳 Tarjeta:</span><span class="font-bold">€{{ number_format($totalPeluqueriaTarjeta, 2) }}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-600">🎫 Bono:</span><span class="font-bold">€{{ number_format($totalPeluqueriaBono, 2) }}</span></div>
+                    <div class="flex justify-between pt-2 border-t-2 border-blue-200"><span class="font-bold text-blue-700">TOTAL:</span><span class="font-bold text-blue-700 text-xl">€{{ number_format($totalPeluqueria, 2) }}</span></div>
+                </div>
+            </div>
+            <div class="seccion-caja" style="border-left: 4px solid #ec4899;">
+                <h3 class="titulo-seccion text-pink-700">💅 ESTÉTICA</h3>
+                <div class="space-y-2">
+                    <div class="flex justify-between"><span class="text-gray-600">💵 Efectivo:</span><span class="font-bold">€{{ number_format($totalEsteticaEfectivo, 2) }}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-600">💳 Tarjeta:</span><span class="font-bold">€{{ number_format($totalEsteticaTarjeta, 2) }}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-600">🎫 Bono:</span><span class="font-bold">€{{ number_format($totalEsteticaBono, 2) }}</span></div>
+                    <div class="flex justify-between pt-2 border-t-2 border-pink-200"><span class="font-bold text-pink-700">TOTAL:</span><span class="font-bold text-pink-700 text-xl">€{{ number_format($totalEstetica, 2) }}</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="seccion-caja">
+            <h3 class="titulo-seccion text-green-700">✅ SERVICIOS REALIZADOS</h3>
+            @if($detalleServicios->count() > 0)
+                <div style="overflow-x: auto;">
+                    <table class="tabla-caja">
+                        <thead>
+                            <tr>
+                                <th>Hora</th>
+                                <th>Cliente</th>
+                                <th>Servicio(s)</th>
+                                <th>Empleado</th>
+                                <th>Método</th>
+                                <th>Total</th>
+                                <th>Deuda</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($detalleServicios as $item)
+                                <tr>
+                                    <td class="font-semibold">{{ optional($item->cita)->fecha_hora ? \Carbon\Carbon::parse($item->cita->fecha_hora)->format('H:i') : '-' }}</td>
+                                    <td>
+                                        @if($item->cliente && $item->cliente->user)
+                                            {{ $item->cliente->user->nombre }} {{ $item->cliente->user->apellidos }}
+                                        @elseif($item->cita && $item->cita->cliente && $item->cita->cliente->user)
+                                            {{ $item->cita->cliente->user->nombre }} {{ $item->cita->cliente->user->apellidos }}
                                         @else
-                                            <span class="inline-block px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs mr-1 mb-1">
-                                                {{ $servicio->nombre }}
-                                            </span>
+                                            -
                                         @endif
-                                    @endforeach
-                                @endif
-                                
-                                @if($item->productos && $item->productos->count() > 0)
-                                    @foreach($item->productos as $producto)
-                                        @if($producto->categoria === 'peluqueria')
-                                            <span class="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs mr-1 mb-1">
-                                                🛍️ {{ $producto->nombre }} (x{{ $producto->pivot->cantidad }})
-                                            </span>
-                                        @elseif($producto->categoria === 'estetica')
-                                            <span class="inline-block px-2 py-1 bg-pink-100 text-pink-700 rounded text-xs mr-1 mb-1">
-                                                🛍️ {{ $producto->nombre }} (x{{ $producto->pivot->cantidad }})
-                                            </span>
+                                    </td>
+                                    <td>
+                                        @if($item->cita && $item->cita->servicios)
+                                            @foreach($item->cita->servicios as $servicio)
+                                                @if($servicio->tipo === 'peluqueria')
+                                                    <span class="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs mr-1 mb-1">💇 {{ $servicio->nombre }}</span>
+                                                @elseif($servicio->tipo === 'estetica')
+                                                    <span class="inline-block px-2 py-1 bg-pink-100 text-pink-700 rounded text-xs mr-1 mb-1">💅 {{ $servicio->nombre }}</span>
+                                                @endif
+                                            @endforeach
+                                        @endif
+                                        @if($item->productos && $item->productos->count() > 0)
+                                            @foreach($item->productos as $producto)
+                                                <span class="inline-block px-2 py-1 bg-green-100 text-green-700 rounded text-xs mr-1 mb-1">🛍️ {{ $producto->nombre }} (x{{ $producto->pivot->cantidad }})</span>
+                                            @endforeach
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($item->empleado && $item->empleado->user)
+                                            {{ $item->empleado->user->nombre }}
+                                        @elseif($item->cita && $item->cita->empleado && $item->cita->empleado->user)
+                                            {{ $item->cita->empleado->user->nombre }}
                                         @else
-                                            <span class="inline-block px-2 py-1 bg-green-100 text-green-700 rounded text-xs mr-1 mb-1">
-                                                🛍️ {{ $producto->nombre }} (x{{ $producto->pivot->cantidad }})
-                                            </span>
+                                            -
                                         @endif
-                                    @endforeach
-                                @endif
-                                
-                                @if((!$item->cita || !$item->cita->servicios) && (!$item->productos || $item->productos->count() == 0))
-                                    -
-                                @endif
-                            </td>
-                            <td class="px-4 py-2">
-                                @if($item->empleado && $item->empleado->user)
-                                    {{ $item->empleado->user->nombre }}
-                                @elseif($item->cita && $item->cita->empleado && $item->cita->empleado->user)
-                                    {{ $item->cita->empleado->user->nombre }}
-                                @else
-                                    -
-                                @endif
-                            </td>
-                            <td class="px-4 py-2">{{ ucfirst($item->metodo_pago) }}</td>
-                            <td class="px-4 py-2">€{{ number_format($item->dinero_cliente, 2) }}</td>
-                            <td class="px-4 py-2">€{{ number_format($item->deuda ?? 0, 2) }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                                    </td>
+                                    <td>
+                                        @if($item->metodo_pago === 'efectivo')
+                                            <span class="text-green-600 font-semibold">💵 Efectivo</span>
+                                        @elseif($item->metodo_pago === 'tarjeta')
+                                            <span class="text-blue-600 font-semibold">💳 Tarjeta</span>
+                                        @elseif($item->metodo_pago === 'bono')
+                                            <span class="text-purple-600 font-semibold">🎫 Bono</span>
+                                        @endif
+                                    </td>
+                                    <td class="font-bold text-green-600">€{{ number_format($item->total_final, 2) }}</td>
+                                    <td class="font-bold {{ $item->deuda > 0 ? 'text-red-600' : 'text-gray-400' }}">€{{ number_format($item->deuda ?? 0, 2) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <p class="text-gray-500 text-center py-4">No se realizaron servicios este día.</p>
+            @endif
         </div>
 
-        <a href="{{ route('dashboard') }}" class="inline-block mt-6 text-gray-700 hover:underline">Volver al Inicio</a>
+        <div class="seccion-caja">
+            <h3 class="titulo-seccion text-purple-700">🎫 BONOS VENDIDOS</h3>
+            @if($bonosVendidos->count() > 0)
+                <div style="overflow-x: auto;">
+                    <table class="tabla-caja">
+                        <thead>
+                            <tr>
+                                <th>Hora</th>
+                                <th>Cliente</th>
+                                <th>Bono</th>
+                                <th>Empleado</th>
+                                <th>Método</th>
+                                <th>Precio</th>
+                                <th>Dinero</th>
+                                <th>Cambio</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($bonosVendidos as $bono)
+                                <tr>
+                                    <td class="font-semibold">{{ \Carbon\Carbon::parse($bono->fecha_compra)->format('H:i') }}</td>
+                                    <td>
+                                        @if($bono->cliente && $bono->cliente->user)
+                                            {{ $bono->cliente->user->nombre }} {{ $bono->cliente->user->apellidos }}
+                                        @else
+                                            -
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <span class="font-semibold text-purple-700">🎫 {{ $bono->plantilla->nombre }}</span>
+                                        @if($bono->plantilla->duracion_dias)
+                                            <span class="text-xs text-gray-500">({{ $bono->plantilla->duracion_dias }} días)</span>
+                                        @else
+                                            <span class="text-xs text-purple-500">(Sin límite)</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($bono->empleado && $bono->empleado->user)
+                                            {{ $bono->empleado->user->nombre }}
+                                        @else
+                                            -
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($bono->metodo_pago === 'efectivo')
+                                            <span class="text-green-600 font-semibold">💵 Efectivo</span>
+                                        @elseif($bono->metodo_pago === 'tarjeta')
+                                            <span class="text-blue-600 font-semibold">💳 Tarjeta</span>
+                                        @endif
+                                    </td>
+                                    <td class="font-bold text-purple-600">€{{ number_format($bono->precio_pagado, 2) }}</td>
+                                    <td class="font-semibold">€{{ number_format($bono->dinero_cliente, 2) }}</td>
+                                    <td class="font-semibold {{ $bono->cambio > 0 ? 'text-orange-600' : 'text-gray-400' }}">€{{ number_format($bono->cambio, 2) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <p class="text-gray-500 text-center py-4">No se vendieron bonos este día.</p>
+            @endif
+        </div>
+
+        <div class="seccion-caja">
+            <h3 class="titulo-seccion text-red-700">💰 DEUDAS GENERADAS</h3>
+            @if($deudas->count() > 0)
+                <div style="overflow-x: auto;">
+                    <table class="tabla-caja">
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Servicio</th>
+                                <th>Total Servicio</th>
+                                <th>Pagado</th>
+                                <th>Deuda</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($deudas as $deuda)
+                                <tr>
+                                    <td>
+                                        @if($deuda->cliente && $deuda->cliente->user)
+                                            {{ $deuda->cliente->user->nombre }} {{ $deuda->cliente->user->apellidos }}
+                                        @else
+                                            -
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($deuda->cita && $deuda->cita->servicios)
+                                            @foreach($deuda->cita->servicios as $servicio)
+                                                <span class="inline-block px-2 py-1 bg-gray-100 rounded text-xs mr-1">{{ $servicio->nombre }}</span>
+                                            @endforeach
+                                        @endif
+                                    </td>
+                                    <td class="font-semibold">€{{ number_format($deuda->total_final + $deuda->deuda, 2) }}</td>
+                                    <td class="font-semibold text-green-600">€{{ number_format($deuda->total_final, 2) }}</td>
+                                    <td class="font-bold text-red-600">€{{ number_format($deuda->deuda, 2) }}</td>
+                                </tr>
+                            @endforeach
+                            <tr class="bg-red-50">
+                                <td colspan="4" class="text-right font-bold">TOTAL DEUDA DEL DÍA:</td>
+                                <td class="font-bold text-red-700 text-lg">€{{ number_format($totalDeuda, 2) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <p class="text-gray-500 text-center py-4">✅ No se generaron deudas este día.</p>
+            @endif
+        </div>
     </div>
 </body>
 </html>

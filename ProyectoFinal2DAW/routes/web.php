@@ -9,7 +9,7 @@ use App\Http\Controllers\{
     Auth\AuthenticatedSessionController, Auth\RegisterClienteController, 
     Auth\PerfilController, Auth\PasswordResetLinkController,
     Auth\NewPasswordController,
-    CajaDiariaController, ProductosController, DeudaController
+    CajaDiariaController, ProductosController, DeudaController, BonoController
 };
 
 Route::get('/', fn () => view('welcome'));
@@ -82,6 +82,19 @@ Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
         Route::get('/cliente/{cliente}/pago', [DeudaController::class, 'crearPago'])->name('pago.create');
         Route::post('/cliente/{cliente}/pago', [DeudaController::class, 'registrarPago'])->name('pago.store');
         Route::get('/cliente/{cliente}/historial', [DeudaController::class, 'historial'])->name('historial');
+    });
+
+    // Rutas de bonos
+    Route::prefix('bonos')->name('bonos.')->group(function () {
+        Route::get('/', [BonoController::class, 'index'])->name('index');
+        Route::get('/crear', [BonoController::class, 'create'])->name('create');
+        Route::post('/', [BonoController::class, 'store'])->name('store');
+        Route::get('/clientes-con-bonos', [BonoController::class, 'clientesConBonos'])->name('clientesConBonos');
+        Route::get('/{plantilla}/comprar', [BonoController::class, 'comprar'])->name('comprar');
+        Route::post('/{plantilla}/comprar', [BonoController::class, 'procesarCompra'])->name('procesarCompra');
+        Route::get('/cliente/{cliente}', [BonoController::class, 'misClientes'])->name('misClientes');
+        Route::get('/{bono}/editar', [BonoController::class, 'edit'])->name('edit');
+        Route::put('/{bono}', [BonoController::class, 'update'])->name('update');
     });
 });
 

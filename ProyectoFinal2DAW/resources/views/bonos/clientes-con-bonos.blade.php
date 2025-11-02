@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clientes con Bonos</title>
+    @vite(['resources/js/app.js'])
+    <style>
+        .btn-volver {
+            display: inline-block;
+            background-color: #3b82f6;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        .btn-volver:hover {
+            background-color: #2563eb;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-7xl mx-auto">
+        <div class="mb-6">
+            <a href="{{ route('dashboard') }}" class="btn-volver">← Volver al Dashboard</a>
+        </div>
+
+        <div class="bg-white shadow-md rounded p-6">
+            <h1 class="text-3xl font-bold mb-6">🎫 Clientes con Bonos Activos</h1>
+
+            @if($clientes->count() > 0)
+                <div class="grid gap-6">
+                    @foreach($clientes as $cliente)
+                        <div class="border rounded-lg p-4 bg-gray-50">
+                            <div class="flex justify-between items-start mb-3">
+                                <div>
+                                    <h3 class="text-xl font-bold text-gray-800">
+                                        {{ $cliente->user->nombre }} {{ $cliente->user->apellidos }}
+                                    </h3>
+                                    <p class="text-gray-600">📧 {{ $cliente->user->email }}</p>
+                                    @if($cliente->user->telefono)
+                                        <p class="text-gray-600">📞 {{ $cliente->user->telefono }}</p>
+                                    @endif
+                                </div>
+                                <div class="text-right">
+                                    <span class="inline-block px-3 py-1 bg-green-100 text-green-700 rounded font-semibold">
+                                        {{ $cliente->bonos->count() }} {{ $cliente->bonos->count() === 1 ? 'Bono' : 'Bonos' }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="space-y-3">
+                                @foreach($cliente->bonos as $bono)
+                                    <div class="bg-white border border-purple-200 rounded p-3">
+                                        <div class="flex justify-between items-start">
+                                            <div class="flex-1">
+                                                <h4 class="font-bold text-purple-700">
+                                                    🎫 {{ $bono->plantilla->nombre }}
+                                                </h4>
+                                                <p class="text-sm text-gray-600 mt-1">
+                                                    {{ $bono->plantilla->descripcion }}
+                                                </p>
+                                                <div class="mt-2 grid grid-cols-2 gap-2 text-sm">
+                                                    <div>
+                                                        <span class="text-gray-600">Comprado:</span>
+                                                        <span class="font-semibold">{{ \Carbon\Carbon::parse($bono->fecha_compra)->format('d/m/Y') }}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span class="text-gray-600">Expira:</span>
+                                                        @if($bono->plantilla->duracion_dias)
+                                                            <span class="font-semibold">{{ \Carbon\Carbon::parse($bono->fecha_expiracion)->format('d/m/Y') }}</span>
+                                                        @else
+                                                            <span class="font-semibold text-purple-600">✨ Sin límite</span>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="ml-4">
+                                                <div class="text-right">
+                                                    <p class="text-sm text-gray-600">Precio pagado</p>
+                                                    <p class="text-xl font-bold text-green-600">€{{ number_format($bono->precio_pagado, 2) }}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Servicios incluidos -->
+                                        <div class="mt-3 pt-3 border-t border-gray-200">
+                                            <p class="text-sm font-semibold text-gray-700 mb-2">Servicios incluidos:</p>
+                                            <div class="space-y-1">
+                                                @foreach($bono->plantilla->servicios as $servicio)
+                                                    @php
+                                                        $cantidadDisponible = $bono->cantidadDisponible($servicio->id);
+                                                        $cantidadTotal = $servicio->pivot->cantidad;
+                                                        $cantidadUsada = $cantidadTotal - $cantidadDisponible;
+                                                    @endphp
+                                                    <div class="flex justify-between items-center text-sm">
+                                                        <span>
+                                                            @if($servicio->tipo === 'peluqueria')
+                                                                💇
+                                                            @else
+                                                                💅
+                                                            @endif
+                                                            {{ $servicio->nombre }}
+                                                        </span>
+                                                        <span class="font-semibold">
+                                                            @if($cantidadDisponible > 0)
+                                                                <span class="text-green-600">{{ $cantidadDisponible }}/{{ $cantidadTotal }} disponibles</span>
+                                                            @else
+                                                                <span class="text-red-600">❌ Agotado ({{ $cantidadUsada }}/{{ $cantidadTotal }})</span>
+                                                            @endif
+                                                        </span>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="text-center py-12">
+                    <p class="text-gray-500 text-lg">No hay clientes con bonos activos en este momento.</p>
+                    <a href="{{ route('bonos.index') }}" class="mt-4 inline-block text-blue-600 hover:underline">
+                        Ver bonos disponibles para vender
+                    </a>
+                </div>
+            @endif
+        </div>
+    </div>
+</body>
+</html>

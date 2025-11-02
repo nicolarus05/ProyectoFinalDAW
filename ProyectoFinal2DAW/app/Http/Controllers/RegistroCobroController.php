@@ -8,6 +8,9 @@ use App\Models\Cita;
 use App\Models\user;
 use App\Models\Productos;
 use App\Models\Cliente;
+use App\Models\BonoCliente;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 
 class RegistroCobroController extends Controller{
@@ -66,6 +69,48 @@ class RegistroCobroController extends Controller{
             // Si es tarjeta → se llena automáticamente (no genera deuda)
             $data['dinero_cliente'] = $data['total_final'];
             $data['cambio'] = 0;
+        }
+
+        // --- VERIFICAR Y APLICAR BONOS ---
+        $cita = Cita::with(['servicios', 'cliente'])->find($data['id_cita']);
+        $serviciosAplicados = [];
+        
+        if ($cita && $cita->cliente) {
+            // Obtener bonos activos del cliente
+            $bonosActivos = BonoCliente::with('servicios')
+                ->where('cliente_id', $cita->cliente->id)
+                ->where('estado', 'activo')
+                ->where('fecha_expiracion', '>=', Carbon::now())
+                ->get();
+
+            // Iterar sobre los servicios de la cita
+            foreach ($cita->servicios as $servicioCita) {
+                // Buscar si hay un bono que incluya este servicio
+                foreach ($bonosActivos as $bono) {
+                    $servicioBono = $bono->servicios()
+                        ->where('servicio_id', $servicioCita->id)
+                        ->wherePivot('cantidad_usada', '<', DB::raw('cantidad_total'))
+                        ->first();
+
+                    if ($servicioBono) {
+                        // Hay disponibilidad en el bono, deducir 1
+                        $cantidadUsada = $servicioBono->pivot->cantidad_usada + 1;
+                        
+                        $bono->servicios()->updateExistingPivot($servicioCita->id, [
+                            'cantidad_usada' => $cantidadUsada
+                        ]);
+
+                        $serviciosAplicados[] = $servicioCita->nombre;
+
+                        // Verificar si el bono está completamente usado
+                        if ($bono->estaCompletamenteUsado()) {
+                            $bono->update(['estado' => 'usado']);
+                        }
+
+                        break; // Ya se aplicó un bono para este servicio, pasar al siguiente
+                    }
+                }
+            }
         }
 
         // --- Calcular deuda si el dinero del cliente es menor que el total ---
@@ -136,10 +181,13 @@ class RegistroCobroController extends Controller{
             }
         }
 
-        // Mensaje de éxito con información de deuda si aplica
+        // Mensaje de éxito con información de deuda y bonos si aplica
         $mensaje = 'Cobro registrado correctamente.';
         if ($deuda > 0) {
             $mensaje .= ' Deuda registrada: €' . number_format($deuda, 2);
+        }
+        if (!empty($serviciosAplicados)) {
+            $mensaje .= ' Servicios aplicados desde bono: ' . implode(', ', $serviciosAplicados) . '.';
         }
 
         return redirect()
