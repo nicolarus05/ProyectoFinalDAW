@@ -75,6 +75,12 @@
                                                             <span class="font-semibold text-purple-600">✨ Sin límite</span>
                                                         @endif
                                                     </div>
+                                                    @if($bono->empleado)
+                                                    <div class="col-span-2">
+                                                        <span class="text-gray-600">Vendido por:</span>
+                                                        <span class="font-semibold">{{ $bono->empleado->user->nombre }} {{ $bono->empleado->user->apellidos }}</span>
+                                                    </div>
+                                                    @endif
                                                 </div>
                                             </div>
                                             <div class="ml-4">

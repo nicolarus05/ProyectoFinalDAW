@@ -7,6 +7,7 @@ use App\Models\BonoPlantilla;
 use App\Models\BonoCliente;
 use App\Models\Servicio;
 use App\Models\Cliente;
+use App\Models\Empleado;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -83,7 +84,8 @@ class BonoController extends Controller
     {
         $plantilla = BonoPlantilla::with('servicios')->findOrFail($plantillaId);
         $clientes = Cliente::with('user')->get();
-        return view('bonos.comprar', compact('plantilla', 'clientes'));
+        $empleados = Empleado::with('user')->get();
+        return view('bonos.comprar', compact('plantilla', 'clientes', 'empleados'));
     }
 
     /**
@@ -93,6 +95,7 @@ class BonoController extends Controller
     {
         $request->validate([
             'cliente_id' => 'required|exists:clientes,id',
+            'id_empleado' => 'required|exists:empleados,id',
             'metodo_pago' => 'required|in:efectivo,tarjeta',
             'dinero_cliente' => 'nullable|numeric|min:0',
         ]);
@@ -151,7 +154,7 @@ class BonoController extends Controller
                 'precio_pagado' => $precioTotal,
                 'dinero_cliente' => $dineroCliente,
                 'cambio' => $cambio,
-                'id_empleado' => auth()->user()->empleado->id ?? null
+                'id_empleado' => $request->id_empleado
             ]);
 
             // Copiar servicios de la plantilla al bono del cliente

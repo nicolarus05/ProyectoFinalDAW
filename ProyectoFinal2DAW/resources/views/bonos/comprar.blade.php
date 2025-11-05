@@ -78,6 +78,23 @@
                 </select>
             </div>
 
+            <div class="mb-6">
+                <label for="id_empleado" class="block font-semibold mb-2">Empleado que Realiza la Venta</label>
+                <select name="id_empleado" id="id_empleado" required class="w-full border rounded px-3 py-2">
+                    <option value="">Seleccione un empleado</option>
+                    @foreach($empleados as $empleado)
+                        <option value="{{ $empleado->id }}" {{ old('id_empleado') == $empleado->id ? 'selected' : '' }}>
+                            {{ $empleado->user->nombre }} {{ $empleado->user->apellidos }}
+                            @if($empleado->categoria === 'peluqueria')
+                                <span class="text-blue-600">(Peluquería 💇)</span>
+                            @else
+                                <span class="text-pink-600">(Estética 💅)</span>
+                            @endif
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
             <!-- Método de Pago -->
             <div class="mb-6 bg-green-50 border border-green-200 rounded p-4">
                 <h3 class="font-bold text-lg mb-3">💳 Método de Pago</h3>
