@@ -93,4 +93,12 @@ class BonoCliente extends Model
     {
         return $this->belongsTo(Empleado::class, 'id_empleado');
     }
+
+    /**
+     * Detalles de uso del bono (histórico de usos por cita)
+     */
+    public function usoDetalles()
+    {
+        return $this->hasMany(BonoUsoDetalle::class, 'bono_cliente_id');
+    }
 }

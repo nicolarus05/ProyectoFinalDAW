@@ -190,7 +190,7 @@ class BonoController extends Controller
     public function misClientes($clienteId)
     {
         $cliente = Cliente::with('user')->findOrFail($clienteId);
-        $bonos = BonoCliente::with(['plantilla', 'servicios'])
+        $bonos = BonoCliente::with(['plantilla', 'servicios', 'usoDetalles.cita', 'usoDetalles.servicio'])
             ->where('cliente_id', $clienteId)
             ->orderBy('created_at', 'desc')
             ->get();
@@ -249,7 +249,7 @@ class BonoController extends Controller
     {
         $clientes = Cliente::with(['user', 'bonos' => function($query) {
             $query->where('estado', 'activo')
-                  ->with('plantilla')
+                  ->with(['plantilla', 'usoDetalles.cita', 'usoDetalles.servicio'])
                   ->orderBy('fecha_compra', 'desc');
         }])
         ->whereHas('bonos', function($query) {

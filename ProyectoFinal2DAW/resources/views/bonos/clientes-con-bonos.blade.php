@@ -94,29 +94,45 @@
                                         <!-- Servicios incluidos -->
                                         <div class="mt-3 pt-3 border-t border-gray-200">
                                             <p class="text-sm font-semibold text-gray-700 mb-2">Servicios incluidos:</p>
-                                            <div class="space-y-1">
+                                            <div class="space-y-2">
                                                 @foreach($bono->plantilla->servicios as $servicio)
                                                     @php
                                                         $cantidadDisponible = $bono->cantidadDisponible($servicio->id);
                                                         $cantidadTotal = $servicio->pivot->cantidad;
                                                         $cantidadUsada = $cantidadTotal - $cantidadDisponible;
+                                                        // Obtener usos de este servicio específico
+                                                        $usosServicio = $bono->usoDetalles->where('servicio_id', $servicio->id);
                                                     @endphp
-                                                    <div class="flex justify-between items-center text-sm">
-                                                        <span>
-                                                            @if($servicio->tipo === 'peluqueria')
-                                                                💇
-                                                            @else
-                                                                💅
-                                                            @endif
-                                                            {{ $servicio->nombre }}
-                                                        </span>
-                                                        <span class="font-semibold">
-                                                            @if($cantidadDisponible > 0)
-                                                                <span class="text-green-600">{{ $cantidadDisponible }}/{{ $cantidadTotal }} disponibles</span>
-                                                            @else
-                                                                <span class="text-red-600">❌ Agotado ({{ $cantidadUsada }}/{{ $cantidadTotal }})</span>
-                                                            @endif
-                                                        </span>
+                                                    <div class="bg-gray-50 rounded p-2">
+                                                        <div class="flex justify-between items-center text-sm mb-1">
+                                                            <span>
+                                                                @if($servicio->categoria === 'peluqueria')
+                                                                    💇
+                                                                @else
+                                                                    💅
+                                                                @endif
+                                                                {{ $servicio->nombre }}
+                                                            </span>
+                                                            <span class="font-semibold">
+                                                                @if($cantidadDisponible > 0)
+                                                                    <span class="text-green-600">{{ $cantidadDisponible }}/{{ $cantidadTotal }} disponibles</span>
+                                                                @else
+                                                                    <span class="text-red-600">❌ Agotado ({{ $cantidadUsada }}/{{ $cantidadTotal }})</span>
+                                                                @endif
+                                                            </span>
+                                                        </div>
+                                                        
+                                                        @if($usosServicio->count() > 0)
+                                                            <div class="ml-4 mt-2 space-y-1">
+                                                                <p class="text-xs font-semibold text-gray-600">Fechas de uso:</p>
+                                                                @foreach($usosServicio as $uso)
+                                                                    <div class="text-xs text-gray-700 flex items-center gap-1">
+                                                                        <span class="text-green-600">✓</span>
+                                                                        <span>{{ \Carbon\Carbon::parse($uso->cita->fecha_hora)->format('d/m/Y H:i') }}</span>
+                                                                    </div>
+                                                                @endforeach
+                                                            </div>
+                                                        @endif
                                                     </div>
                                                 @endforeach
                                             </div>

@@ -67,12 +67,14 @@
                                     @php
                                         $disponibles = $servicio->pivot->cantidad_total - $servicio->pivot->cantidad_usada;
                                         $porcentaje = ($servicio->pivot->cantidad_usada / $servicio->pivot->cantidad_total) * 100;
+                                        // Obtener usos de este servicio específico
+                                        $usosServicio = $bono->usoDetalles->where('servicio_id', $servicio->id);
                                     @endphp
                                     <div class="bg-white border rounded p-3">
                                         <div class="flex justify-between items-center mb-2">
                                             <span class="font-medium">
                                                 {{ $servicio->nombre }}
-                                                @if($servicio->tipo === 'peluqueria')
+                                                @if($servicio->categoria === 'peluqueria')
                                                     <span class="text-blue-600">💇</span>
                                                 @else
                                                     <span class="text-pink-600">💅</span>
@@ -82,9 +84,23 @@
                                                 {{ $disponibles }}/{{ $servicio->pivot->cantidad_total }} disponibles
                                             </span>
                                         </div>
-                                        <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
                                             <div class="bg-blue-600 h-2 rounded-full" style="width: {{ $porcentaje }}%"></div>
                                         </div>
+                                        
+                                        @if($usosServicio->count() > 0)
+                                            <div class="mt-3 pt-2 border-t border-gray-200">
+                                                <p class="text-xs font-semibold text-gray-600 mb-1">Fechas de uso:</p>
+                                                <div class="space-y-1">
+                                                    @foreach($usosServicio as $uso)
+                                                        <div class="text-xs text-gray-700 flex items-center gap-1">
+                                                            <span class="text-green-600">✓</span>
+                                                            <span>{{ \Carbon\Carbon::parse($uso->cita->fecha_hora)->format('d/m/Y H:i') }}</span>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        @endif
                                     </div>
                                 @endforeach
                             </div>

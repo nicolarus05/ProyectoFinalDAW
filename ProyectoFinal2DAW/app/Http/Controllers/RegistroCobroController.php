@@ -9,6 +9,7 @@ use App\Models\user;
 use App\Models\Productos;
 use App\Models\Cliente;
 use App\Models\BonoCliente;
+use App\Models\BonoUsoDetalle;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -81,6 +82,7 @@ class RegistroCobroController extends Controller{
         // --- VERIFICAR Y APLICAR BONOS ---
         $cita = Cita::with(['servicios', 'cliente'])->find($data['id_cita']);
         $serviciosAplicados = [];
+        $descuentoBonos = 0; // Total descontado por bonos
         
         if ($cita && $cita->cliente) {
             // Obtener bonos activos del cliente
@@ -108,6 +110,17 @@ class RegistroCobroController extends Controller{
                         ]);
 
                         $serviciosAplicados[] = $servicioCita->nombre;
+                        
+                        // Acumular el descuento del servicio cubierto por el bono
+                        $descuentoBonos += $servicioCita->precio;
+
+                        // Registrar el uso detallado del bono
+                        BonoUsoDetalle::create([
+                            'bono_cliente_id' => $bono->id,
+                            'cita_id' => $cita->id,
+                            'servicio_id' => $servicioCita->id,
+                            'cantidad_usada' => 1
+                        ]);
 
                         // Verificar si el bono está completamente usado
                         if ($bono->estaCompletamenteUsado()) {
@@ -120,19 +133,27 @@ class RegistroCobroController extends Controller{
             }
         }
 
-        // --- Calcular deuda si el dinero del cliente es menor que el total ---
-        $deuda = max(0, $data['total_final'] - ($data['dinero_cliente'] ?? 0));
+        // Ajustar el total final restando los servicios cubiertos por bonos
+        $totalAjustado = max(0, $data['total_final'] - $descuentoBonos);
+
+        // Recalcular el cambio con el total ajustado
+        if ($data['metodo_pago'] === 'efectivo' && $descuentoBonos > 0) {
+            $data['cambio'] = max(0, ($data['dinero_cliente'] ?? 0) - $totalAjustado);
+        }
+
+        // --- Calcular deuda si el dinero del cliente es menor que el total ajustado ---
+        $deuda = max(0, $totalAjustado - ($data['dinero_cliente'] ?? 0));
 
         // --- Crear el registro principal ---
         $cobro = RegistroCobro::create([
             'id_cita' => $data['id_cita'],
             'coste' => $data['coste'],
             'descuento_porcentaje' => $data['descuento_porcentaje'] ?? 0,
-            'descuento_euro' => $data['descuento_euro'] ?? 0,
-            'total_final' => $data['total_final'],
+            'descuento_euro' => ($data['descuento_euro'] ?? 0) + $descuentoBonos, // Sumar descuento por bonos
+            'total_final' => $totalAjustado, // Guardar el total ajustado
             'dinero_cliente' => $data['dinero_cliente'] ?? 0,
             'cambio' => $data['cambio'] ?? 0,
-            'metodo_pago' => $data['metodo_pago'],
+            'metodo_pago' => $descuentoBonos > 0 && $totalAjustado == 0 ? 'bono' : $data['metodo_pago'], // Si se pagó todo con bono, método = bono
             'id_cliente' => $data['id_cliente'] ?? null,
             'id_empleado' => $data['id_empleado'] ?? (auth()->user()->empleado->id ?? null),
             'deuda' => $deuda,
@@ -195,6 +216,10 @@ class RegistroCobroController extends Controller{
         }
         if (!empty($serviciosAplicados)) {
             $mensaje .= ' Servicios aplicados desde bono: ' . implode(', ', $serviciosAplicados) . '.';
+            $mensaje .= ' Descuento por bonos: €' . number_format($descuentoBonos, 2) . '.';
+        }
+        if ($descuentoBonos > 0 && $totalAjustado == 0) {
+            $mensaje .= ' ¡Pago completo con bono!';
         }
 
         return redirect()
