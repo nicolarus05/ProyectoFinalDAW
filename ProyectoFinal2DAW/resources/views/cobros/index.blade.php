@@ -87,7 +87,23 @@
                             <td class="p-2 border font-semibold">{{ number_format($cobro->total_final, 2) }} €</td>
                             <td class="p-2 border">{{ number_format($cobro->dinero_cliente, 2) }} €</td>
                             <td class="p-2 border">{{ number_format($cobro->cambio, 2) }} €</td>
-                            <td class="p-2 border capitalize">{{ $cobro->metodo_pago }}</td>
+                            <td class="p-2 border capitalize">
+                                @if($cobro->metodo_pago === 'mixto')
+                                    <span class="font-semibold text-purple-700">Mixto</span>
+                                    <div class="text-xs mt-1 space-y-0.5">
+                                        <div class="text-green-700">💵 Efectivo: €{{ number_format($cobro->pago_efectivo ?? 0, 2) }}</div>
+                                        <div class="text-blue-700">💳 Tarjeta: €{{ number_format($cobro->pago_tarjeta ?? 0, 2) }}</div>
+                                    </div>
+                                @elseif($cobro->metodo_pago === 'efectivo')
+                                    <span class="text-green-700">💵 Efectivo</span>
+                                @elseif($cobro->metodo_pago === 'tarjeta')
+                                    <span class="text-blue-700">💳 Tarjeta</span>
+                                @elseif($cobro->metodo_pago === 'bono')
+                                    <span class="text-purple-700">🎫 Bono</span>
+                                @else
+                                    {{ $cobro->metodo_pago }}
+                                @endif
+                            </td>
 
                             <td class="p-2 border space-y-1">
                                 <a href="{{ route('cobros.show', $cobro->id) }}" class="text-blue-600 hover:underline block">Ver</a>

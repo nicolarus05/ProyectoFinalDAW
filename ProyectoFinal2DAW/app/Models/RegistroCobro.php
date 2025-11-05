@@ -20,6 +20,8 @@ class RegistroCobro extends Model {
         'total_final',
         'metodo_pago',
         'dinero_cliente',
+        'pago_efectivo',
+        'pago_tarjeta',
         'cambio',
         'deuda',
     ];

@@ -127,21 +127,64 @@
 
             <div>
                 <label for="metodo_pago" class="block font-semibold mb-1">Método de Pago:</label>
-                <select name="metodo_pago" id="metodo_pago" required class="w-full border rounded px-3 py-2" onchange="toggleEfectivoCampos()">
+                <select name="metodo_pago" id="metodo_pago" required class="w-full border rounded px-3 py-2" onchange="toggleMetodoPagoCampos()">
                     <option value="efectivo">Efectivo</option>
                     <option value="tarjeta">Tarjeta</option>
+                    <option value="mixto">Mixto (Efectivo + Tarjeta)</option>
                 </select>
             </div>
 
+            <!-- Campos para efectivo -->
             <div id="efectivo_campos">
                 <div>
-                    <label for="dinero_cliente" class="block font-semibold mb-1">Dinero del Cliente:</label>
+                    <label for="dinero_cliente" class="block font-semibold mb-1">Dinero del Cliente (Efectivo):</label>
                     <input type="number" name="dinero_cliente" id="dinero_cliente" class="w-full border rounded px-3 py-2" step="0.01" value="" oninput="calcularTotales()">
                 </div>
 
                 <div>
                     <label for="cambio" class="block font-semibold mb-1">Cambio:</label>
                     <input type="number" name="cambio" id="cambio" class="w-full border rounded px-3 py-2" step="0.01" value="0.00" readonly>
+                </div>
+            </div>
+
+            <!-- Campos para pago mixto -->
+            <div id="mixto_campos" class="hidden space-y-4">
+                <div class="bg-blue-50 border border-blue-200 rounded p-4">
+                    <h3 class="font-semibold mb-3 text-blue-800">💳 Pago Dividido</h3>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="pago_efectivo" class="block font-semibold mb-1">Pago en Efectivo:</label>
+                            <input type="number" name="pago_efectivo" id="pago_efectivo" class="w-full border rounded px-3 py-2" step="0.01" value="0" oninput="calcularPagoMixto()">
+                        </div>
+                        <div>
+                            <label for="pago_tarjeta" class="block font-semibold mb-1">Pago con Tarjeta:</label>
+                            <input type="number" name="pago_tarjeta" id="pago_tarjeta" class="w-full border rounded px-3 py-2" step="0.01" value="0" oninput="calcularPagoMixto()">
+                        </div>
+                    </div>
+
+                    <div class="mt-3 p-3 bg-white rounded border">
+                        <div class="flex justify-between items-center text-sm mb-2">
+                            <span class="text-gray-600">Total a Pagar:</span>
+                            <span class="font-bold" id="mixto_total_pagar">€0.00</span>
+                        </div>
+                        <div class="flex justify-between items-center text-sm mb-2">
+                            <span class="text-gray-600">Total Pagado:</span>
+                            <span class="font-bold" id="mixto_total_pagado">€0.00</span>
+                        </div>
+                        <div class="flex justify-between items-center text-sm border-t pt-2">
+                            <span class="font-semibold">Diferencia:</span>
+                            <span class="font-bold text-lg" id="mixto_diferencia">€0.00</span>
+                        </div>
+                    </div>
+
+                    <div id="mixto_error" class="hidden mt-3 p-3 bg-red-50 border border-red-300 rounded text-sm text-red-700">
+                        ⚠️ <span id="mixto_error_texto"></span>
+                    </div>
+                    
+                    <div id="mixto_success" class="hidden mt-3 p-3 bg-green-50 border border-green-300 rounded text-sm text-green-700">
+                        ✓ El pago está completo
+                    </div>
                 </div>
             </div>
 
@@ -475,9 +518,19 @@ function actualizarAlertaDeuda(totalFinal) {
   const select = document.getElementById('id_cita');
   const selectedOption = select.options[select.selectedIndex];
   const deudaExistente = parseFloat(selectedOption?.getAttribute('data-deuda-existente')) || 0;
-  const dineroCliente = parseFloat(document.getElementById('dinero_cliente').value) || 0;
   const metodoPago = document.getElementById('metodo_pago').value;
-  const dineroReal = metodoPago === 'tarjeta' ? totalFinal : dineroCliente;
+  
+  let dineroReal = 0;
+  if (metodoPago === 'tarjeta') {
+    dineroReal = totalFinal;
+  } else if (metodoPago === 'mixto') {
+    const pagoEfectivo = parseFloat(document.getElementById('pago_efectivo').value) || 0;
+    const pagoTarjeta = parseFloat(document.getElementById('pago_tarjeta').value) || 0;
+    dineroReal = pagoEfectivo + pagoTarjeta;
+  } else {
+    dineroReal = parseFloat(document.getElementById('dinero_cliente').value) || 0;
+  }
+  
   const nuevaDeuda = Math.max(0, totalFinal - dineroReal);
   const totalAcumulada = deudaExistente + nuevaDeuda;
   
@@ -510,22 +563,69 @@ function actualizarAlertaDeuda(totalFinal) {
   document.getElementById('alerta-deuda-total-monto').textContent = '€' + formatMoney(totalAcumulada);
 }
 
-function toggleEfectivoCampos() {
+function toggleMetodoPagoCampos() {
   const metodoPago = document.getElementById('metodo_pago').value;
   const efectivoCampos = document.getElementById('efectivo_campos');
+  const mixtoCampos = document.getElementById('mixto_campos');
+  
   if (metodoPago === 'tarjeta') {
     efectivoCampos.style.display = 'none';
+    mixtoCampos.classList.add('hidden');
     document.getElementById('dinero_cliente').value = '';
     document.getElementById('cambio').value = '';
+  } else if (metodoPago === 'mixto') {
+    efectivoCampos.style.display = 'none';
+    mixtoCampos.classList.remove('hidden');
+    document.getElementById('dinero_cliente').value = '';
+    document.getElementById('cambio').value = '';
+    calcularPagoMixto();
   } else {
     efectivoCampos.style.display = 'block';
+    mixtoCampos.classList.add('hidden');
   }
   calcularTotales();
 }
 
+function calcularPagoMixto() {
+  const totalFinal = parseFloat(document.getElementById('total_final').value) || 0;
+  const pagoEfectivo = parseFloat(document.getElementById('pago_efectivo').value) || 0;
+  const pagoTarjeta = parseFloat(document.getElementById('pago_tarjeta').value) || 0;
+  const totalPagado = pagoEfectivo + pagoTarjeta;
+  const diferencia = totalPagado - totalFinal;
+  
+  // Actualizar visualización
+  document.getElementById('mixto_total_pagar').textContent = '€' + formatMoney(totalFinal);
+  document.getElementById('mixto_total_pagado').textContent = '€' + formatMoney(totalPagado);
+  document.getElementById('mixto_diferencia').textContent = '€' + formatMoney(diferencia);
+  
+  const errorDiv = document.getElementById('mixto_error');
+  const successDiv = document.getElementById('mixto_success');
+  const errorTexto = document.getElementById('mixto_error_texto');
+  
+  // Validación
+  if (Math.abs(diferencia) < 0.01) { // Pago exacto (tolerancia de 1 céntimo)
+    errorDiv.classList.add('hidden');
+    successDiv.classList.remove('hidden');
+    document.getElementById('mixto_diferencia').className = 'font-bold text-lg text-green-600';
+  } else if (diferencia > 0) {
+    errorTexto.textContent = 'El total pagado excede el monto a pagar por €' + formatMoney(diferencia);
+    errorDiv.classList.remove('hidden');
+    successDiv.classList.add('hidden');
+    document.getElementById('mixto_diferencia').className = 'font-bold text-lg text-red-600';
+  } else {
+    errorTexto.textContent = 'Falta pagar €' + formatMoney(Math.abs(diferencia));
+    errorDiv.classList.remove('hidden');
+    successDiv.classList.add('hidden');
+    document.getElementById('mixto_diferencia').className = 'font-bold text-lg text-yellow-600';
+  }
+  
+  // Actualizar deuda en tiempo real para pago mixto
+  actualizarAlertaDeuda(totalFinal);
+}
+
 window.addEventListener('load', () => {
   actualizarCosteYTotales();
-  toggleEfectivoCampos();
+  toggleMetodoPagoCampos();
   actualizarClienteInfo();
 });
 

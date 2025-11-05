@@ -51,9 +51,11 @@ class RegistroCobroController extends Controller{
             'descuento_porcentaje' => 'nullable|numeric|min:0',
             'descuento_euro' => 'nullable|numeric|min:0',
             'total_final' => 'required|numeric|min:0',
-            'metodo_pago' => 'required|in:efectivo,tarjeta',
+            'metodo_pago' => 'required|in:efectivo,tarjeta,mixto',
             'dinero_cliente' => 'nullable|numeric|min:0',
             'cambio' => 'nullable|numeric|min:0',
+            'pago_efectivo' => 'nullable|numeric|min:0',
+            'pago_tarjeta' => 'nullable|numeric|min:0',
         ]);
 
         // --- Lógica según método de pago ---
@@ -77,6 +79,22 @@ class RegistroCobroController extends Controller{
             // Si es tarjeta → se llena automáticamente (no genera deuda)
             $data['dinero_cliente'] = $data['total_final'];
             $data['cambio'] = 0;
+        }
+        elseif ($data['metodo_pago'] === 'mixto') {
+            // Pago mixto: efectivo + tarjeta
+            $pagoEfectivo = $data['pago_efectivo'] ?? 0;
+            $pagoTarjeta = $data['pago_tarjeta'] ?? 0;
+            $totalPagado = $pagoEfectivo + $pagoTarjeta;
+            
+            // Validar que la suma sea exactamente igual al total
+            if (abs($totalPagado - $data['total_final']) > 0.01) {
+                return back()
+                    ->withErrors(['metodo_pago' => 'El total de efectivo + tarjeta debe ser igual al total a pagar. Total pagado: €' . number_format($totalPagado, 2) . ', Total requerido: €' . number_format($data['total_final'], 2)])
+                    ->withInput();
+            }
+            
+            $data['dinero_cliente'] = $totalPagado;
+            $data['cambio'] = 0; // No hay cambio en pago mixto
         }
 
         // --- VERIFICAR Y APLICAR BONOS ---
@@ -152,6 +170,8 @@ class RegistroCobroController extends Controller{
             'descuento_euro' => ($data['descuento_euro'] ?? 0) + $descuentoBonos, // Sumar descuento por bonos
             'total_final' => $totalAjustado, // Guardar el total ajustado
             'dinero_cliente' => $data['dinero_cliente'] ?? 0,
+            'pago_efectivo' => $data['metodo_pago'] === 'mixto' ? ($data['pago_efectivo'] ?? 0) : null,
+            'pago_tarjeta' => $data['metodo_pago'] === 'mixto' ? ($data['pago_tarjeta'] ?? 0) : null,
             'cambio' => $data['cambio'] ?? 0,
             'metodo_pago' => $descuentoBonos > 0 && $totalAjustado == 0 ? 'bono' : $data['metodo_pago'], // Si se pagó todo con bono, método = bono
             'id_cliente' => $data['id_cliente'] ?? null,
