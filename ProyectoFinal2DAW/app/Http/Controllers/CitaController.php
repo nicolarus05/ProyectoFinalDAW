@@ -75,13 +75,27 @@ class CitaController extends Controller{
     public function store(Request $request){
         $data = $request->validate([
             'fecha_hora' => 'required|date|after:now',
-            'estado' => 'required|in:pendiente,confirmada,cancelada,completada',
             'notas_adicionales' => 'nullable|string|max:255',
             'id_cliente' => 'required|exists:clientes,id',
             'id_empleado' => 'required|exists:empleados,id',
             'servicios' => 'required|array|min:1',
             'servicios.*' => 'distinct|exists:servicios,id',
         ]);
+
+        // Establecer estado automáticamente en "pendiente"
+        $data['estado'] = 'pendiente';
+
+        // Validar que los servicios sean de la misma categoría que el empleado
+        $empleado = Empleado::findOrFail($data['id_empleado']);
+        $serviciosSeleccionados = Servicio::whereIn('id', $data['servicios'])->get();
+        
+        foreach ($serviciosSeleccionados as $servicio) {
+            if ($servicio->categoria !== $empleado->categoria) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['servicios' => "El empleado seleccionado ({$empleado->user->nombre}) es de categoría '{$empleado->categoria}', pero se ha seleccionado un servicio de categoría '{$servicio->categoria}' ({$servicio->nombre}). Por favor, seleccione servicios de la misma categoría."]);
+            }
+        }
 
         // Extraer fecha y hora
         $fechaHora = Carbon::parse($data['fecha_hora']);

@@ -37,7 +37,7 @@
             </li>
             <li class="py-2 flex justify-between">
                 <span class="font-semibold">Especialización:</span>
-                <span>{{ $empleado->especializacion ?? '-' }}</span>
+                <span>{{ ucfirst($empleado->categoria) ?? '-' }}</span>
             </li>
         </ul>
 

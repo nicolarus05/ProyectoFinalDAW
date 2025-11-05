@@ -16,7 +16,7 @@ class Servicio extends Model{
         'nombre',
         'tiempo_estimado',
         'precio',
-        'tipo',
+        'categoria',
         'descripcion',
         'activo',
     ];

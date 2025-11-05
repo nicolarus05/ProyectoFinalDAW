@@ -44,7 +44,11 @@ Route::middleware(['auth'])->group(function () {
 // Rutas solo para ADMIN
 Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::resource('users', userController::class)->names('users');
+    Route::resource('horarios', HorarioTrabajoController::class)->names('horarios');
+});
 
+// Rutas accesibles por ADMIN y EMPLEADO
+Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
     Route::resource('clientes', ClienteController::class)->names('clientes');
     Route::resource('empleados', EmpleadoController::class)->names('empleados');
     Route::resource('servicios', ServicioController::class)->names('servicios');
@@ -66,14 +70,11 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/servicios/{servicio}/citas', [ServicioController::class, 'citas'])->name('servicios.citas');
     Route::post('/servicios/{servicio}/citas', [ServicioController::class, 'addCita'])->name('servicios.addcita');
 
-    Route::resource('horarios', HorarioTrabajoController::class)->names('horarios');
     Route::resource('cobros', RegistroCobroController::class)->names('cobros');
-});
-// Rutas accesibles por ADMIN y EMPLEADO
-Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
     Route::get('/caja', [CajaDiariaController::class, 'index'])->name('caja.index');
-    Route::resource('citas', CitaController::class)->names('citas');
+    Route::resource('productos', ProductosController::class)->names('productos');
     Route::get('productos/available', [ProductosController::class, 'available'])->name('productos.available');
+    Route::resource('citas', CitaController::class)->names('citas');
     
     // Rutas de deudas
     Route::prefix('deudas')->name('deudas.')->group(function () {
@@ -107,7 +108,6 @@ Route::middleware(['auth', 'role:admin,empleado,cliente'])->group(function () {
     Route::get('/citas/{cita}/edit', [CitaController::class, 'edit'])->name('citas.edit');
     Route::put('/citas/{cita}', [CitaController::class, 'update'])->name('citas.update');
     Route::patch('/citas/{cita}', [CitaController::class, 'update'])->name('citas.update');
-    Route::resource('productos', ProductosController::class)->names('productos');
 });
 
 // Rutas para que un user se pueda registrar

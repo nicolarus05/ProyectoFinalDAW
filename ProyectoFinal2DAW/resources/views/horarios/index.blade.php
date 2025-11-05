@@ -30,6 +30,7 @@
                         <th class="p-2 border">Hora Inicio</th>
                         <th class="p-2 border">Hora Fin</th>
                         <th class="p-2 border">Disponible</th>
+                        <th class="p-2 border">Notas</th>
                         <th class="p-2 border">Acciones</th>
                     </tr>
                 </thead>
@@ -41,6 +42,7 @@
                         <td class="p-2 border">{{ $horario->hora_inicio }}</td>
                         <td class="p-2 border">{{ $horario->hora_fin }}</td>
                         <td class="p-2 border">{{ $horario->disponible ? 'Sí' : 'No' }}</td>
+                        <td class="p-2 border text-sm max-w-xs truncate" title="{{ $horario->notas }}">{{ $horario->notas ?? '-' }}</td>
                         <td class="p-2 border space-y-1">
                             <a href="{{ route('horarios.show', $horario->id) }}" class="text-blue-600 hover:underline block">Ver</a>
                             <a href="{{ route('horarios.edit', $horario->id) }}" class="text-yellow-600 hover:underline block">Editar</a>

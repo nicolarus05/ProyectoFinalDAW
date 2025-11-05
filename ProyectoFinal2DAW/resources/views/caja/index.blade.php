@@ -54,22 +54,165 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <!-- PELUQUERÍA -->
             <div class="seccion-caja" style="border-left: 4px solid #3b82f6;">
                 <h3 class="titulo-seccion text-blue-700">💇 PELUQUERÍA</h3>
-                <div class="space-y-2">
+                
+                <!-- Totales por método de pago -->
+                <div class="space-y-2 mb-4 pb-4 border-b-2 border-blue-100">
                     <div class="flex justify-between"><span class="text-gray-600">💵 Efectivo:</span><span class="font-bold">€{{ number_format($totalPeluqueriaEfectivo, 2) }}</span></div>
                     <div class="flex justify-between"><span class="text-gray-600">💳 Tarjeta:</span><span class="font-bold">€{{ number_format($totalPeluqueriaTarjeta, 2) }}</span></div>
                     <div class="flex justify-between"><span class="text-gray-600">🎫 Bono:</span><span class="font-bold">€{{ number_format($totalPeluqueriaBono, 2) }}</span></div>
                     <div class="flex justify-between pt-2 border-t-2 border-blue-200"><span class="font-bold text-blue-700">TOTAL:</span><span class="font-bold text-blue-700 text-xl">€{{ number_format($totalPeluqueria, 2) }}</span></div>
                 </div>
+
+                <!-- Servicios de Peluquería -->
+                <div class="mb-3">
+                    <h4 class="font-semibold text-blue-600 text-sm mb-2">Servicios:</h4>
+                    @php
+                        $serviciosPeluqueria = [];
+                        foreach($detalleServicios as $cobro) {
+                            if ($cobro->cita && $cobro->cita->servicios) {
+                                foreach($cobro->cita->servicios as $servicio) {
+                                    if ($servicio->categoria === 'peluqueria') {
+                                        $precio = $servicio->pivot->precio ?? $servicio->precio;
+                                        $serviciosPeluqueria[] = [
+                                            'nombre' => $servicio->nombre,
+                                            'precio' => $precio
+                                        ];
+                                    }
+                                }
+                            }
+                        }
+                    @endphp
+                    @if(count($serviciosPeluqueria) > 0)
+                        <div class="space-y-1 text-sm">
+                            @foreach($serviciosPeluqueria as $s)
+                                <div class="flex justify-between text-gray-700">
+                                    <span>• {{ $s['nombre'] }}</span>
+                                    <span>€{{ number_format($s['precio'], 2) }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <p class="text-gray-500 text-xs italic">Sin servicios</p>
+                    @endif
+                </div>
+
+                <!-- Productos de Peluquería -->
+                <div>
+                    <h4 class="font-semibold text-blue-600 text-sm mb-2">Productos:</h4>
+                    @php
+                        $productosPeluqueria = [];
+                        foreach($detalleServicios as $cobro) {
+                            if ($cobro->productos) {
+                                foreach($cobro->productos as $producto) {
+                                    if ($producto->categoria === 'peluqueria') {
+                                        $cantidad = $producto->pivot->cantidad ?? 1;
+                                        $subtotal = $producto->pivot->subtotal ?? 0;
+                                        $productosPeluqueria[] = [
+                                            'nombre' => $producto->nombre,
+                                            'cantidad' => $cantidad,
+                                            'subtotal' => $subtotal
+                                        ];
+                                    }
+                                }
+                            }
+                        }
+                    @endphp
+                    @if(count($productosPeluqueria) > 0)
+                        <div class="space-y-1 text-sm">
+                            @foreach($productosPeluqueria as $p)
+                                <div class="flex justify-between text-gray-700">
+                                    <span>• {{ $p['nombre'] }} (x{{ $p['cantidad'] }})</span>
+                                    <span>€{{ number_format($p['subtotal'], 2) }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <p class="text-gray-500 text-xs italic">Sin productos</p>
+                    @endif
+                </div>
             </div>
+
+            <!-- ESTÉTICA -->
             <div class="seccion-caja" style="border-left: 4px solid #ec4899;">
                 <h3 class="titulo-seccion text-pink-700">💅 ESTÉTICA</h3>
-                <div class="space-y-2">
+                
+                <!-- Totales por método de pago -->
+                <div class="space-y-2 mb-4 pb-4 border-b-2 border-pink-100">
                     <div class="flex justify-between"><span class="text-gray-600">💵 Efectivo:</span><span class="font-bold">€{{ number_format($totalEsteticaEfectivo, 2) }}</span></div>
                     <div class="flex justify-between"><span class="text-gray-600">💳 Tarjeta:</span><span class="font-bold">€{{ number_format($totalEsteticaTarjeta, 2) }}</span></div>
                     <div class="flex justify-between"><span class="text-gray-600">🎫 Bono:</span><span class="font-bold">€{{ number_format($totalEsteticaBono, 2) }}</span></div>
                     <div class="flex justify-between pt-2 border-t-2 border-pink-200"><span class="font-bold text-pink-700">TOTAL:</span><span class="font-bold text-pink-700 text-xl">€{{ number_format($totalEstetica, 2) }}</span></div>
+                </div>
+
+                <!-- Servicios de Estética -->
+                <div class="mb-3">
+                    <h4 class="font-semibold text-pink-600 text-sm mb-2">Servicios:</h4>
+                    @php
+                        $serviciosEstetica = [];
+                        foreach($detalleServicios as $cobro) {
+                            if ($cobro->cita && $cobro->cita->servicios) {
+                                foreach($cobro->cita->servicios as $servicio) {
+                                    if ($servicio->categoria === 'estetica') {
+                                        $precio = $servicio->pivot->precio ?? $servicio->precio;
+                                        $serviciosEstetica[] = [
+                                            'nombre' => $servicio->nombre,
+                                            'precio' => $precio
+                                        ];
+                                    }
+                                }
+                            }
+                        }
+                    @endphp
+                    @if(count($serviciosEstetica) > 0)
+                        <div class="space-y-1 text-sm">
+                            @foreach($serviciosEstetica as $s)
+                                <div class="flex justify-between text-gray-700">
+                                    <span>• {{ $s['nombre'] }}</span>
+                                    <span>€{{ number_format($s['precio'], 2) }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <p class="text-gray-500 text-xs italic">Sin servicios</p>
+                    @endif
+                </div>
+
+                <!-- Productos de Estética -->
+                <div>
+                    <h4 class="font-semibold text-pink-600 text-sm mb-2">Productos:</h4>
+                    @php
+                        $productosEstetica = [];
+                        foreach($detalleServicios as $cobro) {
+                            if ($cobro->productos) {
+                                foreach($cobro->productos as $producto) {
+                                    if ($producto->categoria === 'estetica') {
+                                        $cantidad = $producto->pivot->cantidad ?? 1;
+                                        $subtotal = $producto->pivot->subtotal ?? 0;
+                                        $productosEstetica[] = [
+                                            'nombre' => $producto->nombre,
+                                            'cantidad' => $cantidad,
+                                            'subtotal' => $subtotal
+                                        ];
+                                    }
+                                }
+                            }
+                        }
+                    @endphp
+                    @if(count($productosEstetica) > 0)
+                        <div class="space-y-1 text-sm">
+                            @foreach($productosEstetica as $p)
+                                <div class="flex justify-between text-gray-700">
+                                    <span>• {{ $p['nombre'] }} (x{{ $p['cantidad'] }})</span>
+                                    <span>€{{ number_format($p['subtotal'], 2) }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <p class="text-gray-500 text-xs italic">Sin productos</p>
+                    @endif
                 </div>
             </div>
         </div>
@@ -106,9 +249,9 @@
                                     <td>
                                         @if($item->cita && $item->cita->servicios)
                                             @foreach($item->cita->servicios as $servicio)
-                                                @if($servicio->tipo === 'peluqueria')
+                                                @if($servicio->categoria === 'peluqueria')
                                                     <span class="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs mr-1 mb-1">💇 {{ $servicio->nombre }}</span>
-                                                @elseif($servicio->tipo === 'estetica')
+                                                @elseif($servicio->categoria === 'estetica')
                                                     <span class="inline-block px-2 py-1 bg-pink-100 text-pink-700 rounded text-xs mr-1 mb-1">💅 {{ $servicio->nombre }}</span>
                                                 @endif
                                             @endforeach
@@ -232,6 +375,8 @@
                                     <td>
                                         @if($deuda->cliente && $deuda->cliente->user)
                                             {{ $deuda->cliente->user->nombre }} {{ $deuda->cliente->user->apellidos }}
+                                        @elseif($deuda->cita && $deuda->cita->cliente && $deuda->cita->cliente->user)
+                                            {{ $deuda->cita->cliente->user->nombre }} {{ $deuda->cita->cliente->user->apellidos }}
                                         @else
                                             -
                                         @endif
@@ -241,6 +386,8 @@
                                             @foreach($deuda->cita->servicios as $servicio)
                                                 <span class="inline-block px-2 py-1 bg-gray-100 rounded text-xs mr-1">{{ $servicio->nombre }}</span>
                                             @endforeach
+                                        @else
+                                            <span class="text-gray-400">-</span>
                                         @endif
                                     </td>
                                     <td class="font-semibold">€{{ number_format($deuda->total_final + $deuda->deuda, 2) }}</td>

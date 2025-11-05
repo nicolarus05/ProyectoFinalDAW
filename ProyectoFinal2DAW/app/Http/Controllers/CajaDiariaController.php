@@ -47,10 +47,9 @@ class CajaDiariaController extends Controller{
         $totalDeuda = RegistroCobro::whereDate('created_at', $fecha)->sum('deuda');
 
         // Clientes que han dejado deuda ese día
-        $deudas = RegistroCobro::with(['cliente.user', 'cita'])
+        $deudas = RegistroCobro::with(['cliente.user', 'cita.cliente.user', 'cita.servicios'])
             ->whereDate('created_at', $fecha)
             ->where('deuda', '>', 0)
-            ->whereNotNull('id_cliente')
             ->get();
 
         // Detalle de servicios: cliente, servicios (de la cita), empleado, metodo_pago, dinero_pagado, deuda
@@ -82,12 +81,12 @@ class CajaDiariaController extends Controller{
                 foreach($cobro->cita->servicios as $servicio) {
                     $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
                     
-                    if ($servicio->tipo === 'peluqueria') {
+                    if ($servicio->categoria === 'peluqueria') {
                         $totalPeluqueria += $precioServicio;
                         if ($metodoPago === 'efectivo') $totalPeluqueriaEfectivo += $precioServicio;
                         elseif ($metodoPago === 'tarjeta') $totalPeluqueriaTarjeta += $precioServicio;
                         elseif ($metodoPago === 'bono') $totalPeluqueriaBono += $precioServicio;
-                    } elseif ($servicio->tipo === 'estetica') {
+                    } elseif ($servicio->categoria === 'estetica') {
                         $totalEstetica += $precioServicio;
                         if ($metodoPago === 'efectivo') $totalEsteticaEfectivo += $precioServicio;
                         elseif ($metodoPago === 'tarjeta') $totalEsteticaTarjeta += $precioServicio;

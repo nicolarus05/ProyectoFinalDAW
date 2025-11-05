@@ -211,7 +211,7 @@
         <h5 class="font-semibold text-sm mb-2">Registrar Pago de Deuda Existente</h5>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="text-xs text-gray-600">Monto a Pagar</label>
+            <label class="text-xs text-gray-600">Deuda a Pagar</label>
             <input type="number" 
                    id="pago-deuda-existente" 
                    step="0.01" 
@@ -255,7 +255,7 @@
         <h5 class="font-semibold text-sm mb-2">Ajustar Pago del Cliente</h5>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="text-xs text-gray-600">Nuevo Monto que Paga</label>
+            <label class="text-xs text-gray-600">Nuevo Deuda que Paga</label>
             <input type="number" 
                    id="nuevo-dinero-cliente" 
                    step="0.01" 

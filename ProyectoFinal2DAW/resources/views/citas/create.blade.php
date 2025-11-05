@@ -35,18 +35,6 @@
         </div>
 
         <div>
-            <label for="estado" class="block text-gray-700 font-semibold mb-1">Estado:</label>
-            <select name="estado" required
-                    class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                <option value="">Seleccione</option>
-                <option value="pendiente">Pendiente</option>
-                <option value="confirmada">Confirmada</option>
-                <option value="completada">Completada</option>
-                <option value="cancelada">Cancelada</option>
-            </select>
-        </div>
-
-        <div>
             <label for="notas_adicionales" class="block text-gray-700 font-semibold mb-1">Notas adicionales:</label>
             <textarea name="notas_adicionales" rows="3"
                       class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"></textarea>

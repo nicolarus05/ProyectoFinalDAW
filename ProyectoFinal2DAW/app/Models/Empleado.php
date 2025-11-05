@@ -19,7 +19,7 @@ class Empleado extends Model{
     // Definición de las columnas de la tabla
     protected $fillable = [
         'id_user',
-        'especializacion',
+        'categoria',
     ];
 
     public function user(){

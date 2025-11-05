@@ -64,19 +64,6 @@
                 </div>
                 <p class="text-xs text-gray-500 mt-2">Total de clientes que deben</p>
             </div>
-
-            <div class="stat-card bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-gray-600 mb-1">Promedio por Cliente</p>
-                        <p class="text-3xl font-bold text-yellow-600">
-                            €{{ $clientes->count() > 0 ? number_format($totalDeuda / $clientes->count(), 2) : '0.00' }}
-                        </p>
-                    </div>
-                    <div class="text-4xl">📊</div>
-                </div>
-                <p class="text-xs text-gray-500 mt-2">Deuda promedio por cliente</p>
-            </div>
         </div>
 
         <!-- Buscador y Filtros -->

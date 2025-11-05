@@ -11,7 +11,7 @@
 
         <p><strong>Tiempo Estimado:</strong> {{ $servicio->tiempo_estimado }} min</p>
         <p><strong>Precio:</strong> {{ $servicio->precio }} €</p>
-        <p><strong>Tipo:</strong> {{ $servicio->tipo }}</p>
+        <p><strong>Categoría:</strong> {{ ucfirst($servicio->categoria) }}</p>
         <p><strong>Descripción:</strong> {{ $servicio->descripcion ?? 'Sin descripción' }}</p>
         <p><strong>Activo:</strong> {{ $servicio->activo ? 'Sí' : 'No' }}</p>
 

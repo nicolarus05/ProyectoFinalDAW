@@ -48,6 +48,11 @@
             </div>
 
             <div>
+                <label for="notas" class="block font-semibold mb-1">Notas:</label>
+                <textarea name="notas" id="notas" rows="3" class="w-full border border-gray-300 rounded px-3 py-2" placeholder="Observaciones o comentarios sobre este turno (opcional)">{{ old('notas', $horario->notas) }}</textarea>
+            </div>
+
+            <div>
                 <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Actualizar</button>
             </div>
         </form>

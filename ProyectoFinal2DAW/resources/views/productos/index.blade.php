@@ -35,6 +35,7 @@
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-4 py-2 text-left">Nombre</th>
+                        <th class="px-4 py-2 text-left">Categoría</th>
                         <th class="px-4 py-2 text-left">Descripción</th>
                         <th class="px-4 py-2 text-left">Precio venta</th>
                         <th class="px-4 py-2 text-left">Precio coste</th>
@@ -47,6 +48,13 @@
                     @forelse($productos as $producto)
                         <tr class="border-t">
                             <td class="px-4 py-2">{{ $producto->nombre }}</td>
+                            <td class="px-4 py-2">
+                                @if($producto->categoria === 'peluqueria')
+                                    <span class="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded">💇 Peluquería</span>
+                                @else
+                                    <span class="inline-flex items-center px-2 py-1 text-xs font-medium text-pink-700 bg-pink-100 rounded">💅 Estética</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-2">{{ Str::limit($producto->descripcion, 80) }}</td>
                             <td class="px-4 py-2">{{ number_format($producto->precio_venta, 2) }} €</td>
                             <td class="px-4 py-2">{{ number_format($producto->precio_coste, 2) }} €</td>
@@ -62,7 +70,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="px-4 py-6 text-center text-gray-600">No hay productos.</td></tr>
+                        <tr><td colspan="8" class="px-4 py-6 text-center text-gray-600">No hay productos.</td></tr>
                     @endforelse
                 </tbody>
             </table>

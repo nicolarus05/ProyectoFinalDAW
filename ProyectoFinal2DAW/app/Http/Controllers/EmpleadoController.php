@@ -35,7 +35,7 @@ class EmpleadoController extends Controller{
             'email' => 'required|email|unique:users,email',
             'genero' => 'required|string|max:20',
             'edad' => 'required|integer|min:0',
-            'especializacion' => 'required|string|max:255',
+            'categoria' => 'required|in:peluqueria,estetica',
         ]);
 
         //dd($request->all());
@@ -55,7 +55,7 @@ class EmpleadoController extends Controller{
         // Crear empleado
         Empleado::create([
             'id_user' => $user->id,
-            'especializacion' => $request->input('especializacion'),
+            'categoria' => $request->input('categoria'),
         ]);
         
         // Redirigir a la lista de empleados
@@ -89,7 +89,7 @@ class EmpleadoController extends Controller{
             'email' => 'required|email|unique:users,email,' . $empleado->user->id,
             'genero' => 'required|string|max:20',
             'edad' => 'required|integer|min:0',
-            'especializacion' => 'required|string|max:255',
+            'categoria' => 'required|in:peluqueria,estetica',
         ]);
 
         // Actualizar user
@@ -105,7 +105,7 @@ class EmpleadoController extends Controller{
 
         // Actualizar empleado
         $empleado->update([
-            'especializacion' => $request->input('especializacion'),
+            'categoria' => $request->input('categoria'),
         ]);
 
         return redirect()->route('empleados.index')->with('success', 'El empleado ha sido actualizado con éxito.');

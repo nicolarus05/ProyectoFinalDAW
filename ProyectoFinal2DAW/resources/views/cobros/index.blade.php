@@ -36,34 +36,48 @@
                 <tbody>
                     @forelse ($cobros as $cobro)
                         <tr class="text-center border-t hover:bg-gray-50">
-                            <td class="p-2 border">{{ $cobro->cita->cliente->user->nombre ?? '-' }}</td>
-                            <td class="p-2 border">{{ $cobro->cita->empleado->user->nombre ?? '-' }}</td>
+                            <td class="p-2 border">
+                                @if($cobro->cita && $cobro->cita->cliente && $cobro->cita->cliente->user)
+                                    {{ $cobro->cita->cliente->user->nombre }}
+                                @elseif($cobro->cliente && $cobro->cliente->user)
+                                    {{ $cobro->cliente->user->nombre }}
+                                @else
+                                    -
+                                @endif
+                            </td>
+                            <td class="p-2 border">
+                                @if($cobro->cita && $cobro->cita->empleado && $cobro->cita->empleado->user)
+                                    {{ $cobro->cita->empleado->user->nombre }}
+                                @elseif($cobro->empleado && $cobro->empleado->user)
+                                    {{ $cobro->empleado->user->nombre }}
+                                @else
+                                    -
+                                @endif
+                            </td>
 
                             <!-- Servicios -->
                             <td class="p-2 border">
                                 @php
-                                    $servicios = $cobro->cita->servicios->pluck('nombre')->implode(', ');
+                                    $servicios = $cobro->cita && $cobro->cita->servicios 
+                                        ? $cobro->cita->servicios->pluck('nombre')->implode(', ') 
+                                        : '-';
                                 @endphp
-                                {{ $servicios ?: '-' }}
+                                {{ $servicios }}
                             </td>
 
                             <!-- Productos -->
                             <td class="p-2 border text-left">
-                                @php
-                                    $productos = $cobro->productos()->withPivot('cantidad')->get();
-                                @endphp
-
-                                @if($productos->isEmpty())
-                                    <span class="text-gray-400 italic">—</span>
-                                @else
+                                @if($cobro->productos && $cobro->productos->count() > 0)
                                     <ul class="list-disc list-inside">
-                                        @foreach($productos as $prod)
+                                        @foreach($cobro->productos as $prod)
                                             <li>
                                                 {{ $prod->nombre }}
                                                 <span class="text-gray-500">(x{{ $prod->pivot->cantidad }})</span>
                                             </li>
                                         @endforeach
                                     </ul>
+                                @else
+                                    <span class="text-gray-400 italic">—</span>
                                 @endif
                             </td>
 

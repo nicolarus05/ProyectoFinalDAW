@@ -29,7 +29,7 @@ class ServicioController extends Controller{
             'nombre' => 'required|string|max:100',
             'tiempo_estimado' => 'required|integer|min:1',
             'precio' => 'required|numeric|min:0',
-            'tipo' => 'required|string|max:50',
+            'categoria' => 'required|in:peluqueria,estetica',
             'activo' => 'boolean'
         ]);
 
@@ -60,7 +60,7 @@ class ServicioController extends Controller{
             'nombre' => 'required|string|max:100',
             'tiempo_estimado' => 'required|integer|min:1',
             'precio' => 'required|numeric|min:0',
-            'tipo' => 'required|string|max:50',
+            'categoria' => 'required|in:peluqueria,estetica',
             'activo' => 'boolean'
         ]);
 

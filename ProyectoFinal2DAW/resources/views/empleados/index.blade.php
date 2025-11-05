@@ -44,7 +44,7 @@
                         <td class="p-2 border">{{ $empleado->user->email ?? '-' }}</td>
                         <td class="p-2 border">{{ $empleado->user->genero ?? '-' }}</td>
                         <td class="p-2 border">{{ $empleado->user->edad ?? '-' }}</td>
-                        <td class="p-2 border">{{ $empleado->especializacion ?? '-' }}</td>
+                        <td class="p-2 border">{{ $empleado->categoria ?? '-' }}</td>
                         <td class="p-2 border space-y-1">
                             <a href="{{ route('empleados.show', $empleado->id) }}" class="text-blue-600 hover:underline block">Ver</a>
                             <a href="{{ route('empleados.edit', $empleado->id) }}" class="text-yellow-600 hover:underline block">Editar</a>

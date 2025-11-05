@@ -213,25 +213,61 @@
             <!-- Grid para Empleados -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 
-                <!-- Mis Citas -->
-                <a href="{{ route('citas.index') }}" class="card-hover bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-black rounded-xl p-6 text-center group">
-                    <div class="w-16 h-16 bg-purple-500 text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-600 transition">
+                <!-- Gestionar Citas -->
+                <a href="{{ route('citas.index') }}" class="card-hover bg-white border-2 border-black rounded-xl p-6 text-center group">
+                    <div class="w-16 h-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-gray-800 transition">
                         <span class="text-3xl">📅</span>
                     </div>
-                    <h3 class="text-xl font-bold text-purple-700 mb-2">Mis Citas</h3>
-                    <p class="text-purple-600 text-sm">Ver mis citas programadas</p>
+                    <h3 class="text-xl font-bold text-black mb-2">Gestionar Citas</h3>
+                    <p class="text-gray-600 text-sm">Ver y administrar todas las citas programadas</p>
                 </a>
 
-                <!-- Servicios -->
+                <!-- Gestionar Clientes -->
+                <a href="{{ route('clientes.index') }}" class="card-hover bg-white border-2 border-black rounded-xl p-6 text-center group">
+                    <div class="w-16 h-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-gray-800 transition">
+                        <span class="text-3xl">👥</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-black mb-2">Clientes</h3>
+                    <p class="text-gray-600 text-sm">Gestionar información de clientes</p>
+                </a>
+
+                <!-- Gestionar Empleados -->
+                <a href="{{ route('empleados.index') }}" class="card-hover bg-white border-2 border-black rounded-xl p-6 text-center group">
+                    <div class="w-16 h-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-gray-800 transition">
+                        <span class="text-3xl">💼</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-black mb-2">Empleados</h3>
+                    <p class="text-gray-600 text-sm">Administrar personal del salón</p>
+                </a>
+
+                <!-- Gestionar Servicios -->
                 <a href="{{ route('servicios.index') }}" class="card-hover bg-white border-2 border-black rounded-xl p-6 text-center group">
                     <div class="w-16 h-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-gray-800 transition">
                         <span class="text-3xl">💇</span>
                     </div>
                     <h3 class="text-xl font-bold text-black mb-2">Servicios</h3>
-                    <p class="text-gray-600 text-sm">Consultar servicios disponibles</p>
+                    <p class="text-gray-600 text-sm">Gestionar servicios de belleza</p>
                 </a>
 
-                <!-- Gestionar Deudas -->
+                <!-- Gestionar Productos -->
+                <a href="{{ route('productos.index') }}" class="card-hover bg-white border-2 border-black rounded-xl p-6 text-center group">
+                    <div class="w-16 h-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-gray-800 transition">
+                        <span class="text-3xl">🛍️</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-black mb-2">Productos</h3>
+                    <p class="text-gray-600 text-sm">Control de inventario y productos</p>
+                </a>
+
+                <!-- Registro de Cobros -->
+                <a href="{{ route('cobros.index') }}" class="card-hover bg-white border-2 border-black rounded-xl p-6 text-center group">
+                    <div class="w-16 h-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-gray-800 transition">
+                        <span class="text-3xl">💳</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-black mb-2">Registro de Cobros</h3>
+                    <p class="text-gray-600 text-sm">Historial de pagos y transacciones</p>
+                </a>
+
+                <!-- Gestionar Deudas (Destacado) -->
                 <a href="{{ route('deudas.index') }}" class="card-hover card-deudas border-2 border-black rounded-xl p-6 text-center group">
                     <div class="w-16 h-16 bg-red-500 text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-red-600 transition">
                         <span class="text-3xl">💰</span>
@@ -249,13 +285,22 @@
                     <p class="text-purple-600 text-sm">Crear y vender bonos de servicios</p>
                 </a>
 
-                <!-- Caja del Día -->
+                <!-- Clientes con Bonos -->
+                <a href="{{ route('bonos.clientesConBonos') }}" class="card-hover border-2 border-black rounded-xl p-6 text-center group">
+                    <div class="w-16 h-16 bg-indigo-500 text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-indigo-600 transition">
+                        <span class="text-3xl">👥</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-indigo-700 mb-2">Clientes con Bonos</h3>
+                    <p class="text-indigo-600 text-sm">Ver clientes con bonos activos</p>
+                </a>
+
+                <!-- Caja del Día (Destacado) -->
                 <a href="{{ route('caja.index') }}" class="card-hover card-caja border-2 border-black rounded-xl p-6 text-center group">
                     <div class="w-16 h-16 bg-green-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-700 transition">
-                        <span class="text-3xl text-green-500">💵</span>
+                        <span class="text-3xl">💵</span>
                     </div>
                     <h3 class="text-xl font-bold text-green-700 mb-2">Caja del Día</h3>
-                    <p class="text-green-600 text-sm">Ver ingresos del día</p>
+                    <p class="text-green-600 text-sm">Resumen de ingresos diarios</p>
                 </a>
 
             </div>

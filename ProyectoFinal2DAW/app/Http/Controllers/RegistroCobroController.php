@@ -18,7 +18,14 @@ class RegistroCobroController extends Controller{
      * Display a listing of the resource.
      */
     public function index(){
-        $cobros = RegistroCobro::with('cita.cliente.user','cita.empleado.user','cita.servicios')->get();
+        $cobros = RegistroCobro::with([
+            'cita.cliente.user',
+            'cita.empleado.user',
+            'cita.servicios',
+            'cliente.user',
+            'empleado.user',
+            'productos'
+        ])->get();
         return view('cobros.index', compact('cobros'));
     }
 

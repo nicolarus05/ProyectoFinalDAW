@@ -32,9 +32,11 @@
             </div>
 
             <div>
-                <label class="block font-semibold mb-1">Tipo:</label>
-                <input type="text" name="tipo" value="{{ old('tipo', $servicio->tipo) }}" required
-                       class="w-full border rounded px-3 py-2">
+                <label class="block font-semibold mb-1">Categoría:</label>
+                <select name="categoria" required class="w-full border rounded px-3 py-2">
+                    <option value="peluqueria" {{ old('categoria', $servicio->categoria) == 'peluqueria' ? 'selected' : '' }}>Peluquería</option>
+                    <option value="estetica" {{ old('categoria', $servicio->categoria) == 'estetica' ? 'selected' : '' }}>Estética</option>
+                </select>
             </div>
 
             <div>

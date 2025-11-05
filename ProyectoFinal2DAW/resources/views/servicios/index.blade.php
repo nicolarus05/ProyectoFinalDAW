@@ -20,7 +20,7 @@
                     <th class="px-3 py-2">Nombre</th>
                     <th class="px-3 py-2">Tiempo</th>
                     <th class="px-3 py-2">Precio</th>
-                    <th class="px-3 py-2">Tipo</th>
+                    <th class="px-3 py-2">Categoría</th>
                     <th class="px-3 py-2">Activo</th>
                     <th class="px-3 py-2">Acciones</th>
                 </tr>
@@ -31,7 +31,7 @@
                         <td class="px-3 py-2">{{ $servicio->nombre }}</td>
                         <td class="px-3 py-2">{{ $servicio->tiempo_estimado }} min</td>
                         <td class="px-3 py-2">{{ $servicio->precio }} €</td>
-                        <td class="px-3 py-2">{{ $servicio->tipo }}</td>
+                        <td class="px-3 py-2">{{ ucfirst($servicio->categoria) }}</td>
                         <td class="px-3 py-2">
                             {{ $servicio->activo ? 'Sí' : 'No' }}
                         </td>

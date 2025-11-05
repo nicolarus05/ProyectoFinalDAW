@@ -32,6 +32,12 @@
                 <span class="font-semibold">Disponible:</span>
                 <span>{{ $horario->disponible ? 'Sí' : 'No' }}</span>
             </div>
+            <div>
+                <span class="font-semibold">Notas:</span>
+                <p class="mt-1 text-gray-700 bg-gray-50 p-3 rounded border border-gray-200">
+                    {{ $horario->notas ?? 'Sin notas' }}
+                </p>
+            </div>
         </div>
 
         <div class="mt-6">

@@ -80,7 +80,7 @@
                     <tr>
                         <th class="px-4 py-2">Fecha</th>
                         <th class="px-4 py-2">Tipo</th>
-                        <th class="px-4 py-2">Monto</th>
+                        <th class="px-4 py-2">Deuda</th>
                         <th class="px-4 py-2">Método Pago</th>
                         <th class="px-4 py-2">Detalle</th>
                         <th class="px-4 py-2">Registrado por</th>

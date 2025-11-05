@@ -33,6 +33,7 @@ class HorarioTrabajoController extends Controller{
             'hora_inicio' => 'required|date_format:H:i',
             'hora_fin' => 'required|date_format:H:i|after:hora_inicio',
             'disponible' => 'boolean',
+            'notas' => 'nullable|string|max:1000',
         ]);
 
 
@@ -66,6 +67,7 @@ class HorarioTrabajoController extends Controller{
             'hora_inicio' => 'required|date_format:H:i',
             'hora_fin' => 'required|date_format:H:i|after:hora_inicio',
             'disponible' => 'boolean',
+            'notas' => 'nullable|string|max:1000',
         ]);
 
 

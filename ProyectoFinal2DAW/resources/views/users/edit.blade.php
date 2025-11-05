@@ -77,11 +77,11 @@
 
             <!-- Campos específicos para empleados -->
             <div id="campos-empleado" style="display: none;">
-                <label for="especializacion" class="block font-semibold mb-1">Especialización:</label>
-                <select name="especializacion" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300">
+                <label for="categoria" class="block font-semibold mb-1">Categoría:</label>
+                <select name="categoria" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-300">
                     <option value="">-- Seleccione --</option>
-                    <option value="Esteticien" {{ old('especializacion', optional($user->empleado)->especializacion) == 'Esteticien' ? 'selected' : '' }}>Esteticista</option>
-                    <option value="Peluquera" {{ old('especializacion', optional($user->empleado)->especializacion) == 'Peluquera' ? 'selected' : '' }}>Peluquera</option>
+                    <option value="peluqueria" {{ old('categoria', optional($user->empleado)->categoria) == 'peluqueria' ? 'selected' : '' }}>Peluquería</option>
+                    <option value="estetica" {{ old('categoria', optional($user->empleado)->categoria) == 'estetica' ? 'selected' : '' }}>Estética</option>
                 </select>
             </div>
 

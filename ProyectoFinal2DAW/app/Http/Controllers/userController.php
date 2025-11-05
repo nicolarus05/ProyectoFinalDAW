@@ -41,7 +41,7 @@ class userController extends Controller
             'rol' => 'required|in:cliente,empleado, admin',
 
             // Campos específicos para cada rol
-            'especializacion' => 'required_if:rol,empleado|nullable|string|max:255',
+            'categoria' => 'required_if:rol,empleado|nullable|in:peluqueria,estetica',
             'fecha_registro' => 'required_if:rol,cliente|nullable|date',
             'direccion' => 'required_if:rol,cliente|nullable|string|max:255',
             'notas_adicionales' => 'nullable|string|max:1000',
@@ -66,7 +66,7 @@ class userController extends Controller
             // Crear datos adicionales según el rol
             if ($data['rol'] === 'empleado') {
                 $user->empleado()->create([
-                    'especializacion' => $data['especializacion'] ?? null,
+                    'categoria' => $data['categoria'] ?? 'peluqueria',
                 ]);
             }
 

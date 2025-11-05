@@ -17,6 +17,7 @@ class HorarioTrabajo extends Model{
         'hora_inicio',
         'hora_fin',
         'disponible',
+        'notas',
     ];
 
     protected $casts = [

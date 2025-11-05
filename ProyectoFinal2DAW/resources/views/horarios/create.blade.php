@@ -46,6 +46,11 @@
                 <label for="disponible" class="font-semibold">Disponible</label>
             </div>
 
+            <div>
+                <label for="notas" class="block font-semibold mb-1">Notas:</label>
+                <textarea name="notas" id="notas" rows="3" class="w-full border border-gray-300 rounded px-3 py-2" placeholder="Observaciones o comentarios sobre este turno (opcional)"></textarea>
+            </div>
+
             <div class="pt-2">
                 <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Guardar</button>
             </div>

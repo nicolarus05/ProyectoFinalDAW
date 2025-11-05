@@ -45,11 +45,11 @@
             </div>
 
             <div>
-                <label for="especializacion" class="block font-semibold mb-1">Especialización:</label>
-                <select name="especializacion" required class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <label for="categoria" class="block font-semibold mb-1">Categoría:</label>
+                <select name="categoria" required class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
                     <option value="">Seleccione</option>
-                    <option value="Esteticien" {{ $empleado->especializacion == 'Esteticien' ? 'selected' : '' }}>Esteticista</option>
-                    <option value="Peluquera" {{ $empleado->especializacion == 'Peluquera' ? 'selected' : '' }}>Peluquera</option>
+                    <option value="peluqueria" {{ $empleado->categoria == 'peluqueria' ? 'selected' : '' }}>Peluquería</option>
+                    <option value="estetica" {{ $empleado->categoria == 'estetica' ? 'selected' : '' }}>Estética</option>
                 </select>
             </div>
 

@@ -31,10 +31,10 @@
             </div>
 
             <div>
-                <label class="block font-semibold mb-1">Tipo:</label>
-                <select name="tipo" required class="w-full border rounded px-3 py-2">
-                    <option value="peluqueria" {{ old('tipo') == 'peluqueria' ? 'selected' : '' }}>Peluquería</option>
-                    <option value="estetica" {{ old('tipo') == 'estetica' ? 'selected' : '' }}>Estética</option>
+                <label class="block font-semibold mb-1">Categoría:</label>
+                <select name="categoria" required class="w-full border rounded px-3 py-2">
+                    <option value="peluqueria" {{ old('categoria') == 'peluqueria' ? 'selected' : '' }}>Peluquería</option>
+                    <option value="estetica" {{ old('categoria') == 'estetica' ? 'selected' : '' }}>Estética</option>
                 </select>
             </div>
 

@@ -47,7 +47,7 @@
                 <h3 class="text-xl font-semibold mb-2">Datos del empleado</h3>
                 <div>
                     <span class="font-semibold">Especialización:</span>
-                    <span>{{ $user->empleado->especializacion ?? 'No especificada' }}</span>
+                    <span>{{ ucfirst($user->empleado->categoria) ?? 'No especificada' }}</span>
                 </div>
             </div>
         @elseif ($user->rol === 'cliente' && $user->cliente)
