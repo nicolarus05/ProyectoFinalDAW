@@ -36,12 +36,14 @@
                             $costeTotal = $cita->servicios->sum('precio');
                             $nombresServicios = $cita->servicios->pluck('nombre')->implode(', ');
                             $deudaExistente = $cita->cliente->deuda ? $cita->cliente->deuda->saldo_pendiente : 0;
+                            $isSelected = $citaSeleccionada && $citaSeleccionada->id == $cita->id;
                         @endphp
                         <option value="{{ $cita->id }}" 
                                 data-coste="{{ $costeTotal }}"
                                 data-cliente-id="{{ $cita->cliente->id }}"
                                 data-cliente-nombre="{{ $cita->cliente->user->nombre ?? '' }} {{ $cita->cliente->user->apellidos ?? '' }}"
-                                data-deuda-existente="{{ $deudaExistente }}">
+                                data-deuda-existente="{{ $deudaExistente }}"
+                                {{ $isSelected ? 'selected' : '' }}>
                             {{ $cita->cliente->user->nombre ?? '' }} - {{ $nombresServicios }}
                         </option>
                     @endforeach
@@ -803,6 +805,15 @@ async function registrarPagoDeudaExistente() {
     alert('Error al registrar el pago: ' + error.message);
   }
 }
+
+// Si hay una cita preseleccionada, actualizar la información automáticamente
+@if($citaSeleccionada)
+document.addEventListener('DOMContentLoaded', function() {
+    actualizarClienteInfo();
+    actualizarCosteYTotales();
+    calcularTotales();
+});
+@endif
 
 </script>
 </body>

@@ -31,7 +31,24 @@
             <p><strong class="font-semibold">Estado:</strong> {{ ucfirst($cita->estado) }}</p>
         </div>
 
-        <div class="mt-6 text-center">
+        <div class="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+            @php
+                $tieneCobro = DB::table('registro_cobros')->where('id_cita', $cita->id)->exists();
+            @endphp
+            
+            @if(!$tieneCobro)
+                <a href="{{ route('cobros.create', ['cita_id' => $cita->id]) }}"
+                   class="inline-flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 transition-colors duration-300 font-semibold">
+                    <span>💰</span>
+                    <span>Pasar a Caja</span>
+                </a>
+            @else
+                <span class="inline-flex items-center justify-center gap-2 bg-green-100 text-green-800 px-6 py-2 rounded font-semibold border border-green-300">
+                    <span>✓</span>
+                    <span>Cita Cobrada</span>
+                </span>
+            @endif
+            
             <a href="{{ route('citas.index') }}"
                class="inline-block bg-black text-white px-6 py-2 rounded hover:bg-gray-800 transition-colors duration-300 font-semibold">
                 Volver

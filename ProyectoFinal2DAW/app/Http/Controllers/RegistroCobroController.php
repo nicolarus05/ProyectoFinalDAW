@@ -33,11 +33,30 @@ class RegistroCobroController extends Controller{
     /**
      * Show the form for creating a new resource.
      */
-    public function create(){
+    public function create(Request $request){
         $citas = Cita::whereDoesntHave('cobro')
             ->with(['cliente.user', 'cliente.deuda', 'servicios'])
             ->get();
-        return view('cobros.create', compact('citas'));
+        
+        // Si viene un parámetro cita_id, precargar esa cita
+        $citaSeleccionada = null;
+        if ($request->has('cita_id')) {
+            $citaSeleccionada = Cita::with(['cliente.user', 'cliente.deuda', 'servicios', 'empleado'])
+                ->find($request->cita_id);
+        }
+        
+        return view('cobros.create', compact('citas', 'citaSeleccionada'));
+    }
+
+    /**
+     * Mostrar formulario para cobro directo (sin cita)
+     */
+    public function createDirect(){
+        $clientes = Cliente::with(['user', 'deuda'])->get();
+        $empleados = \App\Models\Empleado::with('user')->get();
+        $servicios = \App\Models\Servicio::where('activo', true)->get();
+        
+        return view('cobros.create-direct', compact('clientes', 'empleados', 'servicios'));
     }
 
     /**
@@ -46,7 +65,9 @@ class RegistroCobroController extends Controller{
     public function store(Request $request){
         // --- Validación base ---
         $data = $request->validate([
-            'id_cita' => 'required|exists:citas,id',
+            'id_cita' => 'nullable|exists:citas,id',
+            'id_cliente' => 'nullable|exists:clientes,id',
+            'id_empleado' => 'nullable|exists:empleados,id',
             'coste' => 'required|numeric|min:0',
             'descuento_porcentaje' => 'nullable|numeric|min:0',
             'descuento_euro' => 'nullable|numeric|min:0',
@@ -56,7 +77,16 @@ class RegistroCobroController extends Controller{
             'cambio' => 'nullable|numeric|min:0',
             'pago_efectivo' => 'nullable|numeric|min:0',
             'pago_tarjeta' => 'nullable|numeric|min:0',
+            'productos_data' => 'nullable|json',
+            'servicios_data' => 'nullable|json',
         ]);
+
+        // Validar que al menos tenga una cita O un cliente
+        if (empty($data['id_cita']) && empty($data['id_cliente'])) {
+            return back()
+                ->withErrors(['id_cliente' => 'Debe seleccionar una cita o un cliente.'])
+                ->withInput();
+        }
 
         // --- Lógica según método de pago ---
         if ($data['metodo_pago'] === 'efectivo') {
@@ -162,9 +192,16 @@ class RegistroCobroController extends Controller{
         // --- Calcular deuda si el dinero del cliente es menor que el total ajustado ---
         $deuda = max(0, $totalAjustado - ($data['dinero_cliente'] ?? 0));
 
+        // Obtener el ID del cliente (puede venir de la cita o directamente)
+        $clienteId = $data['id_cliente'] ?? null;
+        if (!$clienteId && !empty($data['id_cita'])) {
+            $cita = Cita::find($data['id_cita']);
+            $clienteId = $cita ? $cita->id_cliente : null;
+        }
+
         // --- Crear el registro principal ---
         $cobro = RegistroCobro::create([
-            'id_cita' => $data['id_cita'],
+            'id_cita' => $data['id_cita'] ?? null,
             'coste' => $data['coste'],
             'descuento_porcentaje' => $data['descuento_porcentaje'] ?? 0,
             'descuento_euro' => ($data['descuento_euro'] ?? 0) + $descuentoBonos, // Sumar descuento por bonos
@@ -174,24 +211,60 @@ class RegistroCobroController extends Controller{
             'pago_tarjeta' => $data['metodo_pago'] === 'mixto' ? ($data['pago_tarjeta'] ?? 0) : null,
             'cambio' => $data['cambio'] ?? 0,
             'metodo_pago' => $descuentoBonos > 0 && $totalAjustado == 0 ? 'bono' : $data['metodo_pago'], // Si se pagó todo con bono, método = bono
-            'id_cliente' => $data['id_cliente'] ?? null,
-            'id_empleado' => $data['id_empleado'] ?? (auth()->user()->empleado->id ?? null),
+            'id_cliente' => $clienteId,
+            'id_empleado' => $data['id_empleado'] ?? null,
             'deuda' => $deuda,
         ]);
 
         // --- Si hay deuda, registrarla en el sistema de deudas ---
-        if ($deuda > 0) {
-            $cita = Cita::find($data['id_cita']);
-            $cliente = Cliente::find($cita->id_cliente);
+        if ($deuda > 0 && $clienteId) {
+            $cliente = Cliente::find($clienteId);
             
             if ($cliente) {
                 $deudaCliente = $cliente->obtenerDeuda();
-                $nota = "Cobro #" . $cobro->id . " - Cita #" . $cobro->id_cita;
+                $nota = "Cobro #" . $cobro->id . ($data['id_cita'] ? " - Cita #" . $data['id_cita'] : " - Venta directa");
                 $deudaCliente->registrarCargo($deuda, $nota, null, $cobro->id);
             }
         }
 
-        // --- Guardar productos asociados (si existen) ---
+        // --- Para cobros directos: procesar productos_data y servicios_data ---
+        if ($request->has('productos_data') && !empty($data['productos_data'])) {
+            $productosData = json_decode($data['productos_data'], true);
+            if (is_array($productosData)) {
+                foreach ($productosData as $p) {
+                    $cantidad = (int) $p['cantidad'];
+                    $precio = (float) $p['precio'];
+                    $subtotal = $cantidad * $precio;
+
+                    $producto = Productos::find($p['id']);
+                    
+                    if (!$producto) {
+                        return back()
+                            ->withErrors(['products' => 'Producto no encontrado: ID ' . $p['id']])
+                            ->withInput();
+                    }
+
+                    if ($producto->stock < $cantidad) {
+                        return back()
+                            ->withErrors(['products' => 'Stock insuficiente para el producto: ' . $producto->nombre . '. Stock disponible: ' . $producto->stock])
+                            ->withInput();
+                    }
+
+                    $producto->stock -= $cantidad;
+                    $producto->save();
+
+                    $cobro->productos()->attach($p['id'], [
+                        'cantidad' => $cantidad,
+                        'precio_unitario' => $precio,
+                        'subtotal' => $subtotal,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+        }
+
+        // --- Guardar productos asociados (si existen - formato antiguo) ---
         if ($request->has('products')) {
             foreach ($request->products as $p) {
                 $cantidad = (int) $p['cantidad'];

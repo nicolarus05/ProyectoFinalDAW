@@ -70,10 +70,11 @@ Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
     Route::get('/servicios/{servicio}/citas', [ServicioController::class, 'citas'])->name('servicios.citas');
     Route::post('/servicios/{servicio}/citas', [ServicioController::class, 'addCita'])->name('servicios.addcita');
 
+    Route::get('cobros/direct/create', [RegistroCobroController::class, 'createDirect'])->name('cobros.create.direct');
     Route::resource('cobros', RegistroCobroController::class)->names('cobros');
     Route::get('/caja', [CajaDiariaController::class, 'index'])->name('caja.index');
-    Route::resource('productos', ProductosController::class)->names('productos');
     Route::get('productos/available', [ProductosController::class, 'available'])->name('productos.available');
+    Route::resource('productos', ProductosController::class)->names('productos');
     Route::resource('citas', CitaController::class)->names('citas');
     
     // Rutas de deudas

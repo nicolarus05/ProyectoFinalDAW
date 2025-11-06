@@ -12,6 +12,14 @@ class EmpleadoController extends Controller{
      */
     public function index(){
         $empleados = Empleado::with('user')->get();
+        
+        // Calcular facturación para cada empleado
+        foreach ($empleados as $empleado) {
+            $empleado->facturacion = $empleado->facturacionMesActual();
+            $empleado->facturacionAnterior = $empleado->facturacionMesAnterior();
+            $empleado->citasAtendidas = $empleado->citasAtendidasMesActual();
+        }
+        
         return view('empleados.index', compact('empleados'));
     }
 
@@ -66,6 +74,10 @@ class EmpleadoController extends Controller{
      * Display the specified resource.
      */
     public function show(Empleado $empleado){
+        $empleado->facturacion = $empleado->facturacionMesActual();
+        $empleado->facturacionAnterior = $empleado->facturacionMesAnterior();
+        $empleado->citasAtendidas = $empleado->citasAtendidasMesActual();
+        
         return view('empleados.show', compact('empleado'));
     }
 

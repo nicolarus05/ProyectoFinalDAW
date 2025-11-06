@@ -8,6 +8,7 @@ use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Auth\Passwords\CanResetPassword;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use App\Models\Cita;
 use App\Models\Servicio;
 
@@ -23,7 +24,7 @@ class Empleado extends Model{
     ];
 
     public function user(){
-        return $this->belongsTo(user::class, 'id_user');
+        return $this->belongsTo(User::class, 'id_user');
     }
 
     public function citas(){
@@ -37,5 +38,77 @@ class Empleado extends Model{
             'id_empleado',
             'id_servicio',
         );
+    }
+
+    /**
+     * Calcular facturación del empleado en un rango de fechas
+     */
+    public function facturacionPorFechas($fechaInicio, $fechaFin)
+    {
+        // Facturación por servicios (basado en cobros registrados, no en estado de cita)
+        $facturacionServicios = DB::table('registro_cobros')
+            ->join('citas', 'registro_cobros.id_cita', '=', 'citas.id')
+            ->join('cita_servicio', 'citas.id', '=', 'cita_servicio.id_cita')
+            ->join('servicios', 'cita_servicio.id_servicio', '=', 'servicios.id')
+            ->where('citas.id_empleado', $this->id)
+            ->whereBetween('registro_cobros.created_at', [$fechaInicio, $fechaFin])
+            ->sum('servicios.precio');
+
+        // Facturación por productos vendidos
+        // Buscar por id_empleado del cobro O por el empleado de la cita
+        $facturacionProductos = DB::table('registro_cobro_productos')
+            ->join('registro_cobros', 'registro_cobro_productos.id_registro_cobro', '=', 'registro_cobros.id')
+            ->leftJoin('citas', 'registro_cobros.id_cita', '=', 'citas.id')
+            ->where(function($query) {
+                $query->where('registro_cobros.id_empleado', $this->id)
+                      ->orWhere('citas.id_empleado', $this->id);
+            })
+            ->whereBetween('registro_cobros.created_at', [$fechaInicio, $fechaFin])
+            ->sum(DB::raw('registro_cobro_productos.cantidad * registro_cobro_productos.precio_unitario'));
+
+        // Facturación por bonos vendidos
+        $facturacionBonos = DB::table('bonos_clientes')
+            ->where('id_empleado', $this->id)
+            ->whereBetween('fecha_compra', [$fechaInicio, $fechaFin])
+            ->sum('precio_pagado');
+
+        return [
+            'servicios' => $facturacionServicios ?? 0,
+            'productos' => $facturacionProductos ?? 0,
+            'bonos' => $facturacionBonos ?? 0,
+            'total' => ($facturacionServicios ?? 0) + ($facturacionProductos ?? 0) + ($facturacionBonos ?? 0)
+        ];
+    }
+
+    /**
+     * Calcular facturación del mes actual
+     */
+    public function facturacionMesActual()
+    {
+        $fechaInicio = now()->startOfMonth();
+        $fechaFin = now()->endOfMonth();
+        return $this->facturacionPorFechas($fechaInicio, $fechaFin);
+    }
+
+    /**
+     * Calcular facturación del mes anterior
+     */
+    public function facturacionMesAnterior()
+    {
+        $fechaInicio = now()->subMonth()->startOfMonth();
+        $fechaFin = now()->subMonth()->endOfMonth();
+        return $this->facturacionPorFechas($fechaInicio, $fechaFin);
+    }
+
+    /**
+     * Calcular número de citas atendidas en el mes actual
+     */
+    public function citasAtendidasMesActual()
+    {
+        return DB::table('registro_cobros')
+            ->join('citas', 'registro_cobros.id_cita', '=', 'citas.id')
+            ->where('citas.id_empleado', $this->id)
+            ->whereBetween('registro_cobros.created_at', [now()->startOfMonth(), now()->endOfMonth()])
+            ->count();
     }
 }

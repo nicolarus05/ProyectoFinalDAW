@@ -56,23 +56,40 @@
                         <td class="px-4 py-2">{{ $cita->notas_adicionales ?? '-' }}</td>
                         <td class="px-4 py-2">{{ $cita->fecha_hora }}</td>
                         <td class="px-4 py-2">{{ ucfirst($cita->estado) }}</td>
-                        <td class="px-4 py-2 flex flex-col sm:flex-row sm:items-center gap-2">
-                            <a href="{{ route('citas.show', $cita->id) }}"
-                               class="text-blue-600 hover:underline">Ver</a>
-                            <a href="{{ route('citas.edit', $cita->id) }}"
-                               class="text-yellow-600 hover:underline">Editar</a>
-                            <form id="delete-form-{{ $cita->id }}"
-                                  action="{{ route('citas.destroy', $cita->id) }}"
-                                  method="POST"
-                                  onsubmit="return false;">
-                                @csrf
-                                @method('DELETE')
-                                <button type="button"
-                                        onclick="confirmarEliminacion({{ $cita->id }})"
-                                        class="text-red-600 hover:underline">
-                                    Eliminar
-                                </button>
-                            </form>
+                        <td class="px-4 py-2">
+                            <div class="flex flex-col gap-2">
+                                <div class="flex flex-wrap gap-2">
+                                    <a href="{{ route('citas.show', $cita->id) }}"
+                                       class="text-blue-600 hover:underline">Ver</a>
+                                    <a href="{{ route('citas.edit', $cita->id) }}"
+                                       class="text-yellow-600 hover:underline">Editar</a>
+                                    <form id="delete-form-{{ $cita->id }}"
+                                          action="{{ route('citas.destroy', $cita->id) }}"
+                                          method="POST"
+                                          onsubmit="return false;"
+                                          class="inline">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="button"
+                                                onclick="confirmarEliminacion({{ $cita->id }})"
+                                                class="text-red-600 hover:underline">
+                                            Eliminar
+                                        </button>
+                                    </form>
+                                </div>
+                                @php
+                                    $tieneCobro = DB::table('registro_cobros')->where('id_cita', $cita->id)->exists();
+                                @endphp
+                                @if(!$tieneCobro)
+                                    <a href="{{ route('cobros.create', ['cita_id' => $cita->id]) }}"
+                                        class="inline-flex items-center gap-1 text-green-600 hover:underline font-semibold">
+                                        <span>💰</span>
+                                        <span>Pasar a Caja</span>
+                                    </a>
+                                @else
+                                    <span class="text-green-600 text-sm font-semibold">✓ Cobrada</span>
+                                @endif
+                            </div>
                         </td>
                     </tr>
                 @endforeach

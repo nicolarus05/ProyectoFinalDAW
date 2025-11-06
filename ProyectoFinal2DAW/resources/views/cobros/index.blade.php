@@ -9,9 +9,12 @@
     <div class="max-w-7xl mx-auto bg-white p-6 rounded shadow">
         <h1 class="text-3xl font-bold mb-6">Registros de Cobro</h1>
 
-        <div class="mb-4">
+        <div class="mb-4 flex gap-3">
             <a href="{{ route('cobros.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                Registrar nuevo cobro
+                Cobrar Cita
+            </a>
+            <a href="{{ route('cobros.create.direct') }}" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 font-semibold">
+                💰 Nuevo Cobro Directo
             </a>
         </div>
 
