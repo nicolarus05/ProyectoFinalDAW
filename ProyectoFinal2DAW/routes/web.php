@@ -44,6 +44,16 @@ Route::middleware(['auth'])->group(function () {
 // Rutas solo para ADMIN
 Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::resource('users', userController::class)->names('users');
+    
+    // Horarios - rutas específicas ANTES del resource
+    Route::get('horarios/calendario', [HorarioTrabajoController::class, 'calendario'])->name('horarios.calendario');
+    Route::post('horarios/generar-semana', [HorarioTrabajoController::class, 'generarSemana'])->name('horarios.generarSemana');
+    Route::post('horarios/generar-mes', [HorarioTrabajoController::class, 'generarMes'])->name('horarios.generarMes');
+    Route::post('horarios/generar-anual', [HorarioTrabajoController::class, 'generarAnual'])->name('horarios.generarAnual');
+    Route::post('horarios/toggle-disponibilidad', [HorarioTrabajoController::class, 'toggleDisponibilidad'])->name('horarios.toggleDisponibilidad');
+    Route::post('horarios/deshabilitar-bloque', [HorarioTrabajoController::class, 'deshabilitarBloque'])->name('horarios.deshabilitarBloque');
+    Route::get('horarios/bloques-dia', [HorarioTrabajoController::class, 'bloquesDia'])->name('horarios.bloquesDia');
+    
     Route::resource('horarios', HorarioTrabajoController::class)->names('horarios');
 });
 
