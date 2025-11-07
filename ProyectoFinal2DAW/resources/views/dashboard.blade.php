@@ -197,6 +197,15 @@
                     <p class="text-gray-600 text-sm">Configurar turnos de trabajo</p>
                 </a>
 
+                <!-- Control de Asistencia -->
+                <a href="{{ route('asistencia.index') }}" class="card-hover bg-gradient-to-br from-cyan-50 to-blue-50 border-2 border-black rounded-xl p-6 text-center group">
+                    <div class="w-16 h-16 bg-cyan-500 text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-cyan-600 transition">
+                        <span class="text-3xl">🕐</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-cyan-700 mb-2">Control de Asistencia</h3>
+                    <p class="text-cyan-600 text-sm">Entrada/salida de empleados</p>
+                </a>
+
                 <!-- Gestionar Usuarios -->
                 <a href="{{ route('users.index') }}" class="card-hover bg-white border-2 border-black rounded-xl p-6 text-center group">
                     <div class="w-16 h-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-gray-800 transition">
@@ -210,6 +219,11 @@
         @endif
 
         @if ($rol === 'empleado')
+            <!-- Widget de Asistencia para Empleados -->
+            <div class="mb-8">
+                @include('asistencia.widget-empleado')
+            </div>
+
             <!-- Grid para Empleados -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 

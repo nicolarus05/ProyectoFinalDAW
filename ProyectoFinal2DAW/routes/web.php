@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\{
     ProfileController, ClienteController, EmpleadoController,
     CitaController, ServicioController, RegistroCobroController,
-    userController, HorarioTrabajoController,
+    userController, HorarioTrabajoController, RegistroEntradaSalidaController,
     Auth\AuthenticatedSessionController, Auth\RegisterClienteController, 
     Auth\PerfilController, Auth\PasswordResetLinkController,
     Auth\NewPasswordController,
@@ -98,6 +98,19 @@ Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
         Route::get('/{bono}/editar', [BonoController::class, 'edit'])->name('edit');
         Route::put('/{bono}', [BonoController::class, 'update'])->name('update');
     });
+});
+
+// Rutas de asistencia (Registro de entrada/salida)
+Route::middleware(['auth'])->group(function () {
+    // Para empleados
+    Route::post('asistencia/entrada', [RegistroEntradaSalidaController::class, 'registrarEntrada'])->name('asistencia.entrada');
+    Route::post('asistencia/salida', [RegistroEntradaSalidaController::class, 'registrarSalida'])->name('asistencia.salida');
+    Route::get('asistencia/mi-historial', [RegistroEntradaSalidaController::class, 'miHistorial'])->name('asistencia.mi-historial');
+    Route::get('asistencia/estado', [RegistroEntradaSalidaController::class, 'estadoActual'])->name('asistencia.estado');
+    
+    // Para admin
+    Route::get('asistencia', [RegistroEntradaSalidaController::class, 'index'])->name('asistencia.index');
+    Route::get('asistencia/empleado/{empleado}', [RegistroEntradaSalidaController::class, 'porEmpleado'])->name('asistencia.empleado');
 });
 
 // Rutas de citas accesibles por ADMIN, EMPLEADO y CLIENTE
