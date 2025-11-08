@@ -8,8 +8,10 @@ use App\Models\Cliente;
 use App\Models\Servicio;
 use App\Models\Cita;
 use App\Models\HorarioTrabajo;
+use App\Services\NotificacionEmailService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class CitaController extends Controller{
     /**
@@ -165,6 +167,15 @@ class CitaController extends Controller{
         $cita = Cita::create($data);
         $cita->servicios()->attach($servicios);
 
+        // Enviar email de confirmación
+        try {
+            $notificacionService = new NotificacionEmailService();
+            $notificacionService->enviarConfirmacionCita($cita->load(['cliente.user', 'servicios', 'empleado.user']));
+        } catch (\Exception $e) {
+            // Log del error pero no bloquear la creación de la cita
+            Log::error("Error al enviar email de confirmación: " . $e->getMessage());
+        }
+
         // Extraer la fecha de la cita para redirigir al día correcto
         $fechaCita = Carbon::parse($cita->fecha_hora)->format('Y-m-d');
 
@@ -200,7 +211,23 @@ class CitaController extends Controller{
             'estado' => 'required|in:pendiente,confirmada,cancelada,completada',
         ]);
 
+        $estadoAnterior = $cita->estado;
         $cita->update($data);
+        
+        // Enviar email según el cambio de estado
+        try {
+            $notificacionService = new NotificacionEmailService();
+            $cita->load(['cliente.user', 'servicios', 'empleado.user']);
+            
+            if ($data['estado'] === 'confirmada' && $estadoAnterior !== 'confirmada') {
+                $notificacionService->enviarConfirmacionCita($cita);
+            } elseif ($data['estado'] === 'cancelada' && $estadoAnterior !== 'cancelada') {
+                $notificacionService->enviarCancelacionCita($cita);
+            }
+        } catch (\Exception $e) {
+            Log::error("Error al enviar email de actualización de estado: " . $e->getMessage());
+        }
+        
         return redirect()->route('citas.index');
     }
 

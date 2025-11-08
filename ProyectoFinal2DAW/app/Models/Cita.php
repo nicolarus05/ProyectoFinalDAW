@@ -22,7 +22,6 @@ class Cita extends Model{
     // Definición de las columnas de la tabla
     protected $fillable = [
         'fecha_hora',
-        'duracion_minutos',
         'estado',
         'notas_adicionales',
         'id_cliente',
@@ -47,6 +46,14 @@ class Cita extends Model{
 
     public function user(){
         return $this->belongsTo(user::class, 'id_user');
+    }
+
+    /**
+     * Calcula la duración total de la cita sumando los servicios
+     */
+    public function getDuracionMinutosAttribute()
+    {
+        return $this->servicios->sum('tiempo_estimado');
     }
 
     /**
