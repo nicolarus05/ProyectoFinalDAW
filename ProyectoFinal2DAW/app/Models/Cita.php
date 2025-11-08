@@ -22,6 +22,7 @@ class Cita extends Model{
     // Definición de las columnas de la tabla
     protected $fillable = [
         'fecha_hora',
+        'duracion_minutos',
         'estado',
         'notas_adicionales',
         'id_cliente',
@@ -46,5 +47,38 @@ class Cita extends Model{
 
     public function user(){
         return $this->belongsTo(user::class, 'id_user');
+    }
+
+    /**
+     * Calcula la hora de fin de la cita basándose en la duración
+     */
+    public function getHoraFinAttribute(){
+        return \Carbon\Carbon::parse($this->fecha_hora)->addMinutes($this->duracion_minutos);
+    }
+
+    /**
+     * Verifica si esta cita se superpone con otra
+     */
+    public function seSuperponeCon($otraCita){
+        $inicioA = \Carbon\Carbon::parse($this->fecha_hora);
+        $finA = $this->hora_fin;
+        $inicioB = \Carbon\Carbon::parse($otraCita->fecha_hora);
+        $finB = $otraCita->hora_fin;
+
+        return ($inicioA < $finB) && ($finA > $inicioB);
+    }
+
+    /**
+     * Scope para citas de una fecha específica
+     */
+    public function scopePorFecha($query, $fecha){
+        return $query->whereDate('fecha_hora', $fecha);
+    }
+
+    /**
+     * Scope para citas de un empleado
+     */
+    public function scopePorEmpleado($query, $empleadoId){
+        return $query->where('id_empleado', $empleadoId);
     }
 }

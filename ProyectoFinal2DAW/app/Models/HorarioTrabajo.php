@@ -42,6 +42,7 @@ class HorarioTrabajo extends Model{
 
     /**
      * Genera un array de bloques horarios entre dos horas
+     * Bloques de 30 minutos
      */
     public static function generarBloquesHorarios($horaInicio, $horaFin){
         $bloques = [];
@@ -50,7 +51,7 @@ class HorarioTrabajo extends Model{
         
         while ($hora <= $horaLimite) {
             $bloques[] = $hora->format('H:i:s');
-            $hora->addHour();
+            $hora->addMinutes(30); // Cambiado de addHour() a addMinutes(30)
         }
         
         return $bloques;

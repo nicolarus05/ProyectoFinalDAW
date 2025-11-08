@@ -4,35 +4,117 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
+use Illuminate\Support\Facades\Hash;
 
 class ClientesSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     *
-     * @return void
-     */
-    public function run()
+    public function run(): void
     {
-        // Insertar 2 clientes asociados a los users
-        DB::table('clientes')->insert([
+        $userIds = [];
+        
+        $users = [
             [
-                'id_user' => 1,  // ID del user Juan Pérez
-                'direccion' => 'Calle Falsa 123, Ciudad X',
-                'notas_adicionales' => 'Cliente frecuente.',
-                'fecha_registro' => Carbon::now()->subDays(15), // Fecha de registro hace 15 días
+                'nombre' => 'María',
+                'apellidos' => 'González López',
+                'email' => 'maria.gonzalez@email.com',
+                'password' => Hash::make('password123'),
+                'telefono' => '612345678',
+                'edad' => 28,
+                'genero' => 'femenino',
+                'rol' => 'cliente',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
             [
-                'id_user' => 2,  // ID del user Ana Gómez
-                'direccion' => 'Avenida Siempre Viva 456, Ciudad Y',
-                'notas_adicionales' => 'Primera vez que visita.',
-                'fecha_registro' => Carbon::now()->subDays(30), // Fecha de registro hace 30 días
+                'nombre' => 'Pedro',
+                'apellidos' => 'Martínez Ruiz',
+                'email' => 'pedro.martinez@email.com',
+                'password' => Hash::make('password123'),
+                'telefono' => '623456789',
+                'edad' => 35,
+                'genero' => 'masculino',
+                'rol' => 'cliente',
                 'created_at' => now(),
                 'updated_at' => now(),
-            ]
-        ]);
+            ],
+            [
+                'nombre' => 'Laura',
+                'apellidos' => 'Fernández García',
+                'email' => 'laura.fernandez@email.com',
+                'password' => Hash::make('password123'),
+                'telefono' => '634567890',
+                'edad' => 42,
+                'genero' => 'femenino',
+                'rol' => 'cliente',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'nombre' => 'Javier',
+                'apellidos' => 'Sánchez Díaz',
+                'email' => 'javier.sanchez@email.com',
+                'password' => Hash::make('password123'),
+                'telefono' => '645678901',
+                'edad' => 31,
+                'genero' => 'masculino',
+                'rol' => 'cliente',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'nombre' => 'Carmen',
+                'apellidos' => 'Rodríguez Moreno',
+                'email' => 'carmen.rodriguez@email.com',
+                'password' => Hash::make('password123'),
+                'telefono' => '656789012',
+                'edad' => 26,
+                'genero' => 'femenino',
+                'rol' => 'cliente',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'nombre' => 'Antonio',
+                'apellidos' => 'López Jiménez',
+                'email' => 'antonio.lopez@email.com',
+                'password' => Hash::make('password123'),
+                'telefono' => '667890123',
+                'edad' => 38,
+                'genero' => 'masculino',
+                'rol' => 'cliente',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ];
+
+        $direcciones = [
+            'Calle Mayor 15, Madrid',
+            'Avenida Libertad 23, Barcelona',
+            'Plaza España 8, Valencia',
+            'Calle Sol 45, Sevilla',
+            'Ronda Norte 12, Bilbao',
+            'Paseo Gracia 67, Zaragoza',
+        ];
+
+        foreach ($users as $index => $userData) {
+            $userId = DB::table('users')->insertGetId($userData);
+            $userIds[] = [
+                'id' => $userId,
+                'direccion' => $direcciones[$index]
+            ];
+        }
+
+        $clientes = [];
+        foreach ($userIds as $data) {
+            $clientes[] = [
+                'id_user' => $data['id'],
+                'direccion' => $data['direccion'],
+                'fecha_registro' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+
+        DB::table('clientes')->insert($clientes);
     }
 }

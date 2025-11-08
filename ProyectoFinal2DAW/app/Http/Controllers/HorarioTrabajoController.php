@@ -383,13 +383,14 @@ class HorarioTrabajoController extends Controller{
 
         $bloques = HorarioTrabajo::where('id_empleado', $request->empleado_id)
             ->where('fecha', $request->fecha)
+            ->whereNotNull('hora') // Solo bloques individuales, no el registro de rango
             ->orderBy('hora')
             ->get()
             ->map(function($bloque) {
                 return [
                     'id' => $bloque->id,
                     'hora' => $bloque->hora,
-                    'disponible' => (bool) $bloque->disponible, // Convertir explícitamente a booleano
+                    'disponible' => (bool) $bloque->disponible,
                     'notas' => $bloque->notas,
                     'tipo_horario' => $bloque->tipo_horario,
                 ];

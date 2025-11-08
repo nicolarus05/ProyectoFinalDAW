@@ -31,6 +31,7 @@
             <label for="fecha_hora" class="block text-gray-700 font-semibold mb-1">Fecha y Hora:</label>
             <input type="datetime-local" name="fecha_hora" required
                min="{{ \Carbon\Carbon::now()->format('Y-m-d\TH:i') }}"
+               value="{{ request('fecha_hora') ? \Carbon\Carbon::parse(request('fecha_hora'))->format('Y-m-d\TH:i') : '' }}"
                class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400">
         </div>
 
@@ -67,8 +68,12 @@
             <label for="id_empleado" class="block text-gray-700 font-semibold mb-1">Empleado:</label>
             <select name="id_empleado" required
                     class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                <option value="">Seleccione un empleado</option>
                 @foreach ($empleados as $empleado)
-                    <option value="{{ $empleado->id }}">{{ $empleado->user->nombre }} {{ $empleado->user->apellidos }}</option>
+                    <option value="{{ $empleado->id }}" 
+                            {{ request('empleado_id') == $empleado->id ? 'selected' : '' }}>
+                        {{ $empleado->user->nombre }} {{ $empleado->user->apellidos }}
+                    </option>
                 @endforeach
             </select>
         </div>

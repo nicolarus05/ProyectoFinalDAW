@@ -85,6 +85,12 @@ Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
     Route::get('/caja', [CajaDiariaController::class, 'index'])->name('caja.index');
     Route::get('productos/available', [ProductosController::class, 'available'])->name('productos.available');
     Route::resource('productos', ProductosController::class)->names('productos');
+    
+    // Rutas específicas de citas (antes del resource)
+    Route::post('citas/mover', [CitaController::class, 'moverCita'])->name('citas.mover');
+    Route::post('citas/marcar-completada', [CitaController::class, 'marcarCompletada'])->name('citas.marcarCompletada');
+    Route::post('citas/actualizar-duracion', [CitaController::class, 'actualizarDuracion'])->name('citas.actualizarDuracion');
+    
     Route::resource('citas', CitaController::class)->names('citas');
     
     // Rutas de deudas

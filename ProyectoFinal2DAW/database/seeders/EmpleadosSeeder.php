@@ -18,13 +18,13 @@ class EmpleadosSeeder extends Seeder
         DB::table('empleados')->insert([
             [
                 'id_user' => 1,  // ID del user Juan Pérez
-                'especializacion' => 'Peluquero',
+                'categoria' => 'peluqueria',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
             [
                 'id_user' => 2,  // ID del user Ana Gómez
-                'especializacion' => 'Esteticista',
+                'categoria' => 'estetica',
                 'created_at' => now(),
                 'updated_at' => now(),
             ]

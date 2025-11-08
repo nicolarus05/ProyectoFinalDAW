@@ -8,34 +8,62 @@ use Illuminate\Support\Facades\DB;
 
 class ServiciosSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
-    public function run(): void{
+    public function run(): void
+    {
         DB::table('servicios')->insert([
             [
                 'nombre' => 'Corte de Cabello',
-                'precio' => 15.00,
                 'tiempo_estimado' => 30,
-                'tipo' => 'peluqueria'
-            ],
-            [
-                'nombre' => 'Manicura',
-                'precio' => 12.00,
-                'tiempo_estimado' => 45,
-                'tipo' => 'estetica'
+                'precio' => 15.00,
+                'categoria' => 'peluqueria',
+                'activo' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
             ],
             [
                 'nombre' => 'Tinte de Cabello',
-                'precio' => 25.00,
-                'tiempo_estimado' => 60,
-                'tipo' => 'peluqueria'
+                'tiempo_estimado' => 90,
+                'precio' => 45.00,
+                'categoria' => 'peluqueria',
+                'activo' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
             ],
             [
-                'nombre' => 'Limpieza Facial',
+                'nombre' => 'Peinado y Brushing',
+                'tiempo_estimado' => 45,
                 'precio' => 20.00,
-                'tiempo_estimado' => 50,
-                'tipo' => 'estetica'
+                'categoria' => 'peluqueria',
+                'activo' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'nombre' => 'Manicura Completa',
+                'tiempo_estimado' => 45,
+                'precio' => 18.00,
+                'categoria' => 'estetica',
+                'activo' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'nombre' => 'Pedicura Completa',
+                'tiempo_estimado' => 60,
+                'precio' => 25.00,
+                'categoria' => 'estetica',
+                'activo' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'nombre' => 'Tratamiento Facial',
+                'tiempo_estimado' => 60,
+                'precio' => 35.00,
+                'categoria' => 'estetica',
+                'activo' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
             ],
         ]);
     }

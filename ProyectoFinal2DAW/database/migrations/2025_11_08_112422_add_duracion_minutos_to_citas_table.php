@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('horario_trabajo', function (Blueprint $table) {
-            $table->text('notas')->nullable()->after('disponible');
+        Schema::table('citas', function (Blueprint $table) {
+            $table->integer('duracion_minutos')->default(30)->after('fecha_hora'); // Duración flexible en minutos
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('horario_trabajo', function (Blueprint $table) {
-            $table->dropColumn('notas');
+        Schema::table('citas', function (Blueprint $table) {
+            $table->dropColumn('duracion_minutos');
         });
     }
 };
