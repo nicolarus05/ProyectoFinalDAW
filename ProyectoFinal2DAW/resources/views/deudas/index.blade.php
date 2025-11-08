@@ -3,19 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Gestión de Deudas</title>
-    @vite(['resources/js/app.js'])
-    <style>
-        .stat-card {
-            transition: transform 0.2s;
-        }
-        .stat-card:hover {
-            transform: translateY(-2px);
-        }
-    </style>
+    @vite(['resources/css/deudas.css', 'resources/js/deudas.js', 'resources/js/app.js'])
 </head>
 <body class="bg-gray-100 p-6">
-    <div class="w-full max-w-7xl mx-auto bg-white shadow-md rounded p-6">
+    <div id="deudas-app" class="w-full max-w-7xl mx-auto bg-white shadow-md rounded p-6">
         <!-- Header -->
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-3xl font-bold">💰 Gestión de Deudas</h1>
@@ -184,100 +177,6 @@
             <p class="text-lg">No se encontraron clientes que coincidan con la búsqueda</p>
         </div>
     </div>
-
-    <script>
-        function filtrarClientes() {
-            const busqueda = document.getElementById('buscar').value.toLowerCase();
-            const filas = document.querySelectorAll('.fila-cliente');
-            let visibles = 0;
-
-            filas.forEach(fila => {
-                const nombre = fila.dataset.nombre;
-                const telefono = fila.dataset.telefono;
-                const email = fila.dataset.email;
-
-                if (nombre.includes(busqueda) || telefono.includes(busqueda) || email.includes(busqueda)) {
-                    fila.style.display = '';
-                    visibles++;
-                } else {
-                    fila.style.display = 'none';
-                }
-            });
-
-            document.getElementById('sin-coincidencias').classList.toggle('hidden', visibles > 0);
-        }
-
-        function ordenarClientes() {
-            const orden = document.getElementById('ordenar').value;
-            const tbody = document.querySelector('#tabla-deudas tbody');
-            const filas = Array.from(document.querySelectorAll('.fila-cliente'));
-
-            filas.sort((a, b) => {
-                switch(orden) {
-                    case 'deuda-desc':
-                        return parseFloat(b.dataset.deuda) - parseFloat(a.dataset.deuda);
-                    case 'deuda-asc':
-                        return parseFloat(a.dataset.deuda) - parseFloat(b.dataset.deuda);
-                    case 'nombre-asc':
-                        return a.dataset.nombre.localeCompare(b.dataset.nombre);
-                    case 'nombre-desc':
-                        return b.dataset.nombre.localeCompare(a.dataset.nombre);
-                }
-            });
-
-            filas.forEach(fila => tbody.appendChild(fila));
-        }
-
-        function abrirModalPago() {
-            document.getElementById('modal-pago-rapido').classList.remove('hidden');
-        }
-
-        function cerrarModalPago() {
-            document.getElementById('modal-pago-rapido').classList.add('hidden');
-            document.getElementById('form-pago-rapido').reset();
-        }
-
-        async function registrarPagoRapido(event) {
-            event.preventDefault();
-            
-            const form = event.target;
-            const formData = new FormData(form);
-            const idCliente = formData.get('id_cliente');
-            
-            if (!idCliente) {
-                alert('Por favor selecciona un cliente');
-                return;
-            }
-
-            try {
-                const response = await fetch(`/deudas/cliente/${idCliente}/pago`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        monto: formData.get('monto'),
-                        metodo_pago: formData.get('metodo_pago'),
-                        nota: formData.get('nota')
-                    })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    alert('Pago registrado exitosamente');
-                    window.location.reload();
-                } else {
-                    alert('Error: ' + (data.message || 'No se pudo registrar el pago'));
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error al procesar el pago');
-            }
-        }
-    </script>
 
     <!-- Modal Pago Rápido -->
     <div id="modal-pago-rapido" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">

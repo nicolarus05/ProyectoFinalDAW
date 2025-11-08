@@ -1,0 +1,21 @@
+.seccion-caja {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.titulo-seccion {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e5e7eb;
+}
+.tabla-caja { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+.tabla-caja th { background-color: #f3f4f6; padding: 0.75rem; text-align: left; font-weight: 600; border-bottom: 2px solid #e5e7eb; font-size: 0.875rem; }
+.tabla-caja td { padding: 0.75rem; border-bottom: 1px solid #e5e7eb; font-size: 0.875rem; }
+.tabla-caja tr:hover { background-color: #f9fafb; }
+.total-box { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1.5rem; }
+.total-item { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.2); }
+.total-item:last-child { border-bottom: none; margin-top: 0.5rem; padding-top: 1rem; border-top: 2px solid rgba(255,255,255,0.3); font-size: 1.25rem; font-weight: bold; }

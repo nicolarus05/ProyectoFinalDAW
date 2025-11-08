@@ -3,16 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Editar Perfil</title>
-    @vite(['resources/js/app.js'])
-    <style>
-        .foto-perfil-redonda {
-            width: 128px;
-            height: 128px;
-            object-fit: cover;
-            object-position: center;
-            aspect-ratio: 1/1;
-        }
-    </style>
+    @vite(['resources/css/profile.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6">
 
