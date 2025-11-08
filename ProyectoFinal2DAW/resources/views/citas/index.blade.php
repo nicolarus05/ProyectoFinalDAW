@@ -21,7 +21,7 @@
                     Calendario de Citas
                 </h1>
                 <a href="{{ route('dashboard') }}" class="btn-dashboard">
-                    ← Volver al Dashboard
+                    ← Volver a Inicio
                 </a>
             </div>
             
@@ -51,20 +51,20 @@
             
             <div class="leyenda">
                 <div class="leyenda-item">
-                    <div class="leyenda-color" style="background-color: #DC8A97;"></div>
+                    <div class="leyenda-color" style="background-color: #93C572;"></div>
                     <span>Pendiente</span>
                 </div>
                 <div class="leyenda-item">
-                    <div class="leyenda-color" style="background-color: #6EC7C5;"></div>
-                    <span>Confirmada</span>
-                </div>
-                <div class="leyenda-item">
-                    <div class="leyenda-color" style="background-color: #4F7C7A;"></div>
+                    <div class="leyenda-color" style="background-color: #4B5563;"></div>
                     <span>Completada</span>
                 </div>
                 <div class="leyenda-item">
-                    <div class="leyenda-color" style="background-color: #C41C34;"></div>
-                    <span>Cancelada</span>
+                    <div class="leyenda-color" style="background: repeating-linear-gradient(45deg, #FEE2E2, #FEE2E2 5px, #FCA5A5 5px, #FCA5A5 10px);"></div>
+                    <span>⛔ Deshabilitada</span>
+                </div>
+                <div class="leyenda-item">
+                    <div class="leyenda-color" style="background-color: #f3f4f6;"></div>
+                    <span>Fuera de horario</span>
                 </div>
             </div>
 
@@ -179,25 +179,55 @@
                                 
                                 // Verificar si el empleado trabaja en este horario
                                 $disponible = false;
+                                $bloqueDeshabilitado = false;
+                                
                                 foreach ($horariosEmpleado as $horarioTrabajo) {
+                                    // Primero verificar si hay un bloque específico para esta hora exacta
+                                    if ($horarioTrabajo->hora && $horarioTrabajo->hora == $hora) {
+                                        if (!$horarioTrabajo->disponible) {
+                                            $bloqueDeshabilitado = true;
+                                            $disponible = false;
+                                            break;
+                                        }
+                                    }
+                                    
+                                    // Luego verificar si está dentro del rango de trabajo general
                                     if ($horarioTrabajo->hora_inicio && $horarioTrabajo->hora_fin) {
                                         $inicioTrabajo = \Carbon\Carbon::parse($fecha->format('Y-m-d') . ' ' . $horarioTrabajo->hora_inicio);
                                         $finTrabajo = \Carbon\Carbon::parse($fecha->format('Y-m-d') . ' ' . $horarioTrabajo->hora_fin);
                                         
                                         if ($horaCarbon->between($inicioTrabajo, $finTrabajo->copy()->subMinutes(30))) {
-                                            $disponible = true;
-                                            break;
+                                            // Solo marcar como disponible si no está deshabilitado específicamente
+                                            if (!$bloqueDeshabilitado) {
+                                                $disponible = true;
+                                            }
                                         }
                                     }
                                 }
+                                
+                                $claseEstado = '';
+                                if ($bloqueDeshabilitado) {
+                                    $claseEstado = 'hora-deshabilitada';
+                                } elseif (!$disponible) {
+                                    $claseEstado = 'no-disponible';
+                                }
                             @endphp
                             
-                            <div class="celda-horario {{ !$disponible ? 'no-disponible' : '' }}"
+                            <div class="celda-horario {{ $claseEstado }}"
                                  data-empleado-id="{{ $empleado->id }}"
                                  data-fecha-hora="{{ $horaCarbon->format('Y-m-d H:i:s') }}"
+                                 @if($disponible && !$bloqueDeshabilitado)
                                  ondrop="drop(event)"
                                  ondragover="allowDrop(event)"
-                                 onclick="crearCitaRapida({{ $empleado->id }}, '{{ $horaCarbon->format('Y-m-d H:i:s') }}')">
+                                 onclick="crearCitaRapida({{ $empleado->id }}, '{{ $horaCarbon->format('Y-m-d H:i:s') }}')"
+                                 @endif
+                                 @if($bloqueDeshabilitado)
+                                 title="⛔ Hora deshabilitada"
+                                 @endif
+                                 >
+                                @if($bloqueDeshabilitado)
+                                    <span class="icono-deshabilitado">⛔</span>
+                                @endif
                             </div>
                         @endforeach
 
@@ -227,10 +257,10 @@
                             @endphp
                             
                             <div class="cita-card {{ $cita->estado }} cita-{{ $categoriaServicio }}"
-                                 draggable="true"
-                                 ondragstart="drag(event)"
+                                 draggable="{{ $cita->estado !== 'cancelada' && $cita->estado !== 'completada' ? 'true' : 'false' }}"
+                                 ondragstart="{{ $cita->estado !== 'cancelada' && $cita->estado !== 'completada' ? 'drag(event)' : 'return false;' }}"
                                  data-cita-id="{{ $cita->id }}"
-                                 style="top: {{ $topPosition }}px; height: {{ $altura }}px;">
+                                 style="top: {{ $topPosition }}px; height: {{ $altura }}px; {{ $cita->estado === 'cancelada' || $cita->estado === 'completada' ? 'cursor: default;' : '' }}">
                                 
                                 <div class="cita-info">
                                     <div class="cita-cliente">
@@ -244,10 +274,22 @@
 
                                 @if($cita->estado !== 'completada' && $cita->estado !== 'cancelada')
                                     <div class="cita-acciones">
-                                        <button class="btn-accion btn-completar" 
-                                                onclick="event.stopPropagation(); marcarCompletada({{ $cita->id }})">
-                                            ✓
-                                        </button>
+                                        <form action="{{ route('citas.completarYCobrar', $cita->id) }}" method="POST" style="display: inline;">
+                                            @csrf
+                                            <button type="submit" class="btn-accion btn-completar" 
+                                                    onclick="event.stopPropagation();"
+                                                    title="Completar y cobrar">
+                                                ✓
+                                            </button>
+                                        </form>
+                                        <form action="{{ route('citas.cancelar', $cita->id) }}" method="POST" style="display: inline;">
+                                            @csrf
+                                            <button type="submit" class="btn-accion btn-cancelar" 
+                                                    onclick="event.stopPropagation(); return confirm('¿Estás seguro de que deseas cancelar esta cita?');"
+                                                    title="Cancelar cita">
+                                                ✕
+                                            </button>
+                                        </form>
                                         <button class="btn-accion btn-ver" 
                                                 onclick="event.stopPropagation(); window.location.href='{{ route('citas.show', $cita->id) }}'">
                                             👁

@@ -80,6 +80,7 @@ class RegistroEntradaSalidaController extends Controller{
 
         $empleadoId = $user->empleado->id;
         $hoy = Carbon::today();
+        $horaActual = Carbon::now();
 
         // Verificar si ya tiene un registro hoy
         $registroExistente = RegistroEntradaSalida::registroDelDia($empleadoId, $hoy);
@@ -92,15 +93,90 @@ class RegistroEntradaSalidaController extends Controller{
             }
         }
 
+        // Buscar el horario de trabajo para hoy
+        $horario = \App\Models\HorarioTrabajo::where('id_empleado', $empleadoId)
+            ->whereDate('fecha', $hoy)
+            ->first();
+
+        // Validar hora de entrada según horario
+        if ($horario) {
+            // Si existe un horario específico, validar contra ese horario
+            $horaInicioPermitida = Carbon::parse($hoy->format('Y-m-d') . ' ' . $horario->hora_inicio);
+            $margenAntes = 15; // 15 minutos antes está permitido
+            $margenDespues = 30; // 30 minutos después se considera tarde
+            
+            $horaInicioMin = $horaInicioPermitida->copy()->subMinutes($margenAntes);
+            $horaInicioMax = $horaInicioPermitida->copy()->addMinutes($margenDespues);
+            
+            if ($horaActual->lt($horaInicioMin)) {
+                return back()->with('error', 
+                    'Es muy temprano para fichar. Tu horario de entrada es a las ' . 
+                    Carbon::parse($horario->hora_inicio)->format('H:i') . 
+                    ' (puedes fichar desde las ' . $horaInicioMin->format('H:i') . ').'
+                );
+            }
+            
+            $mensaje = '✓ Entrada registrada correctamente a las ' . $horaActual->format('H:i');
+            
+            // Advertencia si llega tarde
+            if ($horaActual->gt($horaInicioPermitida)) {
+                $minutosTarde = $horaActual->diffInMinutes($horaInicioPermitida);
+                $mensaje .= ' ⚠️ Llegada ' . $minutosTarde . ' minuto(s) tarde.';
+            } elseif ($horaActual->lt($horaInicioPermitida)) {
+                $minutosAntes = $horaInicioPermitida->diffInMinutes($horaActual);
+                $mensaje .= ' ✅ Llegada ' . $minutosAntes . ' minuto(s) antes.';
+            } else {
+                $mensaje .= ' ✅ Puntual.';
+            }
+        } else {
+            // Si no hay horario específico, aplicar horarios generales
+            $mes = $hoy->month;
+            $diaSemana = $hoy->dayOfWeek; // 0=Domingo, 6=Sábado
+            
+            // Verificar que es día laborable (Lunes a Sábado)
+            if ($diaSemana === 0) {
+                return back()->with('error', 'No se puede fichar los domingos.');
+            }
+            
+            // Determinar hora de inicio según mes (verano o normal)
+            $horaInicio = in_array($mes, \App\Models\HorarioTrabajo::MESES_VERANO) 
+                ? \App\Models\HorarioTrabajo::HORA_INICIO_NORMAL 
+                : \App\Models\HorarioTrabajo::HORA_INICIO_NORMAL;
+            
+            $horaInicioPermitida = Carbon::parse($hoy->format('Y-m-d') . ' ' . $horaInicio);
+            $margenAntes = 15;
+            $horaInicioMin = $horaInicioPermitida->copy()->subMinutes($margenAntes);
+            
+            if ($horaActual->lt($horaInicioMin)) {
+                return back()->with('error', 
+                    'Es muy temprano para fichar. El horario de entrada es a las ' . 
+                    $horaInicioPermitida->format('H:i') . 
+                    ' (puedes fichar desde las ' . $horaInicioMin->format('H:i') . ').'
+                );
+            }
+            
+            $mensaje = '✓ Entrada registrada correctamente a las ' . $horaActual->format('H:i');
+            
+            if ($horaActual->gt($horaInicioPermitida)) {
+                $minutosTarde = $horaActual->diffInMinutes($horaInicioPermitida);
+                $mensaje .= ' ⚠️ Llegada ' . $minutosTarde . ' minuto(s) tarde.';
+            } elseif ($horaActual->lt($horaInicioPermitida)) {
+                $minutosAntes = $horaInicioPermitida->diffInMinutes($horaActual);
+                $mensaje .= ' ✅ Llegada ' . $minutosAntes . ' minuto(s) antes.';
+            } else {
+                $mensaje .= ' ✅ Puntual.';
+            }
+        }
+
         // Crear el registro
         RegistroEntradaSalida::create([
             'id_empleado' => $empleadoId,
             'fecha' => $hoy,
-            'hora_entrada' => Carbon::now()->format('H:i:s'),
+            'hora_entrada' => $horaActual->format('H:i:s'),
             'hora_salida' => null,
         ]);
 
-        return back()->with('success', '✓ Entrada registrada correctamente a las ' . Carbon::now()->format('H:i'));
+        return back()->with('success', $mensaje);
     }
 
     /**

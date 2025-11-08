@@ -112,7 +112,7 @@
         @endif
 
         <div class="mt-6">
-            <a href="{{ route('dashboard') }}" class="text-blue-600 hover:underline">Volver al Dashboard</a>
+            <a href="{{ route('dashboard') }}" class="text-blue-600 hover:underline">Volver al Inicio</a>
         </div>
     </div>
 

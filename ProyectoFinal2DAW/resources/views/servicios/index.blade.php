@@ -38,6 +38,7 @@
                         <td class="px-3 py-2 flex space-x-2">
                             <a href="{{ route('servicios.show', $servicio) }}" class="text-blue-600 hover:underline">Ver</a>
                             <a href="{{ route('servicios.edit', $servicio) }}" class="text-yellow-600 hover:underline">Editar</a>
+                            <a href="{{ route('servicios.empleados', $servicio) }}" class="text-purple-600 hover:underline">👥 Empleados</a>
                             <form action="{{ route('servicios.destroy', $servicio) }}" method="POST" onsubmit="return confirm('¿Eliminar este servicio?')">
                                 @csrf
                                 @method('DELETE')

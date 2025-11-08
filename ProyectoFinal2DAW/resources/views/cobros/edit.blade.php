@@ -39,8 +39,9 @@
 
             {{-- Cita --}}
             <div class="mb-4">
-            <label for="id_cita" class="block font-semibold mb-1">Cita:</label>
-            <select name="id_cita" id="id_cita" required class="w-full border rounded px-3 py-2" onchange="actualizarCosteYTotales()">
+            <label for="id_cita" class="block font-semibold mb-1">Cita (opcional):</label>
+            <select name="id_cita" id="id_cita" class="w-full border rounded px-3 py-2" onchange="actualizarCosteYTotales()">
+                <option value="">-- Venta directa (sin cita) --</option>
                 @foreach ($citas as $cita)
                 <option value="{{ $cita->id }}" data-coste="{{ $cita->servicios->sum('precio') }}"
                     {{ $cita->id === $cobro->id_cita ? 'selected' : '' }}>

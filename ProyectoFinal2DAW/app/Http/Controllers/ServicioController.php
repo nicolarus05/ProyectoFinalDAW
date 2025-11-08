@@ -42,6 +42,7 @@ class ServicioController extends Controller{
      * Display the specified resource.
      */
     public function show(Servicio $servicio){
+        $servicio->load(['empleados.user']);
         return view('servicios.show', compact('servicio'));
     }
 
@@ -75,5 +76,53 @@ class ServicioController extends Controller{
     public function destroy(Servicio $servicio){
         $servicio->delete();
         return redirect()->route('servicios.index')->with('success', 'El servicio ha sido eliminado con exito.');
+    }
+
+    /**
+     * Mostrar empleados asignados a un servicio
+     */
+    public function empleados(Servicio $servicio){
+        $servicio->load(['empleados.user']);
+        $empleadosAsignados = $servicio->empleados->pluck('id')->toArray();
+        $empleadosDisponibles = \App\Models\Empleado::with('user')
+            ->whereNotIn('id', $empleadosAsignados)
+            ->get();
+        
+        return view('servicios.empleados', compact('servicio', 'empleadosDisponibles'));
+    }
+
+    /**
+     * Asignar empleado a un servicio (sin restricción de categoría)
+     */
+    public function addEmpleado(Request $request, Servicio $servicio){
+        $request->validate([
+            'id_empleado' => 'required|exists:empleados,id'
+        ]);
+
+        // Verificar si ya está asignado
+        if ($servicio->empleados()->where('id_empleado', $request->id_empleado)->exists()) {
+            return redirect()->route('servicios.empleados', $servicio)
+                ->with('warning', 'Este empleado ya está asignado al servicio.');
+        }
+
+        // Asignar empleado al servicio (sin restricción de categoría)
+        $servicio->empleados()->attach($request->id_empleado);
+
+        $empleado = \App\Models\Empleado::find($request->id_empleado);
+        
+        return redirect()->route('servicios.empleados', $servicio)
+            ->with('success', "Empleado {$empleado->user->nombre} {$empleado->user->apellidos} asignado correctamente al servicio.");
+    }
+
+    /**
+     * Remover empleado de un servicio
+     */
+    public function removeEmpleado(Servicio $servicio, $empleadoId){
+        $empleado = \App\Models\Empleado::findOrFail($empleadoId);
+        
+        $servicio->empleados()->detach($empleadoId);
+
+        return redirect()->route('servicios.empleados', $servicio)
+            ->with('success', "Empleado {$empleado->user->nombre} {$empleado->user->apellidos} removido del servicio.");
     }
 }

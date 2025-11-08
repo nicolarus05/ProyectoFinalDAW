@@ -24,7 +24,7 @@
 <body class="bg-gray-100 p-6">
     <div class="max-w-7xl mx-auto">
         <div class="mb-6">
-            <a href="{{ route('dashboard') }}" class="btn-volver">← Volver al Dashboard</a>
+            <a href="{{ route('dashboard') }}" class="btn-volver">← Volver al Inicio</a>
         </div>
 
         <div class="bg-white shadow-md rounded p-6">

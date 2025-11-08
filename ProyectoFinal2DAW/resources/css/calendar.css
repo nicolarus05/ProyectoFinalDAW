@@ -21,7 +21,7 @@ body {
 }
 
 .calendario-header {
-    background: linear-gradient(135deg, #C41C34 0%, #DC8A97 100%);
+    background: linear-gradient(135deg, #000000 0%, #D1D5DB 100%);
     color: white;
     padding: 24px;
 }
@@ -261,7 +261,7 @@ body {
 }
 
 .header-columna {
-    background: #C41C34;
+    background: #000000;
     color: white;
     padding: 20px;
     font-weight: 600;
@@ -275,7 +275,7 @@ body {
 }
 
 .header-columna.horas {
-    background: #4F7C7A;
+    background: #000000;
     height: 140px;
     position: relative;
     z-index: 11;
@@ -290,7 +290,7 @@ body {
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    color: #C41C34;
+    color: #000000;
     font-size: 20px;
 }
 
@@ -348,12 +348,43 @@ body {
     background: #f3f4f6;
 }
 
+/* Horas deshabilitadas (bloques específicos marcados como no disponibles) */
+.celda-horario.hora-deshabilitada {
+    background: repeating-linear-gradient(
+        45deg,
+        #FEE2E2,
+        #FEE2E2 10px,
+        #FCA5A5 10px,
+        #FCA5A5 20px
+    );
+    cursor: not-allowed;
+    position: relative;
+}
+
+.celda-horario.hora-deshabilitada:hover {
+    background: repeating-linear-gradient(
+        45deg,
+        #FEE2E2,
+        #FEE2E2 10px,
+        #FCA5A5 10px,
+        #FCA5A5 20px
+    );
+}
+
+.icono-deshabilitado {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    opacity: 0.7;
+}
+
 .cita-card {
     position: absolute;
     left: 6px;
     right: 6px;
-    background: white;
-    border-left: 4px solid;
+    background: #4B5563;
     border-radius: 6px;
     padding: 8px;
     font-size: 14px;
@@ -366,6 +397,7 @@ body {
     justify-content: space-between;
     align-items: center;
     gap: 8px;
+    color: #1F2937;
 }
 
 .cita-card:hover {
@@ -375,46 +407,20 @@ body {
 }
 
 .cita-card.pendiente {
-    border-left-color: #DC8A97;
-    background: #FFFFFF;
-}
-
-.cita-card.confirmada {
-    border-left-color: #6EC7C5;
-    background: #F3FAFA;
+    background: #93C572;
+    color: #1F2937;
 }
 
 .cita-card.completada {
-    border-left-color: #4F7C7A;
-    background: #A8E8E6;
+    background: #4B5563;
+    color: #FFFFFF;
 }
 
 .cita-card.cancelada {
-    border-left-color: #C41C34;
-    background: #D4B4BC;
-    opacity: 0.7;
-}
-
-/* Colores específicos por categoría de servicio */
-.cita-card.cita-estetica.pendiente {
-    border-left-color: #60A5FA;
-    background: #DBEAFE;
-}
-
-.cita-card.cita-estetica.confirmada {
-    border-left-color: #3B82F6;
-    background: #BFDBFE;
-}
-
-.cita-card.cita-estetica.completada {
-    border-left-color: #2563EB;
-    background: #93C5FD;
-}
-
-.cita-card.cita-estetica.cancelada {
-    border-left-color: #1E40AF;
-    background: #DBEAFE;
-    opacity: 0.7;
+    background: #E5E7EB;
+    color: #6B7280;
+    opacity: 0.6;
+    text-decoration: line-through;
 }
 
 .cita-cliente {
@@ -424,10 +430,11 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 13px;
+    color: #FFFFFF;
 }
 
 .cita-servicio {
-    color: #4F7C7A;
+    color: #D1D5DB;
     font-size: 12px;
     white-space: nowrap;
     overflow: hidden;
@@ -444,7 +451,7 @@ body {
 
 .cita-acciones {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 4px;
     flex-shrink: 0;
 }
@@ -466,6 +473,15 @@ body {
 
 .btn-completar:hover {
     background: #A8E8E6;
+}
+
+.btn-cancelar {
+    background: #EF4444;
+    color: white;
+}
+
+.btn-cancelar:hover {
+    background: #DC2626;
 }
 
 .btn-ver {

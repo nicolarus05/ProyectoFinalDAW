@@ -34,9 +34,10 @@ class CitaController extends Controller{
             if (!$cliente) {
                 abort(403, 'No tienes permiso para acceder a esta sección.');
             }
-            // Solo las citas del cliente para la fecha seleccionada
+            // Solo las citas del cliente para la fecha seleccionada (excluir canceladas)
             $citas = Cita::with(['cliente.user', 'empleado.user', 'servicios'])
                 ->where('id_cliente', $cliente->id)
+                ->where('estado', '!=', 'cancelada')
                 ->porFecha($fecha)
                 ->orderBy('fecha_hora')
                 ->get()
@@ -47,16 +48,18 @@ class CitaController extends Controller{
             if (!$empleado) {
                 abort(403, 'No tienes permiso para acceder a esta sección.');
             }
-            // El empleado ve todas las citas del día (no solo las suyas)
+            // El empleado ve todas las citas del día (no solo las suyas, excluir canceladas)
             $citas = Cita::with(['cliente.user', 'empleado.user', 'servicios'])
+                ->where('estado', '!=', 'cancelada')
                 ->porFecha($fecha)
                 ->orderBy('fecha_hora')
                 ->get()
                 ->groupBy('id_empleado');
 
         } else if ($user->rol === 'admin') {
-            // El admin ve todas las citas del día
+            // El admin ve todas las citas del día (excluir canceladas)
             $citas = Cita::with(['cliente.user', 'empleado.user', 'servicios'])
+                ->where('estado', '!=', 'cancelada')
                 ->porFecha($fecha)
                 ->orderBy('fecha_hora')
                 ->get()
@@ -208,25 +211,13 @@ class CitaController extends Controller{
      */
     public function update(Request $request, Cita $cita){
         $data = $request->validate([
-            'estado' => 'required|in:pendiente,confirmada,cancelada,completada',
+            'estado' => 'required|in:pendiente,completada,cancelada',
         ]);
 
         $estadoAnterior = $cita->estado;
         $cita->update($data);
         
-        // Enviar email según el cambio de estado
-        try {
-            $notificacionService = new NotificacionEmailService();
-            $cita->load(['cliente.user', 'servicios', 'empleado.user']);
-            
-            if ($data['estado'] === 'confirmada' && $estadoAnterior !== 'confirmada') {
-                $notificacionService->enviarConfirmacionCita($cita);
-            } elseif ($data['estado'] === 'cancelada' && $estadoAnterior !== 'cancelada') {
-                $notificacionService->enviarCancelacionCita($cita);
-            }
-        } catch (\Exception $e) {
-            Log::error("Error al enviar email de actualización de estado: " . $e->getMessage());
-        }
+        // Ya no se envían notificaciones por cambio de estado (solo pendiente y completada)
         
         return redirect()->route('citas.index');
     }
@@ -237,6 +228,36 @@ class CitaController extends Controller{
     public function destroy(Cita $cita){
         $cita->delete();
         return redirect()->route('citas.index')->with('success', 'La cita ha sido eliminada con exito.');
+    }
+
+    /**
+     * Cancelar una cita
+     */
+    public function cancelar(Cita $cita){
+        // Cambiar el estado a cancelada
+        $cita->update(['estado' => 'cancelada']);
+
+        // Liberar las horas ocupadas por esta cita
+        // Obtener la fecha y hora de la cita
+        $fechaHora = Carbon::parse($cita->fecha_hora);
+        $empleadoId = $cita->id_empleado;
+        
+        // Calcular duración total de los servicios
+        $duracionTotal = $cita->servicios->sum('tiempo_estimado');
+        $bloques = ceil($duracionTotal / 30); // Bloques de 30 minutos
+        
+        // Liberar cada bloque de tiempo
+        $horaActual = $fechaHora->copy();
+        for ($i = 0; $i < $bloques; $i++) {
+            HorarioTrabajo::where('id_empleado', $empleadoId)
+                ->whereDate('fecha', $horaActual->format('Y-m-d'))
+                ->where('hora', $horaActual->format('H:i:s'))
+                ->update(['disponible' => true]);
+            
+            $horaActual->addMinutes(30);
+        }
+
+        return redirect()->route('citas.index')->with('success', 'La cita ha sido cancelada y las horas han sido liberadas.');
     }
 
     /**
@@ -317,6 +338,20 @@ class CitaController extends Controller{
             'message' => 'Cita marcada como completada.',
             'cita' => $cita
         ]);
+    }
+
+    /**
+     * Completar cita y redirigir a cobro
+     */
+    public function completarYCobrar($id){
+        $cita = Cita::findOrFail($id);
+        
+        // Marcar como completada
+        $cita->estado = 'completada';
+        $cita->save();
+
+        // Redirigir al formulario de cobro con el id_cita
+        return redirect()->route('cobros.create.direct', ['id_cita' => $cita->id]);
     }
 
     /**

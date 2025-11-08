@@ -17,7 +17,7 @@
                     💵 Registrar Pago Rápido
                 </button>
                 <a href="{{ route('dashboard') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
-                    ← Volver al Dashboard
+                    ← Volver al Inicio
                 </a>
             </div>
         </div>

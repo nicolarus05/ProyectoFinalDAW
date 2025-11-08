@@ -51,12 +51,18 @@ class RegistroCobroController extends Controller{
     /**
      * Mostrar formulario para cobro directo (sin cita)
      */
-    public function createDirect(){
+    public function createDirect(Request $request){
         $clientes = Cliente::with(['user', 'deuda'])->get();
         $empleados = \App\Models\Empleado::with('user')->get();
         $servicios = \App\Models\Servicio::where('activo', true)->get();
         
-        return view('cobros.create-direct', compact('clientes', 'empleados', 'servicios'));
+        // Obtener la cita si se proporciona el id_cita
+        $cita = null;
+        if ($request->has('id_cita')) {
+            $cita = \App\Models\Cita::with(['cliente.user', 'empleado.user', 'servicios'])->find($request->id_cita);
+        }
+        
+        return view('cobros.create-direct', compact('clientes', 'empleados', 'servicios', 'cita'));
     }
 
     /**
@@ -128,7 +134,7 @@ class RegistroCobroController extends Controller{
         }
 
         // --- VERIFICAR Y APLICAR BONOS ---
-        $cita = Cita::with(['servicios', 'cliente'])->find($data['id_cita']);
+        $cita = !empty($data['id_cita']) ? Cita::with(['servicios', 'cliente'])->find($data['id_cita']) : null;
         $serviciosAplicados = [];
         $descuentoBonos = 0; // Total descontado por bonos
         
@@ -346,14 +352,16 @@ class RegistroCobroController extends Controller{
      */
     public function update(Request $request, RegistroCobro $cobro){
         $data = $request->validate([
-            'id_cita' => 'required|exists:citas,id',
+            'id_cita' => 'nullable|exists:citas,id',
             'coste' => 'required|numeric|min:0',
             'total_final' => 'required|numeric|min:0',
             'dinero_cliente' => 'required|numeric|min:0',
             'descuento_porcentaje' => 'nullable|numeric|min:0|max:100',
             'descuento_euro' => 'nullable|numeric|min:0',
-            'metodo_pago' => 'required|in:efectivo,tarjeta',
-            'cambio' => 'nullable|numeric|min:0'
+            'metodo_pago' => 'required|in:efectivo,tarjeta,mixto,bono,deuda',
+            'cambio' => 'nullable|numeric|min:0',
+            'pago_efectivo' => 'nullable|numeric|min:0',
+            'pago_tarjeta' => 'nullable|numeric|min:0'
         ]);
 
         // Calcular totales
@@ -370,7 +378,7 @@ class RegistroCobroController extends Controller{
 
         // Actualizar la cita asociada (en caso de que se haya cambiado)
         $cobro->update([
-            'id_cita' => $data['id_cita'],
+            'id_cita' => $data['id_cita'] ?? null,
             'coste' => $data['coste'],
             'descuento_porcentaje' => $descuentoPorcentaje,
             'descuento_euro' => $descuentoEuro,
@@ -378,6 +386,8 @@ class RegistroCobroController extends Controller{
             'dinero_cliente' => $dineroCliente,
             'cambio' => $data['cambio'],
             'metodo_pago' => $data['metodo_pago'],
+            'pago_efectivo' => $data['metodo_pago'] === 'mixto' ? ($data['pago_efectivo'] ?? 0) : null,
+            'pago_tarjeta' => $data['metodo_pago'] === 'mixto' ? ($data['pago_tarjeta'] ?? 0) : null,
         ]);
 
         return redirect()->route('cobros.index')->with('success', 'Cobro actualizado correctamente.');

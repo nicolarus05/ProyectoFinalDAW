@@ -90,6 +90,8 @@ Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
     Route::post('citas/mover', [CitaController::class, 'moverCita'])->name('citas.mover');
     Route::post('citas/marcar-completada', [CitaController::class, 'marcarCompletada'])->name('citas.marcarCompletada');
     Route::post('citas/actualizar-duracion', [CitaController::class, 'actualizarDuracion'])->name('citas.actualizarDuracion');
+    Route::post('citas/{cita}/completar-y-cobrar', [CitaController::class, 'completarYCobrar'])->name('citas.completarYCobrar');
+    Route::post('citas/{cita}/cancelar', [CitaController::class, 'cancelar'])->name('citas.cancelar');
     
     Route::resource('citas', CitaController::class)->names('citas');
     

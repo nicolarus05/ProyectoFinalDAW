@@ -59,7 +59,7 @@
             
             <div class="flex justify-between items-center mb-6">
                 <h1 class="text-3xl font-bold text-gray-800">⏰ Gestión de Horarios</h1>
-                <a href="{{ route('dashboard') }}" class="link-blue font-semibold hover:underline">← Volver al Dashboard</a>
+                <a href="{{ route('dashboard') }}" class="link-blue font-semibold hover:underline">← Volver al Inicio</a>
             </div>
 
             <!-- Mensajes de éxito -->

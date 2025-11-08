@@ -12,7 +12,12 @@ class ClienteController extends Controller{
      * Display a listing of the resource.
      */
     public function index(){
-        $clientes = Cliente::with('user')->get();
+        $clientes = Cliente::with('user')
+            ->join('users', 'clientes.id_user', '=', 'users.id')
+            ->orderBy('users.apellidos', 'asc')
+            ->orderBy('users.nombre', 'asc')
+            ->select('clientes.*')
+            ->get();
         return view('clientes.index', compact('clientes'));
     }
 

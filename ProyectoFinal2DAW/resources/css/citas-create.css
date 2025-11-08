@@ -1,0 +1,190 @@
+/* ===== Estilos para Crear Cita - Flujo Paso a Paso ===== */
+
+/* Indicadores de Paso */
+.step-indicator {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #D1D5DB; /* gray-300 */
+    color: #6B7280; /* gray-500 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.125rem;
+    transition: all 0.3s ease;
+}
+
+.step-indicator.active {
+    background: #2563EB; /* blue-600 */
+    color: white;
+    transform: scale(1.1);
+}
+
+.step-indicator.completed {
+    background: #10B981; /* green-500 */
+    color: white;
+}
+
+/* Contenido de Pasos */
+.step-content {
+    display: none;
+}
+
+.step-content.active {
+    display: block;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Tarjetas de Servicio */
+.servicio-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.servicio-card:hover {
+    transform: translateY(-2px);
+}
+
+.servicio-card.selected {
+    border-color: #2563EB !important;
+    background-color: #EFF6FF;
+    box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+}
+
+.servicio-card.selected .checkmark-container {
+    display: flex;
+}
+
+.checkmark-container {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #2563EB;
+    margin-top: 8px;
+}
+
+.checkmark {
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Badges de Categoría */
+.categoria-badge {
+    font-size: 1.25rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: #F3F4F6;
+}
+
+.categoria-badge.peluqueria {
+    background: #DBEAFE;
+}
+
+.categoria-badge.estetica {
+    background: #FCE7F3;
+}
+
+/* Ocultar Elementos */
+.hidden {
+    display: none !important;
+}
+
+/* Opciones de Empleado */
+.empleado-option {
+    position: relative;
+}
+
+.empleado-option input:checked ~ div {
+    border-color: #2563EB;
+    background-color: #EFF6FF;
+}
+
+.empleado-option .radio-checkmark {
+    color: #D1D5DB;
+}
+
+.empleado-option input:checked ~ div .radio-checkmark {
+    color: #2563EB;
+}
+
+.empleado-option .radio-checkmark .inner-circle {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.empleado-option input:checked ~ div .radio-checkmark .inner-circle {
+    opacity: 1;
+}
+
+/* Transiciones suaves para labels de paso */
+#step-1-label,
+#step-2-label,
+#step-3-label {
+    transition: all 0.3s ease;
+}
+
+#step-1-label.active,
+#step-2-label.active,
+#step-3-label.active {
+    color: #2563EB;
+    font-weight: 600;
+}
+
+/* Estilo de búsqueda con focus */
+#search-servicios:focus {
+    border-color: #3B82F6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Grid responsive */
+@media (max-width: 768px) {
+    #servicios-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Animación para servicios seleccionados */
+#selected-services-container {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        max-height: 0;
+    }
+    to {
+        opacity: 1;
+        max-height: 500px;
+    }
+}
+
+/* Botones deshabilitados */
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Estilos para confirmación */
+#confirm-services-list .service-item {
+    padding: 12px;
+    background: white;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}

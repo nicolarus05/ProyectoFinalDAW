@@ -36,6 +36,17 @@
         <form action="{{ route('cobros.store') }}" method="POST" id="cobro-form" class="space-y-6">
             @csrf
 
+            <!-- ID de cita (oculto si viene desde completar cita) -->
+            @if(isset($cita))
+                <input type="hidden" name="id_cita" value="{{ $cita->id }}">
+                
+                <div class="bg-green-50 border-l-4 border-green-500 p-4 mb-6">
+                    <p class="text-sm text-green-800">
+                        <strong>✓ Cita completada:</strong> Registrando cobro para la cita de <strong>{{ $cita->cliente->user->nombre ?? '' }} {{ $cita->cliente->user->apellidos ?? '' }}</strong>
+                    </p>
+                </div>
+            @endif
+
             <!-- Cliente -->
             <div class="bg-gray-50 p-4 rounded">
                 <h2 class="text-lg font-semibold mb-3">Cliente</h2>
@@ -46,8 +57,9 @@
                         @foreach($clientes as $cliente)
                             @php
                                 $deuda = $cliente->deuda ? $cliente->deuda->saldo_pendiente : 0;
+                                $selected = isset($cita) && $cita->id_cliente == $cliente->id ? 'selected' : '';
                             @endphp
-                            <option value="{{ $cliente->id }}" data-deuda="{{ $deuda }}">
+                            <option value="{{ $cliente->id }}" data-deuda="{{ $deuda }}" {{ $selected }}>
                                 {{ $cliente->user->nombre ?? '' }} {{ $cliente->user->apellidos ?? '' }}
                                 @if($deuda > 0) (Deuda: €{{ number_format($deuda, 2) }}) @endif
                             </option>
@@ -65,7 +77,10 @@
                     <select name="id_empleado" id="id_empleado" class="w-full border rounded px-3 py-2">
                         <option value="">-- Seleccionar empleado --</option>
                         @foreach($empleados as $empleado)
-                            <option value="{{ $empleado->id }}">
+                            @php
+                                $selected = isset($cita) && $cita->id_empleado == $empleado->id ? 'selected' : '';
+                            @endphp
+                            <option value="{{ $empleado->id }}" {{ $selected }}>
                                 {{ $empleado->user->nombre ?? '' }} {{ $empleado->user->apellidos ?? '' }}
                             </option>
                         @endforeach
@@ -591,6 +606,27 @@ document.getElementById('cobro-form').addEventListener('submit', function(e) {
 renderServicios();
 renderProductos();
 calcularTotales();
+
+// Pre-cargar servicios de la cita si existe
+@if(isset($cita) && $cita->servicios->isNotEmpty())
+    @foreach($cita->servicios as $servicio)
+        serviciosSeleccionados.push({
+            id: {{ $servicio->id }},
+            nombre: "{{ $servicio->nombre }}",
+            precio: {{ $servicio->precio }}
+        });
+    @endforeach
+    renderServicios();
+    calcularTotales();
+    
+    // Mostrar mensaje de información
+    console.log('Servicios de la cita cargados automáticamente');
+@endif
+
+// Actualizar deuda del cliente si está pre-seleccionado
+@if(isset($cita))
+    actualizarDeudaCliente();
+@endif
 </script>
 
 </body>
