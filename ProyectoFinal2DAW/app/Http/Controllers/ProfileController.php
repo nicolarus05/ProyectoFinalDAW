@@ -48,16 +48,19 @@ class ProfileController extends Controller{
             $user->email_verified_at = null;
         }
 
-        // Manejo de la foto de perfil
+        // FASE 6: Manejo de la foto de perfil con storage tenant-aware
         if ($request->hasFile('foto_perfil')) {
             // Eliminar la foto anterior si existe
-            if ($user->foto_perfil && File::exists(storage_path('app/public/' . $user->foto_perfil))) {
-                File::delete(storage_path('app/public/' . $user->foto_perfil));
+            if ($user->foto_perfil) {
+                tenant_storage()->delete($user->foto_perfil, true);
             }
             
-            // Guardar la nueva foto
-            $fotoPath = $request->file('foto_perfil')->store('profiles', 'public');
-            $user->foto_perfil = $fotoPath;
+            // Guardar la nueva foto en el storage del tenant
+            $user->foto_perfil = tenant_upload(
+                $request->file('foto_perfil'),
+                'perfiles',
+                true
+            );
         }
 
         $user->save();

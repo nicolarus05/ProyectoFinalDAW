@@ -47,12 +47,45 @@ return [
             'report' => false,
         ],
 
+        // FASE 6: Discos tenant-aware para archivos aislados por tenant
+        'tenant' => [
+            'driver' => 'local',
+            'root' => storage_path('app/tenants/%tenant_id%/private'),
+            'serve' => true,
+            'throw' => false,
+            'report' => false,
+        ],
+
+        'tenant_public' => [
+            'driver' => 'local',
+            'root' => storage_path('app/tenants/%tenant_id%/public'),
+            'url' => env('APP_URL').'/storage/tenants/%tenant_id%',
+            'visibility' => 'public',
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),
             'secret' => env('AWS_SECRET_ACCESS_KEY'),
             'region' => env('AWS_DEFAULT_REGION'),
             'bucket' => env('AWS_BUCKET'),
+            'url' => env('AWS_URL'),
+            'endpoint' => env('AWS_ENDPOINT'),
+            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            'throw' => false,
+            'report' => false,
+        ],
+
+        // S3 tenant-aware (opcional, para producción)
+        's3_tenant' => [
+            'driver' => 's3',
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION'),
+            'bucket' => env('AWS_BUCKET'),
+            'root' => 'tenants/%tenant_id%',
             'url' => env('AWS_URL'),
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),

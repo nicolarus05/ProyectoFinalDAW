@@ -41,7 +41,7 @@
         {{-- Imagen de perfil --}}
         @if ($user->foto_perfil)
             <div class="mb-4">
-                <img src="{{ asset('storage/' . $user->foto_perfil) }}" alt="Foto de perfil" class="foto-perfil-redonda rounded-full mx-auto border-2 border-gray-300">
+                <img src="{{ tenant_asset($user->foto_perfil) }}" alt="Foto de perfil" class="foto-perfil-redonda rounded-full mx-auto border-2 border-gray-300">
             </div>
         @endif
 
