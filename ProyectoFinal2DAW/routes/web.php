@@ -1,7 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\TenantRegistrationController;
+use App\Http\Controllers\HealthCheckController;
 
 /*
 |--------------------------------------------------------------------------
@@ -24,6 +26,9 @@ use App\Http\Controllers\TenantRegistrationController;
 Route::get('/', function () {
     return view('welcome');
 })->name('home');
+
+// Health Check endpoint para Render (sin middleware de autenticación)
+Route::get('/health', HealthCheckController::class)->name('health.check');
 
 // FASE 5: Registro de nuevos salones (tenants)
 Route::get('/registrar-salon', [TenantRegistrationController::class, 'create'])

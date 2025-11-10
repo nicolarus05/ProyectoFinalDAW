@@ -1,0 +1,141 @@
+# Render Blueprint para Despliegue Multi-Tenant
+# https://render.com/docs/blueprint-spec
+
+services:
+  # Aplicación Web Principal
+  - type: web
+    name: misalon-app
+    env: php
+    region: frankfurt # Cambia según tu ubicación preferida
+    plan: standard # Necesario para wildcard domains
+    
+    # Build Configuration
+    buildCommand: |
+      composer install --no-dev --optimize-autoloader
+      php artisan config:cache
+      php artisan route:cache
+      php artisan view:cache
+      php artisan migrate --force --database=landlord
+    
+    # Start Command
+    startCommand: |
+      php artisan config:cache && php artisan serve --host=0.0.0.0 --port=$PORT
+    
+    # Health Check
+    healthCheckPath: /health
+    
+    # Auto-Deploy
+    autoDeploy: true
+    
+    # Environment Variables
+    envVars:
+      - key: APP_NAME
+        value: MiSalon
+      
+      - key: APP_ENV
+        value: production
+      
+      - key: APP_DEBUG
+        value: false
+      
+      - key: APP_URL
+        value: https://misalon.com
+      
+      - key: APP_KEY
+        generateValue: true # Render generará automáticamente
+      
+      # Database Configuration (MySQL External)
+      - key: DB_CONNECTION
+        value: mysql
+      
+      - key: DB_HOST
+        fromDatabase:
+          name: misalon-db
+          property: host
+      
+      - key: DB_PORT
+        fromDatabase:
+          name: misalon-db
+          property: port
+      
+      - key: DB_DATABASE
+        value: central
+      
+      - key: DB_USERNAME
+        fromDatabase:
+          name: misalon-db
+          property: user
+      
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: misalon-db
+          property: password
+      
+      # Session Configuration
+      - key: SESSION_DRIVER
+        value: database
+      
+      - key: SESSION_LIFETIME
+        value: 120
+      
+      - key: SESSION_DOMAIN
+        value: .misalon.com
+      
+      # Multi-Tenancy Configuration
+      - key: TENANCY_CENTRAL_DOMAINS
+        value: misalon.com,www.misalon.com
+      
+      # Cache Configuration
+      - key: CACHE_DRIVER
+        value: database
+      
+      - key: QUEUE_CONNECTION
+        value: database
+      
+      # Mail Configuration (Configurar según tu proveedor)
+      - key: MAIL_MAILER
+        value: smtp
+      
+      - key: MAIL_HOST
+        sync: false # Requiere configuración manual
+      
+      - key: MAIL_PORT
+        value: 587
+      
+      - key: MAIL_USERNAME
+        sync: false
+      
+      - key: MAIL_PASSWORD
+        sync: false
+      
+      - key: MAIL_ENCRYPTION
+        value: tls
+      
+      - key: MAIL_FROM_ADDRESS
+        value: noreply@misalon.com
+      
+      - key: MAIL_FROM_NAME
+        value: MiSalon
+      
+      # Logging
+      - key: LOG_CHANNEL
+        value: stack
+      
+      - key: LOG_LEVEL
+        value: error
+    
+    # Custom Domains
+    domains:
+      - misalon.com
+      - "*.misalon.com" # Wildcard para subdominios (requiere plan paid)
+    
+    # Deploy Hook (ejecutar después del despliegue)
+    # Nota: Render no soporta hooks en YAML, se configura en Dashboard
+
+# Database External (Recomendado: usar servicio externo como PlanetScale, DigitalOcean, etc.)
+# Si usas base de datos externa, configura las variables manualmente
+databases:
+  - name: misalon-db
+    databaseName: central
+    plan: starter # O el plan que prefieras
+    # Nota: Render solo ofrece PostgreSQL managed. Para MySQL necesitas servicio externo

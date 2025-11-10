@@ -1,0 +1,8 @@
+# Procfile para Render
+# Define cómo iniciar la aplicación
+
+# Web Process
+web: php artisan config:cache && php artisan serve --host=0.0.0.0 --port=$PORT
+
+# Worker Process (opcional, para colas)
+# worker: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
