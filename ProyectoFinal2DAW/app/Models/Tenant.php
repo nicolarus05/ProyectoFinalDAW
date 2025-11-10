@@ -50,6 +50,30 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     }
 
     /**
+     * Anular el método del trait GeneratesIds para evitar que genere o modifique el ID
+     */
+    public function getIncrementing()
+    {
+        return false; // Siempre false para IDs string
+    }
+
+    /**
+     * Anular el método del trait GeneratesIds
+     */
+    public function shouldGenerateId(): bool
+    {
+        return false; // Nunca generar ID automáticamente
+    }
+
+    /**
+     * Anular el método del trait GeneratesIds
+     */
+    public function getKeyType()
+    {
+        return 'string'; // Siempre string
+    }
+
+    /**
      * Campos que se pueden asignar masivamente
      */
     protected $fillable = [

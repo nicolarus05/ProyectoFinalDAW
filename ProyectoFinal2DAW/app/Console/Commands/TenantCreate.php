@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Tenant;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Str;
 
 class TenantCreate extends Command
@@ -65,22 +66,24 @@ class TenantCreate extends Command
         $this->newLine();
 
         try {
-            // Crear tenant estableciendo explícitamente el id como string y usando save()
-            // Esto evita posibles interferencias de traits/boot methods que puedan alterar el id
-            $tenant = new Tenant();
-            $primaryKey = $tenant->getKeyName();
-            $tenant->setAttribute($primaryKey, (string) $slug);
-            $tenant->data = [
-                'nombre' => $this->option('name') ?? ucfirst($slug),
-                'email' => $this->option('email') ?? "{$slug}@example.com",
-                'plan' => $this->option('plan'),
-                'created_by' => 'artisan',
-                'active' => true,
-            ];
+            // Crear tenant con todos los datos de una vez (evitar update posterior)
+            $tenant = Tenant::create([
+                'id' => $slug,
+                'data' => [
+                    'nombre' => $this->option('name') ?? ucfirst($slug),
+                    'email' => $this->option('email') ?? "{$slug}@example.com",
+                    'plan' => $this->option('plan'),
+                    'created_by' => 'artisan',
+                    'active' => true,
+                ],
+            ]);
 
-            $tenant->save();
+            // Verificar que el ID se guardó correctamente
+            if (empty($tenant->id) || $tenant->id === '0' || $tenant->id === 0) {
+                throw new \Exception("Error: El tenant no se guardó con el ID correcto. ID obtenido: '{$tenant->id}'");
+            }
 
-            // Refrescar modelo para obtener relaciones/eventos
+            // Refrescar el modelo para obtener los datos actualizados
             $tenant->refresh();
 
             $this->info("✅ Tenant creado: {$tenant->id}");
@@ -93,10 +96,26 @@ class TenantCreate extends Command
 
             $this->info("✅ Dominio asignado: {$domain}");
 
-            // Las migraciones se ejecutan automáticamente por el listener TenantCreated
+            // Ejecutar migraciones manualmente después del save completo
             $this->newLine();
-            $this->info("⏳ Esperando que las migraciones se ejecuten automáticamente...");
-            sleep(3); // Dar tiempo al listener
+            $this->info("⏳ Ejecutando migraciones del tenant...");
+            
+            try {
+                Artisan::call('tenants:migrate', [
+                    '--tenants' => [$tenant->id]
+                ]);
+                $this->info("✅ Migraciones ejecutadas correctamente");
+                
+                // Crear directorios de storage
+                $this->createTenantStorageDirectories($tenant->id);
+                $this->info("✅ Directorios de storage creados");
+                
+            } catch (\Exception $e) {
+                $this->warn("⚠️  Advertencia: Error en la configuración automática");
+                $this->warn("   Error: " . $e->getMessage());
+                $this->comment("   Puedes ejecutar manualmente:");
+                $this->comment("   - php artisan tenants:migrate --tenants={$tenant->id}");
+            }
 
             $this->newLine();
             $this->line("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -136,5 +155,25 @@ class TenantCreate extends Command
     {
         // Solo alfanuméricos y guiones, entre 3 y 20 caracteres
         return preg_match('/^[a-z0-9\-]{3,20}$/', $slug) === 1;
+    }
+
+    /**
+     * Crear directorios de storage para el tenant
+     */
+    private function createTenantStorageDirectories(string $tenantId): void
+    {
+        $directories = [
+            storage_path("app/tenants/{$tenantId}/private"),
+            storage_path("app/tenants/{$tenantId}/public"),
+            storage_path("app/tenants/{$tenantId}/public/productos"),
+            storage_path("app/tenants/{$tenantId}/public/perfiles"),
+            storage_path("app/tenants/{$tenantId}/public/documentos"),
+        ];
+
+        foreach ($directories as $dir) {
+            if (!file_exists($dir)) {
+                mkdir($dir, 0755, true);
+            }
+        }
     }
 }

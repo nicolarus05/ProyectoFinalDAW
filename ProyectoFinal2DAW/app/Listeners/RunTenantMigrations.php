@@ -2,7 +2,7 @@
 
 namespace App\Listeners;
 
-use Stancl\Tenancy\Events\TenantCreated;
+use Stancl\Tenancy\Events\TenantSaved;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
 
@@ -19,13 +19,29 @@ class RunTenantMigrations
     /**
      * Handle the event.
      * 
-     * Ejecuta las migraciones y configura el storage automáticamente 
-     * cuando se crea un nuevo tenant.
+     * DESHABILITADO: Las migraciones se ejecutan manualmente en TenantCreate
+     * para evitar conflictos con el ID del tenant durante el guardado.
      */
-    public function handle(TenantCreated $event): void
+    public function handle(TenantSaved $event): void
     {
+        // Listener deshabilitado - no hacer nada
+        return;
+        
         try {
-            $tenantId = $event->tenant->id;
+            $tenant = $event->tenant;
+            
+            // Solo ejecutar si el tenant fue recién creado (no en actualizaciones)
+            if (!$tenant->wasRecentlyCreated) {
+                return;
+            }
+            
+            // Asegurar que el tenant está correctamente guardado y tiene un ID válido
+            if (empty($tenant->getTenantKey())) {
+                Log::error("Tenant creado sin ID válido. Abortando configuración.");
+                throw new \Exception("El tenant no tiene un ID válido");
+            }
+            
+            $tenantId = $tenant->getTenantKey();
             
             // 1. Ejecutar migraciones para el tenant recién creado
             Artisan::call('tenants:migrate', [

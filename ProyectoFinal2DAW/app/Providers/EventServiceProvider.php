@@ -3,7 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
-use Stancl\Tenancy\Events\TenantCreated;
+use Stancl\Tenancy\Events\TenantSaved;
 use App\Listeners\RunTenantMigrations;
 
 class EventServiceProvider extends ServiceProvider
@@ -14,9 +14,11 @@ class EventServiceProvider extends ServiceProvider
      * @var array<class-string, array<int, class-string>>
      */
     protected $listen = [
-        TenantCreated::class => [
-            RunTenantMigrations::class,
-        ],
+        // NOTE: Listener deshabilitado - las migraciones se ejecutan manualmente en TenantCreate
+        // para evitar conflictos con el ID del tenant durante el proceso de guardado
+        // TenantSaved::class => [
+        //     RunTenantMigrations::class,
+        // ],
     ];
 
     /**
