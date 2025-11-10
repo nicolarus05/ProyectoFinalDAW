@@ -66,22 +66,23 @@ class TenantCreate extends Command
         $this->newLine();
 
         try {
-            // Crear tenant con todos los datos de una vez (evitar update posterior)
+            // Crear tenant con ID, los datos se asignan después
             $tenant = Tenant::create([
                 'id' => $slug,
-                'data' => [
-                    'nombre' => $this->option('name') ?? ucfirst($slug),
-                    'email' => $this->option('email') ?? "{$slug}@example.com",
-                    'plan' => $this->option('plan'),
-                    'created_by' => 'artisan',
-                    'active' => true,
-                ],
             ]);
 
             // Verificar que el ID se guardó correctamente
             if (empty($tenant->id) || $tenant->id === '0' || $tenant->id === 0) {
                 throw new \Exception("Error: El tenant no se guardó con el ID correcto. ID obtenido: '{$tenant->id}'");
             }
+
+            // Asignar datos usando el método mágico del trait VirtualColumn/HasDataColumn
+            $tenant->nombre = $this->option('name') ?? ucfirst($slug);
+            $tenant->email = $this->option('email') ?? "{$slug}@example.com";
+            $tenant->plan = $this->option('plan');
+            $tenant->created_by = 'artisan';
+            $tenant->active = true;
+            $tenant->save();
 
             // Refrescar el modelo para obtener los datos actualizados
             $tenant->refresh();
@@ -125,9 +126,9 @@ class TenantCreate extends Command
                 ['Campo', 'Valor'],
                 [
                     ['ID/Slug', $tenant->id],
-                    ['Nombre', $tenant->data['nombre']],
-                    ['Email', $tenant->data['email']],
-                    ['Plan', $tenant->data['plan']],
+                    ['Nombre', $tenant->data['nombre'] ?? $tenant->nombre ?? 'N/A'],
+                    ['Email', $tenant->data['email'] ?? $tenant->email ?? 'N/A'],
+                    ['Plan', $tenant->data['plan'] ?? $tenant->plan ?? 'N/A'],
                     ['Dominio', $domain],
                     ['Base de Datos', $dbName],
                     ['URL', "https://{$domain}"],
