@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Stancl\Tenancy\Database\Models\Tenant as BaseTenant;
 use Stancl\Tenancy\Contracts\TenantWithDatabase;
 use Stancl\Tenancy\Database\Concerns\HasDatabase;
@@ -16,10 +17,11 @@ use Stancl\Tenancy\Database\Concerns\HasDomains;
  * - Su propia base de datos (HasDatabase)
  * - Uno o más dominios/subdominios (HasDomains)
  * - Metadatos personalizados (nombre, email, etc.)
+ * - Soft deletes (período de gracia de 30 días)
  */
 class Tenant extends BaseTenant implements TenantWithDatabase
 {
-    use HasDatabase, HasDomains;
+    use HasDatabase, HasDomains, SoftDeletes;
 
     /**
      * Campos que se pueden asignar masivamente
@@ -34,6 +36,15 @@ class Tenant extends BaseTenant implements TenantWithDatabase
      */
     protected $casts = [
         'data' => 'array',
+        'backup_created_at' => 'datetime',
+    ];
+
+    /**
+     * Fechas para soft deletes
+     */
+    protected $dates = [
+        'deleted_at',
+        'backup_created_at',
     ];
 
     /**
