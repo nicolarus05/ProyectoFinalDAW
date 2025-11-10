@@ -3,15 +3,17 @@
 namespace App\Mail;
 
 use App\Models\Cita;
+use App\Traits\TenantAware;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class CitaRecordatorio extends Mailable
+class CitaRecordatorio extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Queueable, SerializesModels, TenantAware;
 
     public $cita;
 
@@ -21,6 +23,11 @@ class CitaRecordatorio extends Mailable
     public function __construct(Cita $cita)
     {
         $this->cita = $cita;
+        
+        // Capturar el tenant actual
+        if (tenancy()->initialized) {
+            $this->tenantId = tenant('id');
+        }
     }
 
     /**

@@ -72,6 +72,16 @@ return [
             'after_commit' => false,
         ],
 
+        // Conexión adicional para tenant con prefijo en la queue
+        'tenant' => [
+            'driver' => 'database',
+            'connection' => env('DB_QUEUE_CONNECTION'),
+            'table' => env('DB_QUEUE_TABLE', 'jobs'),
+            'queue' => 'tenant_{tenant_id}', // Será reemplazado dinámicamente
+            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 90),
+            'after_commit' => false,
+        ],
+
     ],
 
     /*

@@ -90,6 +90,15 @@ return [
             'driver' => 'octane',
         ],
 
+        // Store adicional para tenant con prefijo dinámico
+        'tenant' => [
+            'driver' => 'database',
+            'connection' => env('DB_CACHE_CONNECTION'),
+            'table' => env('DB_CACHE_TABLE', 'cache'),
+            'lock_connection' => env('DB_CACHE_LOCK_CONNECTION'),
+            'lock_table' => env('DB_CACHE_LOCK_TABLE'),
+        ],
+
     ],
 
     /*
@@ -100,6 +109,8 @@ return [
     | When utilizing the APC, database, memcached, Redis, and DynamoDB cache
     | stores, there might be other applications using the same cache. For
     | that reason, you may prefix every cache key to avoid collisions.
+    |
+    | Para multi-tenancy, el prefijo se gestiona dinámicamente en TenantCacheManager
     |
     */
 

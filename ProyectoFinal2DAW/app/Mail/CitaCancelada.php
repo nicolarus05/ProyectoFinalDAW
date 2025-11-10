@@ -3,15 +3,17 @@
 namespace App\Mail;
 
 use App\Models\Cita;
+use App\Traits\TenantAware;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class CitaCancelada extends Mailable
+class CitaCancelada extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Queueable, SerializesModels, TenantAware;
 
     public $cita;
     public $motivo;
@@ -23,6 +25,11 @@ class CitaCancelada extends Mailable
     {
         $this->cita = $cita;
         $this->motivo = $motivo;
+        
+        // Capturar el tenant actual
+        if (tenancy()->initialized) {
+            $this->tenantId = tenant('id');
+        }
     }
 
     /**

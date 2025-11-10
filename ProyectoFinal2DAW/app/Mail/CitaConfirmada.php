@@ -3,15 +3,17 @@
 namespace App\Mail;
 
 use App\Models\Cita;
+use App\Traits\TenantAware;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class CitaConfirmada extends Mailable
+class CitaConfirmada extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Queueable, SerializesModels, TenantAware;
 
     public $cita;
 
@@ -21,6 +23,16 @@ class CitaConfirmada extends Mailable
     public function __construct(Cita $cita)
     {
         $this->cita = $cita;
+        
+        // Inicializar el trait TenantAware
+        if (method_exists($this, 'initializeTenantFromTrait')) {
+            $this->initializeTenantFromTrait();
+        } else {
+            // Capturar el tenant actual
+            if (tenancy()->initialized) {
+                $this->tenantId = tenant('id');
+            }
+        }
     }
 
     /**

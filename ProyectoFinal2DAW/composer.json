@@ -33,7 +33,8 @@
             "Database\\Seeders\\": "database/seeders/"
         },
         "files": [
-            "app/Helpers/tenant_storage.php"
+            "app/Helpers/tenant_storage.php",
+            "app/Helpers/tenant_cache_queue.php"
         ]
     },
     "autoload-dev": {

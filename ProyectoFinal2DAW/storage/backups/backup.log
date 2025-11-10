@@ -1,0 +1,6 @@
+[2025-11-10 11:27:03] ℹ Iniciando proceso de backup...
+[2025-11-10 11:27:03] ℹ Directorio de backups: /home/nicolas/Descargas/ProyectoFInal2DAW/ProyectoFinalDAW/ProyectoFinal2DAW/storage/backups
+[2025-11-10 11:27:03] ℹ Host: mysql:3306
+[2025-11-10 11:27:03] ℹ Base de datos central: laravel
+[2025-11-10 11:27:03] ℹ Verificando conexión a MySQL...
+[2025-11-10 11:27:03] ✗ No se puede conectar a MySQL. Verifica las credenciales.

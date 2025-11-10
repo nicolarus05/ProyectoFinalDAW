@@ -72,18 +72,23 @@ class RunTenantMigrations
      */
     protected function createStorageLink(string $tenantId): void
     {
+        // No crear enlaces en entorno de testing
+        if (app()->environment('testing')) {
+            return;
+        }
+
         $target = storage_path("app/tenants/{$tenantId}/public");
         $link = public_path("storage/tenants/{$tenantId}");
 
         // Crear directorio padre del enlace si no existe
         $linkParent = dirname($link);
         if (!file_exists($linkParent)) {
-            mkdir($linkParent, 0755, true);
+            @mkdir($linkParent, 0755, true);
         }
 
         // Crear enlace simbólico si no existe
         if (!file_exists($link) && file_exists($target)) {
-            symlink($target, $link);
+            @symlink($target, $link);
         }
     }
 }
