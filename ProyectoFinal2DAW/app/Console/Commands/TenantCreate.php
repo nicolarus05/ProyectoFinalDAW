@@ -65,22 +65,28 @@ class TenantCreate extends Command
         $this->newLine();
 
         try {
-            // Crear tenant usando el método correcto de Stancl
-            $tenant = Tenant::create(['id' => $slug]);
-            
-            // Asignar datos
+            // Crear tenant estableciendo explícitamente el id como string y usando save()
+            // Esto evita posibles interferencias de traits/boot methods que puedan alterar el id
+            $tenant = new Tenant();
+            $primaryKey = $tenant->getKeyName();
+            $tenant->setAttribute($primaryKey, (string) $slug);
             $tenant->data = [
                 'nombre' => $this->option('name') ?? ucfirst($slug),
                 'email' => $this->option('email') ?? "{$slug}@example.com",
                 'plan' => $this->option('plan'),
                 'created_by' => 'artisan',
+                'active' => true,
             ];
+
             $tenant->save();
+
+            // Refrescar modelo para obtener relaciones/eventos
+            $tenant->refresh();
 
             $this->info("✅ Tenant creado: {$tenant->id}");
             $this->info("   BD: {$dbName}");
 
-            // Crear dominio
+            // Crear dominio relacionado
             $tenant->domains()->create([
                 'domain' => $domain,
             ]);

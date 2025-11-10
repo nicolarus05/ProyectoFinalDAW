@@ -24,6 +24,32 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     use HasDatabase, HasDomains, SoftDeletes;
 
     /**
+     * Indica que la clave primaria es un string y no auto-incrementable
+     */
+    protected $keyType = 'string';
+    public $incrementing = false;
+
+    /**
+     * Explicit primary key declaration to ensure Eloquent uses the string id
+     */
+    protected $primaryKey = 'id';
+
+    /**
+     * Boot adjustments to ensure the ID is always treated as string when provided
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($model) {
+            // If an ID was assigned before save, make sure it's cast to string
+            if ($model->getAttribute($model->getKeyName())) {
+                $model->setAttribute($model->getKeyName(), (string) $model->getAttribute($model->getKeyName()));
+            }
+        });
+    }
+
+    /**
      * Campos que se pueden asignar masivamente
      */
     protected $fillable = [
