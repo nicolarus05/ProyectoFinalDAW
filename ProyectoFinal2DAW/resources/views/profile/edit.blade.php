@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Editar Perfil</title>
-    @vite(['resources/css/profile.css', 'resources/js/app.js'])
+    {!! vite_asset(['resources/css/app.css', 'resources/css/profile.css', 'resources/js/app.js']) !!}
 </head>
 <body class="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6">
 

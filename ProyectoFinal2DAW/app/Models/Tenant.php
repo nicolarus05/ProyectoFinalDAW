@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\SoftDeletes;
+// use Illuminate\Database\Eloquent\SoftDeletes; // Deshabilitado temporalmente
 use Stancl\Tenancy\Database\Models\Tenant as BaseTenant;
 use Stancl\Tenancy\Contracts\TenantWithDatabase;
 use Stancl\Tenancy\Database\Concerns\HasDatabase;
@@ -21,7 +21,7 @@ use Stancl\Tenancy\Database\Concerns\HasDomains;
  */
 class Tenant extends BaseTenant implements TenantWithDatabase
 {
-    use HasDatabase, HasDomains, SoftDeletes;
+    use HasDatabase, HasDomains; // Removido SoftDeletes temporalmente
 
     /**
      * Indica que la clave primaria es un string y no auto-incrementable
@@ -90,10 +90,9 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     ];
 
     /**
-     * Fechas para soft deletes
+     * Fechas para timestamps
      */
     protected $dates = [
-        'deleted_at',
         'backup_created_at',
     ];
 

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crear Bono</title>
-    @vite(['resources/js/app.js'])
+    {!! vite_asset(['resources/css/app.css', 'resources/js/app.js']) !!}
     <style>
         .btn-add-servicio {
             background-color: #2563eb;
@@ -126,7 +126,7 @@
                     <label class="block text-sm font-medium mb-1">Servicio</label>
                     <select name="servicios[${servicioIndex}][id]" required class="w-full border rounded px-3 py-2">
                         <option value="">Seleccionar servicio</option>
-                        ${servicios.map(s => `<option value="${s.id}">${s.nombre} ${s.tipo === 'peluqueria' ? '💇' : '💅'}</option>`).join('')}
+                        ${servicios.map(s => `<option value="${s.id}">${s.categoria === 'peluqueria' ? '✂️' : '💅'} ${s.nombre}</option>`).join('')}
                     </select>
                 </div>
                 <div class="w-24">

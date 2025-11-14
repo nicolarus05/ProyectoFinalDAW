@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class LoginRequest extends FormRequest
 {
@@ -40,6 +43,25 @@ class LoginRequest extends FormRequest
     public function authenticate(): void
     {
         $this->ensureIsNotRateLimited();
+
+        // Debug: verificar conexión y tenant actual
+        Log::info('=== DEBUG AUTENTICACION ===');
+        Log::info('Conexión DB actual: ' . config('database.default'));
+        Log::info('Base de datos: ' . DB::connection()->getDatabaseName());
+        
+        // Verificar si hay tenant inicializado
+        $tenant = tenancy()->tenant;
+        Log::info('Tenant actual: ' . ($tenant ? $tenant->id : 'NO HAY TENANT'));
+        
+        // Buscar usuario manualmente
+        $user = \App\Models\User::where('email', $this->email)->first();
+        Log::info('Usuario encontrado: ' . ($user ? 'SI (ID: '.$user->id.')' : 'NO'));
+        
+        if ($user) {
+            Log::info('Verificando password hash...');
+            $passwordCheck = Hash::check($this->password, $user->password);
+            Log::info('Password check resultado: ' . ($passwordCheck ? 'CORRECTO' : 'INCORRECTO'));
+        }
 
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
@@ -82,4 +104,5 @@ class LoginRequest extends FormRequest
     {
         return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
     }
+
 }

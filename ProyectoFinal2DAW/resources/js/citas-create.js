@@ -301,6 +301,91 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // ===== BUSCADOR DE CLIENTES =====
+    
+    const searchCliente = document.getElementById('search-cliente');
+    const clientesList = document.getElementById('clientes-list');
+    const selectCliente = document.getElementById('id_cliente');
+    const selectedClienteDiv = document.getElementById('selected-cliente');
+    const clearClienteBtn = document.getElementById('clear-cliente');
+    
+    if (searchCliente && clientesList) {
+        // Filtrar clientes al escribir
+        searchCliente.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase().trim();
+            const clienteItems = clientesList.querySelectorAll('.cliente-item');
+            let visibleCount = 0;
+            
+            clienteItems.forEach(item => {
+                const nombre = item.dataset.nombre;
+                const email = item.dataset.email;
+                
+                if (nombre.includes(searchTerm) || email.includes(searchTerm)) {
+                    item.style.display = 'block';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+            
+            // Mostrar mensaje si no hay resultados
+            if (visibleCount === 0 && searchTerm !== '') {
+                if (!document.getElementById('no-clientes-msg')) {
+                    const noResultsMsg = document.createElement('div');
+                    noResultsMsg.id = 'no-clientes-msg';
+                    noResultsMsg.className = 'p-4 text-center text-gray-500';
+                    noResultsMsg.textContent = 'No se encontraron clientes';
+                    clientesList.appendChild(noResultsMsg);
+                }
+            } else {
+                const noResultsMsg = document.getElementById('no-clientes-msg');
+                if (noResultsMsg) noResultsMsg.remove();
+            }
+        });
+        
+        // Seleccionar cliente al hacer clic
+        clientesList.addEventListener('click', function(e) {
+            const clienteItem = e.target.closest('.cliente-item');
+            if (clienteItem) {
+                const clienteId = clienteItem.dataset.clienteId;
+                const clienteNombre = clienteItem.querySelector('p.font-semibold').textContent;
+                const clienteEmail = clienteItem.querySelector('p.text-sm').textContent;
+                const clienteInicial = clienteNombre.charAt(0).toUpperCase();
+                
+                // Actualizar select oculto
+                selectCliente.value = clienteId;
+                
+                // Ocultar lista y buscador
+                clientesList.style.display = 'none';
+                searchCliente.style.display = 'none';
+                
+                // Mostrar cliente seleccionado
+                selectedClienteDiv.classList.remove('hidden');
+                document.getElementById('selected-cliente-inicial').textContent = clienteInicial;
+                document.getElementById('selected-cliente-nombre').textContent = clienteNombre;
+                document.getElementById('selected-cliente-email').textContent = clienteEmail;
+            }
+        });
+        
+        // Limpiar selección
+        if (clearClienteBtn) {
+            clearClienteBtn.addEventListener('click', function() {
+                selectCliente.value = '';
+                selectedClienteDiv.classList.add('hidden');
+                clientesList.style.display = 'block';
+                searchCliente.style.display = 'block';
+                searchCliente.value = '';
+                
+                // Mostrar todos los clientes
+                const clienteItems = clientesList.querySelectorAll('.cliente-item');
+                clienteItems.forEach(item => item.style.display = 'block');
+                
+                const noResultsMsg = document.getElementById('no-clientes-msg');
+                if (noResultsMsg) noResultsMsg.remove();
+            });
+        }
+    }
+    
     // ===== INICIALIZACIÓN =====
     
     // Contar servicios iniciales

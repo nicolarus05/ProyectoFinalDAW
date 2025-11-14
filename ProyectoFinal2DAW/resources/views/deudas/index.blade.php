@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Gestión de Deudas</title>
-    @vite(['resources/css/deudas.css', 'resources/js/deudas.js', 'resources/js/app.js'])
+    {!! vite_asset(['resources/css/app.css', 'resources/css/deudas.css', 'resources/js/deudas.js', 'resources/js/app.js']) !!}
 </head>
 <body class="bg-gray-100 p-6">
     <div id="deudas-app" class="w-full max-w-7xl mx-auto bg-white shadow-md rounded p-6">

@@ -2,10 +2,16 @@
 
 namespace App\Listeners;
 
-use Stancl\Tenancy\Events\TenantSaved;
-use Illuminate\Support\Facades\Artisan;
+use Stancl\Tenancy\Events\DatabaseMigrated;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * Este listener se ejecuta DESPUÉS de que las migraciones del tenant se han completado
+ * Se encarga de:
+ * - Crear el usuario administrador
+ * - Crear directorios de storage
+ * - Crear enlaces simbólicos
+ */
 class RunTenantMigrations
 {
     /**
@@ -18,47 +24,59 @@ class RunTenantMigrations
 
     /**
      * Handle the event.
-     * 
-     * DESHABILITADO: Las migraciones se ejecutan manualmente en TenantCreate
-     * para evitar conflictos con el ID del tenant durante el guardado.
      */
-    public function handle(TenantSaved $event): void
+    public function handle(DatabaseMigrated $event): void
     {
-        // Listener deshabilitado - no hacer nada
-        return;
-        
         try {
             $tenant = $event->tenant;
-            
-            // Solo ejecutar si el tenant fue recién creado (no en actualizaciones)
-            if (!$tenant->wasRecentlyCreated) {
-                return;
-            }
-            
-            // Asegurar que el tenant está correctamente guardado y tiene un ID válido
-            if (empty($tenant->getTenantKey())) {
-                Log::error("Tenant creado sin ID válido. Abortando configuración.");
-                throw new \Exception("El tenant no tiene un ID válido");
-            }
-            
             $tenantId = $tenant->getTenantKey();
             
-            // 1. Ejecutar migraciones para el tenant recién creado
-            Artisan::call('tenants:migrate', [
-                '--tenants' => [$tenantId]
-            ]);
-            Log::info("Migraciones ejecutadas exitosamente para el tenant: {$tenantId}");
+            Log::info("Configuración post-migración para tenant: {$tenantId}");
+            
+            // Recuperar los datos del admin desde la caché
+            $adminData = \Illuminate\Support\Facades\Cache::get("tenant_admin_data_{$tenantId}");
+            
+            Log::info("Datos admin recuperados de caché", ['has_data' => !empty($adminData)]);
+            
+            // Inicializar el contexto del tenant
+            tenancy()->initialize($tenant);
+            
+            // Crear el usuario admin en la base de datos del tenant
+            if ($adminData) {
+                \App\Models\User::create([
+                    'nombre' => $adminData['nombre'],
+                    'apellidos' => $adminData['apellidos'],
+                    'telefono' => $adminData['telefono'],
+                    'email' => $adminData['email'],
+                    'password' => $adminData['password'], // Ya viene hasheado
+                    'genero' => $adminData['genero'],
+                    'edad' => $adminData['edad'],
+                    'rol' => 'admin',
+                ]);
+                Log::info("Usuario admin creado para tenant: {$tenantId}");
+                
+                // Limpiar la caché
+                \Illuminate\Support\Facades\Cache::forget("tenant_admin_data_{$tenantId}");
+            } else {
+                Log::warning("No se encontraron datos del admin en caché para tenant: {$tenantId}");
+            }
+            
+            // Finalizar el contexto del tenant
+            tenancy()->end();
 
-            // 2. FASE 6: Crear directorios de storage
+            // Crear directorios de storage
             $this->createTenantStorageDirectories($tenantId);
             Log::info("Directorios de storage creados para el tenant: {$tenantId}");
 
-            // 3. FASE 6: Crear enlace simbólico
+            // Crear enlace simbólico
             $this->createStorageLink($tenantId);
             Log::info("Enlace simbólico de storage creado para el tenant: {$tenantId}");
 
+            Log::info("Configuración completada exitosamente para el tenant: {$tenantId}");
+
         } catch (\Exception $e) {
             Log::error("Error al configurar el tenant {$event->tenant->id}: {$e->getMessage()}");
+            Log::error("Stack trace: {$e->getTraceAsString()}");
             throw $e; // Re-lanzar para que el controlador pueda manejarlo
         }
     }

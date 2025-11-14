@@ -5,7 +5,7 @@
     <title>Registrar Cobro</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    @vite(['resources/css/cobros.css', 'resources/js/cobros.js'])
+    {!! vite_asset(['resources/css/app.css', 'resources/css/cobros.css', 'resources/js/cobros.js']) !!}
 </head>
 <body class="bg-gray-100 p-8">
     <div id="cobros-app" 

@@ -136,11 +136,19 @@ class CitaController extends Controller{
         $hora = $fechaHora->format('H:i:s');
 
         // Validar disponibilidad exacta en horario_trabajo
+        // Buscar por hora exacta O por rango hora_inicio/hora_fin
         $horario = HorarioTrabajo::where('id_empleado', $data['id_empleado'])
             ->where('fecha', $fecha)
             ->where('disponible', true)
-            ->whereTime('hora_inicio', '<=', $hora)
-            ->whereTime('hora_fin', '>=', $hora)
+            ->where(function($query) use ($hora) {
+                // Opción 1: Bloque específico con hora exacta
+                $query->where('hora', $hora)
+                    // Opción 2: Rango de horas (hora_inicio y hora_fin)
+                    ->orWhere(function($q) use ($hora) {
+                        $q->whereTime('hora_inicio', '<=', $hora)
+                          ->whereTime('hora_fin', '>=', $hora);
+                    });
+            })
             ->first();
 
         if (!$horario) {
@@ -150,10 +158,12 @@ class CitaController extends Controller{
         }
 
         // Verificar si hay otra cita muy cercana (margen de 15 minutos)
+        // Solo verificar citas pendientes, no las completadas ni canceladas
         $fechaInicioMargen = $fechaHora->copy()->subMinutes(15);
         $fechaFinMargen = $fechaHora->copy()->addMinutes(15);
 
         $existeCitaCercana = Cita::where('id_empleado', $data['id_empleado'])
+            ->whereIn('estado', ['pendiente', 'confirmada'])
             ->whereBetween('fecha_hora', [$fechaInicioMargen, $fechaFinMargen])
             ->exists();
 
@@ -226,8 +236,29 @@ class CitaController extends Controller{
      * Remove the specified resource from storage.
      */
     public function destroy(Cita $cita){
+        // Liberar las horas ocupadas por esta cita antes de eliminarla
+        $fechaHora = Carbon::parse($cita->fecha_hora);
+        $empleadoId = $cita->id_empleado;
+        
+        // Calcular duración total de los servicios
+        $duracionTotal = $cita->servicios->sum('tiempo_estimado');
+        $bloques = ceil($duracionTotal / 30); // Bloques de 30 minutos
+        
+        // Liberar cada bloque de tiempo
+        $horaActual = $fechaHora->copy();
+        for ($i = 0; $i < $bloques; $i++) {
+            HorarioTrabajo::where('id_empleado', $empleadoId)
+                ->whereDate('fecha', $horaActual->format('Y-m-d'))
+                ->where('hora', $horaActual->format('H:i:s'))
+                ->update(['disponible' => true]);
+            
+            $horaActual->addMinutes(30);
+        }
+        
+        // Eliminar permanentemente la cita
         $cita->delete();
-        return redirect()->route('citas.index')->with('success', 'La cita ha sido eliminada con exito.');
+        
+        return redirect()->route('citas.index')->with('success', 'La cita ha sido eliminada permanentemente.');
     }
 
     /**
@@ -274,39 +305,96 @@ class CitaController extends Controller{
         $nuevaFechaHora = Carbon::parse($request->nueva_fecha_hora);
         $nuevoEmpleadoId = $request->nuevo_empleado_id;
 
-        // Validar que no esté fuera del horario laboral
-        $horarioDisponible = HorarioTrabajo::where('id_empleado', $nuevoEmpleadoId)
-            ->porFecha($nuevaFechaHora->format('Y-m-d'))
-            ->where('hora', $nuevaFechaHora->format('H:i:s'))
-            ->where('disponible', true)
-            ->exists();
+        // Validar que todos los bloques necesarios estén disponibles
+        $duracionMinutos = $cita->servicios->sum('tiempo_estimado');
+        $bloquesNecesarios = ceil($duracionMinutos / 30);
+        
+        $horaActual = $nuevaFechaHora->copy();
+        for ($i = 0; $i < $bloquesNecesarios; $i++) {
+            $horarioDisponible = HorarioTrabajo::where('id_empleado', $nuevoEmpleadoId)
+                ->where('fecha', $horaActual->format('Y-m-d'))
+                ->where('disponible', true)
+                ->where(function($query) use ($horaActual) {
+                    $hora = $horaActual->format('H:i:s');
+                    // Opción 1: Bloque específico con hora exacta
+                    $query->where('hora', $hora)
+                        // Opción 2: Rango de horas (hora_inicio y hora_fin)
+                        ->orWhere(function($q) use ($hora) {
+                            $q->whereTime('hora_inicio', '<=', $hora)
+                              ->whereTime('hora_fin', '>=', $hora);
+                        });
+                })
+                ->exists();
 
-        if (!$horarioDisponible) {
-            return response()->json([
-                'success' => false,
-                'message' => 'El empleado no está disponible en este horario.'
-            ], 400);
+            if (!$horarioDisponible) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No hay suficiente espacio disponible en este horario. La cita necesita ' . $duracionMinutos . ' minutos (' . $bloquesNecesarios . ' bloques de 30min).'
+                ], 400);
+            }
+            
+            $horaActual->addMinutes(30);
         }
 
         // Validar superposición con otras citas del mismo empleado
-        $horaFin = $nuevaFechaHora->copy()->addMinutes($cita->duracion_minutos);
+        $duracionMinutos = $cita->servicios->sum('tiempo_estimado');
+        $horaFin = $nuevaFechaHora->copy()->addMinutes($duracionMinutos);
         
-        $citaSuperpuesta = Cita::where('id_empleado', $nuevoEmpleadoId)
+        // Obtener todas las citas del empleado en el día para validar manualmente
+        $citasDelDia = Cita::with('servicios')
+            ->where('id_empleado', $nuevoEmpleadoId)
             ->where('id', '!=', $cita->id)
-            ->where(function($query) use ($nuevaFechaHora, $horaFin) {
-                $query->whereBetween('fecha_hora', [$nuevaFechaHora, $horaFin])
-                    ->orWhere(function($q) use ($nuevaFechaHora, $horaFin) {
-                        $q->where('fecha_hora', '<', $nuevaFechaHora)
-                          ->whereRaw('DATE_ADD(fecha_hora, INTERVAL duracion_minutos MINUTE) > ?', [$nuevaFechaHora]);
-                    });
-            })
-            ->exists();
+            ->whereIn('estado', ['pendiente', 'confirmada'])
+            ->whereDate('fecha_hora', $nuevaFechaHora->format('Y-m-d'))
+            ->get();
+        
+        $citaSuperpuesta = false;
+        foreach ($citasDelDia as $otraCita) {
+            $otraInicio = Carbon::parse($otraCita->fecha_hora);
+            $otraDuracion = $otraCita->servicios->sum('tiempo_estimado');
+            $otraFin = $otraInicio->copy()->addMinutes($otraDuracion);
+            
+            // Verificar si hay superposición
+            if (($nuevaFechaHora >= $otraInicio && $nuevaFechaHora < $otraFin) ||
+                ($horaFin > $otraInicio && $horaFin <= $otraFin) ||
+                ($nuevaFechaHora <= $otraInicio && $horaFin >= $otraFin)) {
+                $citaSuperpuesta = true;
+                break;
+            }
+        }
 
         if ($citaSuperpuesta) {
             return response()->json([
                 'success' => false,
                 'message' => 'Ya existe una cita que se superpone en este horario.'
             ], 400);
+        }
+        
+        // Liberar horarios antiguos
+        $fechaHoraAntigua = Carbon::parse($cita->fecha_hora);
+        $empleadoIdAntiguo = $cita->id_empleado;
+        $bloquesAntiguo = ceil($duracionMinutos / 30);
+        
+        $horaActual = $fechaHoraAntigua->copy();
+        for ($i = 0; $i < $bloquesAntiguo; $i++) {
+            HorarioTrabajo::where('id_empleado', $empleadoIdAntiguo)
+                ->whereDate('fecha', $horaActual->format('Y-m-d'))
+                ->where('hora', $horaActual->format('H:i:s'))
+                ->update(['disponible' => true]);
+            
+            $horaActual->addMinutes(30);
+        }
+        
+        // Ocupar nuevos horarios
+        $bloquesNuevo = ceil($duracionMinutos / 30);
+        $horaActual = $nuevaFechaHora->copy();
+        for ($i = 0; $i < $bloquesNuevo; $i++) {
+            HorarioTrabajo::where('id_empleado', $nuevoEmpleadoId)
+                ->whereDate('fecha', $horaActual->format('Y-m-d'))
+                ->where('hora', $horaActual->format('H:i:s'))
+                ->update(['disponible' => false]);
+            
+            $horaActual->addMinutes(30);
         }
 
         // Actualizar cita

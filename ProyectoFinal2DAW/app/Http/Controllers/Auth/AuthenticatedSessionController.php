@@ -24,9 +24,23 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        $request->authenticate();
+        \Log::info('=== INTENTO DE LOGIN ===');
+        \Log::info('Email: ' . $request->email);
+        \Log::info('Host recibido: ' . $request->getHost());
+        \Log::info('HTTP Host header: ' . $request->getHttpHost());
+        \Log::info('URL completa: ' . $request->fullUrl());
+        \Log::info('Datos del request:', $request->all());
+        
+        try {
+            $request->authenticate();
+            \Log::info('Autenticación exitosa');
+        } catch (\Exception $e) {
+            \Log::error('Error en autenticación: ' . $e->getMessage());
+            throw $e;
+        }
 
         $request->session()->regenerate();
+        \Log::info('Sesión regenerada, redirigiendo a dashboard');
 
         return redirect()->intended(route('dashboard', absolute: false));
     }

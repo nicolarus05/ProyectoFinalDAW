@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Registrar Nuevo Salón - {{ config('app.name') }}</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    {!! vite_asset(['resources/css/app.css', 'resources/js/app.js']) !!}
 </head>
 <body class="bg-gray-100">
     <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0">
@@ -18,6 +18,21 @@
         <!-- Formulario de Registro -->
         <div class="w-full sm:max-w-2xl mt-6 px-6 py-8 bg-white shadow-md overflow-hidden sm:rounded-lg">
             <h2 class="text-2xl font-semibold text-gray-800 mb-6 text-center">Registro de Nuevo Salón</h2>
+
+            @if (session('success'))
+                <div class="mb-6 bg-green-50 border border-green-400 text-green-800 px-6 py-4 rounded relative" role="alert">
+                    <h3 class="font-bold text-lg mb-2">¡Salón creado exitosamente! 🎉</h3>
+                    <p class="mb-3">Tu salón <strong>{{ session('tenant_name') }}</strong> ha sido creado correctamente.</p>
+                    <div class="bg-white border border-green-300 rounded p-4 mb-3">
+                        <p class="text-sm text-gray-700 mb-2"><strong>Email:</strong> {{ session('admin_email') }}</p>
+                        <p class="text-sm text-gray-700"><strong>Contraseña:</strong> La que ingresaste en el formulario</p>
+                    </div>
+                    <a href="{{ session('tenant_url') }}" 
+                       class="inline-block bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded transition">
+                        Ir al Login de mi Salón →
+                    </a>
+                </div>
+            @endif
 
             @if ($errors->any())
                 <div class="mb-4 bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
@@ -71,7 +86,7 @@
                                     class="block w-full rounded-l-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                                     placeholder="mi-salon">
                                 <span class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
-                                    .salonlolahernandez.ddns.net
+                                    .localhost
                                 </span>
                             </div>
                             <p class="mt-1 text-xs text-gray-500">

@@ -34,7 +34,8 @@
         },
         "files": [
             "app/Helpers/tenant_storage.php",
-            "app/Helpers/tenant_cache_queue.php"
+            "app/Helpers/tenant_cache_queue.php",
+            "app/Helpers/helpers.php"
         ]
     },
     "autoload-dev": {

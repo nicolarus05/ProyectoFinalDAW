@@ -22,10 +22,17 @@ use App\Http\Controllers\{
 | de cada tenant (salón). Cada salón accede a través de su subdominio:
 | ejemplo: salonlola.misalon.com, salonbelen.misalon.com
 |
-| Los middleware InitializeTenancyBySubdomain y PreventAccessFromCentralDomains
-| se configuran en bootstrap/app.php
+| IMPORTANTE: Los middleware de tenancy se aplican aquí directamente
 |
 */
+
+// GRUPO PRINCIPAL: Middleware de tenancy para TODAS las rutas
+// ORDEN CRÍTICO: 1. InitializeTenancy, 2. PreventAccess, 3. web (sesiones)
+Route::middleware([
+    \Stancl\Tenancy\Middleware\InitializeTenancyByDomain::class,
+    \Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains::class,
+    'web', // Sesiones, CSRF, cookies - DESPUÉS de inicializar tenant
+])->group(function () {
 
 // Dashboard - Página principal del tenant
 Route::get('/', fn () => view('dashboard'))
@@ -40,6 +47,14 @@ Route::get('/dashboard', fn () => view('dashboard'))
 Route::get('/login', [AuthenticatedSessionController::class, 'create'])
     ->middleware('guest')
     ->name('login');
+
+Route::post('/login', [AuthenticatedSessionController::class, 'store'])
+    ->middleware('guest')
+    ->name('login.post');
+
+Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
+    ->middleware('auth')
+    ->name('logout');
 
 Route::get('/forgot-password', [PasswordResetLinkController::class, 'create'])
     ->middleware('guest')
@@ -174,5 +189,7 @@ Route::middleware('auth')->group(function(){
     Route::put('/perfil/update', [ProfileController::class, 'update'])->name('perfil.update');
 });
 
-// Incluir rutas de autenticación desde auth.php
-require __DIR__.'/auth.php';
+// NOTA: No incluimos auth.php aquí porque las rutas de autenticación ya están definidas arriba
+// require __DIR__.'/auth.php';
+
+}); // FIN grupo middleware tenancy

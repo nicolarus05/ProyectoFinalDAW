@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Iniciar Sesión</title>
-    @vite(['resources/js/app.js', 'resources/css/app.css'])
+    {!! vite_asset(['resources/js/app.js', 'resources/css/app.css']) !!}
 </head>
 <body class="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
 
@@ -15,6 +15,22 @@
     @if (session('status'))
         <div class="mb-4 px-4 py-2 bg-green-100 text-green-800 rounded border border-green-300">
             {{ session('status') }}
+        </div>
+    @endif
+
+    @if (session('success'))
+        <div class="mb-4 px-4 py-2 bg-green-100 text-green-800 rounded border border-green-300">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    @if (session('errors'))
+        <div class="mb-4 px-4 py-2 bg-red-100 text-red-800 rounded border border-red-300">
+            <ul>
+                @foreach (session('errors')->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
         </div>
     @endif
 
@@ -62,7 +78,7 @@
     </form>
 
     <div class="text-center">
-        <a href="{{ route('register') }}"
+        <a href="{{ route('register.cliente') }}"
            class="text-black px-4 py-2 rounded border border-black hover:bg-gray-200 transition-colors duration-300 font-semibold">
             ¿No tienes cuenta? Regístrate
         </a>

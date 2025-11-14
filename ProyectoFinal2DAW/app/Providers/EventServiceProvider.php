@@ -3,7 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
-use Stancl\Tenancy\Events\TenantSaved;
+use Stancl\Tenancy\Events\DatabaseMigrated;
 use App\Listeners\RunTenantMigrations;
 
 class EventServiceProvider extends ServiceProvider
@@ -14,9 +14,9 @@ class EventServiceProvider extends ServiceProvider
      * @var array<class-string, array<int, class-string>>
      */
     protected $listen = [
-        // NOTE: Listener deshabilitado - las migraciones se ejecutan manualmente en TenantCreate
-        // para evitar conflictos con el ID del tenant durante el proceso de guardado
-        // TenantSaved::class => [
+        // DESHABILITADO TEMPORALMENTE: El cache tagging no funciona con driver 'file'
+        // La creación del admin se hace directamente en TenantRegistrationController
+        // DatabaseMigrated::class => [
         //     RunTenantMigrations::class,
         // ],
     ];

@@ -30,6 +30,24 @@ Route::get('/', function () {
 // Health Check endpoint para Render (sin middleware de autenticación)
 Route::get('/health', HealthCheckController::class)->name('health.check');
 
+// Ruta de prueba de sesión
+Route::get('/test-session', function () {
+    session()->put('test', 'valor_prueba');
+    session()->save(); // Forzar guardado
+    
+    // Verificar en BD
+    $sessionCount = DB::connection('central')->table('sessions')->count();
+    
+    return response()->json([
+        'session_driver' => config('session.driver'),
+        'session_connection' => config('session.connection'),
+        'session_put' => session()->get('test'),
+        'csrf_token' => csrf_token(),
+        'session_id' => session()->getId(),
+        'sessions_in_db' => $sessionCount,
+    ]);
+});
+
 // FASE 5: Registro de nuevos salones (tenants)
 Route::get('/registrar-salon', [TenantRegistrationController::class, 'create'])
     ->name('tenant.register.create');

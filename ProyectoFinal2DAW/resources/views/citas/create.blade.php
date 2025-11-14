@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Crear Cita - Flujo Rápido</title>
-    @vite(['resources/js/app.js', 'resources/css/citas-create.css', 'resources/js/citas-create.js'])
+    {!! vite_asset(['resources/css/app.css', 'resources/js/app.js', 'resources/css/citas-create.css', 'resources/js/citas-create.js']) !!}
 </head>
 <body class="bg-gray-50">
     
@@ -203,21 +203,73 @@
                                     </div>
                                 </div>
                             @else
-                                <!-- Admin o empleado: selección de cliente -->
+                                <!-- Admin o empleado: selección de cliente con buscador -->
                                 <div>
-                                    <label for="id_cliente" class="block text-sm font-semibold text-gray-700 mb-2">
+                                    <label for="search-cliente" class="block text-sm font-semibold text-gray-700 mb-2">
                                         Cliente <span class="text-red-500">*</span>
                                     </label>
-                                    <select name="id_cliente" id="id_cliente" required
-                                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
+                                    
+                                    <!-- Buscador de Cliente -->
+                                    <div class="relative mb-3">
+                                        <input type="text" 
+                                               id="search-cliente" 
+                                               placeholder="🔍 Buscar cliente por nombre o email..."
+                                               class="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                                               autocomplete="off">
+                                        <svg class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                        </svg>
+                                    </div>
+                                    
+                                    <!-- Select oculto para el formulario -->
+                                    <select name="id_cliente" id="id_cliente" required class="hidden">
                                         <option value="">-- Seleccione un cliente --</option>
                                         @foreach($clientes as $cliente)
-                                            <option value="{{ $cliente->id }}">
+                                            <option value="{{ $cliente->id }}"
+                                                    data-nombre="{{ strtolower($cliente->user->nombre . ' ' . $cliente->user->apellidos) }}"
+                                                    data-email="{{ strtolower($cliente->user->email ?? '') }}">
                                                 {{ $cliente->user->nombre }} {{ $cliente->user->apellidos }}
-                                                ({{ $cliente->user->email ?? 'Sin email' }})
                                             </option>
                                         @endforeach
                                     </select>
+                                    
+                                    <!-- Lista de clientes filtrable -->
+                                    <div id="clientes-list" class="border-2 border-gray-300 rounded-lg max-h-64 overflow-y-auto">
+                                        @foreach($clientes as $cliente)
+                                            <div class="cliente-item p-3 border-b border-gray-200 hover:bg-blue-50 cursor-pointer transition"
+                                                 data-cliente-id="{{ $cliente->id }}"
+                                                 data-nombre="{{ strtolower($cliente->user->nombre . ' ' . $cliente->user->apellidos) }}"
+                                                 data-email="{{ strtolower($cliente->user->email ?? '') }}">
+                                                <div class="flex items-center space-x-3">
+                                                    <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold">
+                                                        {{ strtoupper(substr($cliente->user->nombre ?? '', 0, 1)) }}
+                                                    </div>
+                                                    <div>
+                                                        <p class="font-semibold text-gray-900">{{ $cliente->user->nombre }} {{ $cliente->user->apellidos }}</p>
+                                                        <p class="text-sm text-gray-600">{{ $cliente->user->email ?? 'Sin email' }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                    
+                                    <!-- Cliente seleccionado -->
+                                    <div id="selected-cliente" class="mt-3 p-4 bg-blue-50 border-2 border-blue-300 rounded-lg hidden">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center space-x-3">
+                                                <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold">
+                                                    <span id="selected-cliente-inicial"></span>
+                                                </div>
+                                                <div>
+                                                    <p class="font-semibold text-gray-900" id="selected-cliente-nombre"></p>
+                                                    <p class="text-sm text-gray-600" id="selected-cliente-email"></p>
+                                                </div>
+                                            </div>
+                                            <button type="button" id="clear-cliente" class="text-red-600 hover:text-red-800 font-semibold">
+                                                ✕ Cambiar
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             @endif
 

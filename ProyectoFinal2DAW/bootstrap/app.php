@@ -7,21 +7,26 @@ use Illuminate\Support\Facades\Route;
 
 $app = Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
-        then: function () {
-            // Registrar rutas de tenant con middleware automático
-            Route::middleware([
-                'web',
-                Stancl\Tenancy\Middleware\InitializeTenancyBySubdomain::class,
-                Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains::class,
-            ])->group(base_path('routes/tenant.php'));
+        using: function () {
+            // Rutas centrales (sin tenant)
+            Route::middleware('web')
+                ->group(base_path('routes/web.php'));
+            
+            // Rutas de tenant (middleware 'web' aplicado dentro de tenant.php)
+            Route::group([], function () {
+                require base_path('routes/tenant.php');
+            });
         },
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // El middleware 'web' ya incluye StartSession por defecto
-        // Se ejecuta automáticamente en todas las rutas web
+        // El middleware 'web' incluye StartSession, VerifyCsrfToken, etc.
+        
+        // CSRF habilitado para todas las rutas (seguridad)
+        
+        // Agregar CORS headers a los assets estáticos para multi-tenancy
+        $middleware->append(\App\Http\Middleware\AddCorsHeadersToAssets::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

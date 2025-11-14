@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Calendario de Citas</title>
-    @vite(['resources/css/calendar.css', 'resources/js/calendar.js', 'resources/js/app.js'])
+    {!! vite_asset(['resources/css/app.css', 'resources/css/calendar.css', 'resources/js/calendar.js', 'resources/js/app.js']) !!}
 </head>
 <body>
     <div id="calendar-app" 
@@ -187,8 +187,11 @@
                                         if (!$horarioTrabajo->disponible) {
                                             $bloqueDeshabilitado = true;
                                             $disponible = false;
-                                            break;
+                                        } else {
+                                            // Bloque disponible con hora exacta
+                                            $disponible = true;
                                         }
+                                        break; // Ya encontramos el bloque exacto, no seguir buscando
                                     }
                                     
                                     // Luego verificar si está dentro del rango de trabajo general
@@ -219,7 +222,7 @@
                                  @if($disponible && !$bloqueDeshabilitado)
                                  ondrop="drop(event)"
                                  ondragover="allowDrop(event)"
-                                 onclick="crearCitaRapida({{ $empleado->id }}, '{{ $horaCarbon->format('Y-m-d H:i:s') }}')"
+                                 onclick="crearCitaRapida({{ $empleado->id }}, '{{ $horaCarbon->format('Y-m-d H:i:s') }}', event)"
                                  @endif
                                  @if($bloqueDeshabilitado)
                                  title="⛔ Hora deshabilitada"
@@ -236,15 +239,30 @@
                             @php
                                 $horaInicio = \Carbon\Carbon::parse($cita->fecha_hora);
                                 $horaBase = \Carbon\Carbon::parse($fecha->format('Y-m-d') . ' 08:00:00');
-                                // diffInMinutes calcula: $horaBase->diffInMinutes($horaInicio) para obtener positivo
-                                $minutosDesdeInicio = $horaBase->diffInMinutes($horaInicio);
+                                // Calcular minutos desde las 8:00
+                                $minutosDesdeInicio = $horaBase->diffInMinutes($horaInicio, false);
                                 // Calcular número de bloques de 30 minutos desde las 8:00
                                 $numeroBloque = $minutosDesdeInicio / 30;
-                                // Cada celda ocupa exactamente 80px (sin contar el borde que se solapa)
-                                // Sumar: 140px (header) + (80px altura celda) * número de bloques + 4px margen superior
-                                $topPosition = 140 + ($numeroBloque * 80) + 4;
-                                // Altura proporcional: cada 30 min = 80px, menos 8px de márgenes (4px arriba + 4px abajo)
-                                $altura = (($cita->duracion_minutos / 30) * 80) - 8;
+                                // Cada celda ocupa exactamente 80px de altura
+                                // Posición: 140px (header) + (bloques * 80px por bloque) + 2px margen
+                                $topPosition = 140 + ($numeroBloque * 80) + 2;
+                                
+                                // CÁLCULO BASADO EN TIEMPO REAL
+                                // Cada bloque de 30 minutos = 80px
+                                // La cita ocupa 92% del espacio proporcional a su duración
+                                // Mínimo: 1 celda completa (92%) aunque la cita dure menos de 30 min
+                                $bloquesOcupados = max(1, $cita->duracion_minutos / 30);
+                                $altura = ($bloquesOcupados * 80) * 0.92;
+                                
+                                // Ejemplos de cálculo:
+                                // 15 min: max(1, 15/30) = 1 → 1 * 80 * 0.92 = 73.6px (92% de 1 celda)
+                                // 30 min: max(1, 30/30) = 1 → 1 * 80 * 0.92 = 73.6px (92% de 1 celda)
+                                // 45 min: max(1, 45/30) = 1.5 → 1.5 * 80 * 0.92 = 110.4px (92% de 1.5 celdas)
+                                // 60 min: max(1, 60/30) = 2 → 2 * 80 * 0.92 = 147.2px (92% de 2 celdas)
+                                // 90 min: max(1, 90/30) = 3 → 3 * 80 * 0.92 = 220.8px (92% de 3 celdas)
+                                // 45 min: max(78.4, 117.6) = 117.6px (98% de 1.5 celdas)
+                                // 60 min: max(78.4, 156.8) = 156.8px (98% de 2 celdas)
+                                // 90 min: max(78.4, 235.2) = 235.2px (98% de 3 celdas)
                                 
                                 // Determinar categoría predominante de los servicios
                                 $categoriaServicio = 'peluqueria'; // por defecto
@@ -257,45 +275,55 @@
                             @endphp
                             
                             <div class="cita-card {{ $cita->estado }} cita-{{ $categoriaServicio }}"
-                                 draggable="{{ $cita->estado !== 'cancelada' && $cita->estado !== 'completada' ? 'true' : 'false' }}"
-                                 ondragstart="{{ $cita->estado !== 'cancelada' && $cita->estado !== 'completada' ? 'drag(event)' : 'return false;' }}"
                                  data-cita-id="{{ $cita->id }}"
-                                 style="top: {{ $topPosition }}px; height: {{ $altura }}px; {{ $cita->estado === 'cancelada' || $cita->estado === 'completada' ? 'cursor: default;' : '' }}">
+                                 style="top: {{ $topPosition }}px; height: {{ $altura }}px;">
                                 
-                                <div class="cita-info">
-                                    <div class="cita-cliente">
-                                        {{ $cita->cliente && $cita->cliente->user ? $cita->cliente->user->nombre . ' ' . $cita->cliente->user->apellidos : 'Cliente no disponible' }}
-                                    </div>
-                                    
-                                    <div class="cita-servicio">
-                                        {{ $cita->servicios->isNotEmpty() ? $cita->servicios->pluck('nombre')->join(', ') : 'Servicio no especificado' }}
-                                    </div>
-                                </div>
-
                                 @if($cita->estado !== 'completada' && $cita->estado !== 'cancelada')
-                                    <div class="cita-acciones">
-                                        <form action="{{ route('citas.completarYCobrar', $cita->id) }}" method="POST" style="display: inline;">
-                                            @csrf
-                                            <button type="submit" class="btn-accion btn-completar" 
-                                                    onclick="event.stopPropagation();"
-                                                    title="Completar y cobrar">
-                                                ✓
-                                            </button>
-                                        </form>
-                                        <form action="{{ route('citas.cancelar', $cita->id) }}" method="POST" style="display: inline;">
-                                            @csrf
-                                            <button type="submit" class="btn-accion btn-cancelar" 
-                                                    onclick="event.stopPropagation(); return confirm('¿Estás seguro de que deseas cancelar esta cita?');"
-                                                    title="Cancelar cita">
-                                                ✕
-                                            </button>
-                                        </form>
-                                        <button class="btn-accion btn-ver" 
-                                                onclick="event.stopPropagation(); window.location.href='{{ route('citas.show', $cita->id) }}'">
-                                            👁
-                                        </button>
+                                    <div class="cita-drag-handle" 
+                                         draggable="true"
+                                         ondragstart="drag(event)">
+                                        <span class="cita-drag-icon">⋮⋮</span>
+                                        <span style="font-size: 11px; opacity: 0.7;">Arrastra para mover</span>
                                     </div>
                                 @endif
+                                
+                                <div class="cita-content">
+                                    <div class="cita-info">
+                                        <div class="cita-cliente">
+                                            {{ $cita->cliente && $cita->cliente->user ? $cita->cliente->user->nombre . ' ' . $cita->cliente->user->apellidos : 'Cliente no disponible' }}
+                                        </div>
+                                        
+                                        <div class="cita-servicio">
+                                            {{ $cita->servicios->isNotEmpty() ? $cita->servicios->pluck('nombre')->join(', ') : 'Servicio no especificado' }}
+                                        </div>
+                                    </div>
+
+                                    @if($cita->estado !== 'completada' && $cita->estado !== 'cancelada')
+                                        <div class="cita-acciones">
+                                            <form action="{{ route('citas.completarYCobrar', $cita->id) }}" method="POST" style="display: inline;">
+                                                @csrf
+                                                <button type="submit" class="btn-accion btn-completar" 
+                                                        onclick="event.stopPropagation();"
+                                                        title="Completar y cobrar">
+                                                    ✓
+                                                </button>
+                                            </form>
+                                            <form action="{{ route('citas.destroy', $cita->id) }}" method="POST" style="display: inline;">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn-accion btn-cancelar" 
+                                                        onclick="event.stopPropagation(); return confirm('¿Estás seguro de que deseas eliminar esta cita permanentemente?');"
+                                                        title="Eliminar cita">
+                                                    ✕
+                                                </button>
+                                            </form>
+                                            <button class="btn-accion btn-ver" 
+                                                    onclick="event.stopPropagation(); window.location.href='{{ route('citas.show', $cita->id) }}'">
+                                                👁
+                                            </button>
+                                        </div>
+                                    @endif
+                                </div>
                             </div>
                         @endforeach
                     </div>

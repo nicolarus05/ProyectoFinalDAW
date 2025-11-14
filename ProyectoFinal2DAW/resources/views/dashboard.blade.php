@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel de Control - Salón de Belleza</title>
-    @vite(['resources/css/dashboard.css', 'resources/css/app.css', 'resources/js/app.js'])
+    {!! vite_asset(['resources/css/dashboard.css', 'resources/css/app.css', 'resources/js/app.js']) !!}
 </head>
 <body class="min-h-screen bg-white">
     @php

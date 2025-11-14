@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Historial de {{ $empleado->user->nombre ?? 'Empleado' }}</title>
-    @vite(['resources/js/app.js'])
+    {!! vite_asset(['resources/css/app.css', 'resources/js/app.js']) !!}
 </head>
 <body class="min-h-screen bg-gray-100">
     

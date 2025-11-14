@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Restablecer Contraseña</title>
-    @vite(['resources/js/app.js']) <!-- Asegúrate de tener Tailwind incluido -->
+    {!! vite_asset(['resources/css/app.css', 'resources/js/app.js']) !!} <!-- Asegúrate de tener Tailwind incluido -->
 </head>
 <body class="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
 

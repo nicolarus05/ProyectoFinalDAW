@@ -19,6 +19,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Compartir $errors con todas las vistas para compatibilidad con multi-tenancy
+        view()->composer('*', function ($view) {
+            $errors = session()->get('errors', new \Illuminate\Support\ViewErrorBag());
+            $view->with('errors', $errors);
+        });
     }
 }

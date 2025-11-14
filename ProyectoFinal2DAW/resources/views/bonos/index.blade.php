@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bonos - Plantillas</title>
-    @vite(['resources/js/app.js'])
+    {!! vite_asset(['resources/css/app.css', 'resources/js/app.js']) !!}
     <style>
         .btn-float {
             position: fixed;

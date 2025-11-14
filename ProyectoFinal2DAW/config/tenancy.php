@@ -21,8 +21,7 @@ return [
     'central_domains' => [
         '127.0.0.1',
         'localhost',
-        'salonlolahernandez.ddns.net', // Dominio de desarrollo
-        // En producción: 'misalon.com'
+        // NO incluir puerto aquí - interfiere con detección de tenant
     ],
 
     /**
@@ -33,7 +32,8 @@ return [
      */
     'bootstrappers' => [
         Stancl\Tenancy\Bootstrappers\DatabaseTenancyBootstrapper::class,
-        Stancl\Tenancy\Bootstrappers\CacheTenancyBootstrapper::class,
+        // DESHABILITADO: CacheTenancyBootstrapper requiere tags, no compatible con driver 'file'
+        // Stancl\Tenancy\Bootstrappers\CacheTenancyBootstrapper::class,
         Stancl\Tenancy\Bootstrappers\FilesystemTenancyBootstrapper::class,
         Stancl\Tenancy\Bootstrappers\QueueTenancyBootstrapper::class,
         // Stancl\Tenancy\Bootstrappers\RedisTenancyBootstrapper::class, // Note: phpredis is needed
@@ -47,9 +47,10 @@ return [
 
         /**
          * Connection used as a "template" for the dynamically created tenant database connection.
-         * Note: don't name your template connection tenant. That name is reserved by package.
+         * This connection config will be cloned and the database name will be changed to the tenant's database.
+         * The package will create a 'tenant' connection dynamically at runtime.
          */
-        'template_tenant_connection' => null,
+        'template_tenant_connection' => 'mysql',
 
         /**
          * Tenant database names are created like this:
@@ -189,7 +190,7 @@ return [
      */
     'migration_parameters' => [
         '--force' => true, // This needs to be true to run migrations in production.
-        '--path' => [database_path('migrations/tenant')],
+        '--path' => database_path('migrations/tenant'),
         '--realpath' => true,
     ],
 

@@ -17,8 +17,13 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     window.drag = function(ev) {
-        ev.dataTransfer.setData("citaId", ev.target.dataset.citaId);
-        ev.target.classList.add('dragging');
+        // Obtener el ID de la cita desde el elemento padre .cita-card
+        const citaCard = ev.target.closest('.cita-card');
+        if (citaCard) {
+            const citaId = citaCard.dataset.citaId;
+            ev.dataTransfer.setData("citaId", citaId);
+            citaCard.classList.add('dragging');
+        }
     };
 
     window.drop = function(ev) {
@@ -110,9 +115,13 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     // Crear Cita Rápida
-    window.crearCitaRapida = function(empleadoId, fechaHora) {
-        const celda = event.target;
-        if (celda.classList.contains('no-disponible')) {
+    window.crearCitaRapida = function(empleadoId, fechaHora, event) {
+        // Si no se pasa el evento como parámetro, usar el global window.event
+        const e = event || window.event;
+        const celda = e ? e.target : null;
+        
+        // Verificar que no sea una celda no disponible o deshabilitada
+        if (celda && (celda.classList.contains('no-disponible') || celda.classList.contains('hora-deshabilitada'))) {
             return;
         }
         

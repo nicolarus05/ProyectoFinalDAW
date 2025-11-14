@@ -477,7 +477,7 @@ ping bella-vista.localhost
 ./vendor/bin/sail up -d
 
 # Verificar puerto (por defecto 80)
-docker ps | grep sail
+docker ps | grep sailSHOW DATABASES LIKE 'tenant%';
 ```
 
 **Abrir navegador**:
