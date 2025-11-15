@@ -69,8 +69,39 @@ class HorarioTrabajoController extends Controller{
             'notas' => 'nullable|string|max:1000',
         ]);
 
-        HorarioTrabajo::create($data);
-        return redirect()->route('horarios.index');
+        // ELIMINAR todos los horarios existentes para este empleado en esta fecha
+        HorarioTrabajo::where('id_empleado', $data['id_empleado'])
+            ->where('fecha', $data['fecha'])
+            ->delete();
+
+        // CREAR bloques de 15 minutos
+        $bloques = HorarioTrabajo::generarBloquesHorarios(
+            $data['hora_inicio'],
+            $data['hora_fin']
+        );
+
+        foreach ($bloques as $hora) {
+            HorarioTrabajo::create([
+                'id_empleado' => $data['id_empleado'],
+                'fecha' => $data['fecha'],
+                'hora' => $hora,
+                'disponible' => $data['disponible'] ?? true,
+                'notas' => $data['notas'] ?? null,
+            ]);
+        }
+
+        // CREAR registro general con hora_inicio y hora_fin para el calendario
+        HorarioTrabajo::create([
+            'id_empleado' => $data['id_empleado'],
+            'fecha' => $data['fecha'],
+            'hora_inicio' => $data['hora_inicio'],
+            'hora_fin' => $data['hora_fin'],
+            'disponible' => $data['disponible'] ?? true,
+            'notas' => $data['notas'] ?? null,
+        ]);
+
+        return redirect()->route('horarios.index')
+            ->with('success', 'Horario creado correctamente. Se han sobrescrito los horarios anteriores de ese día.');
     }
 
     /**
@@ -129,13 +160,18 @@ class HorarioTrabajoController extends Controller{
         // Generar para 6 días (lunes a sábado)
         for ($dia = 0; $dia < 6; $dia++) {
             $fecha = $fechaInicio->copy()->addDays($dia);
-            $mes = $fecha->month;
-            $tipoHorario = HorarioTrabajo::tipoHorarioPorMes($mes);
-            $horaFin = HorarioTrabajo::horaFinPorTipo($tipoHorario);
+            
+            // Obtener horario específico para este día
+            $horarioDia = HorarioTrabajo::obtenerHorarioPorFecha($fecha);
+            
+            if (!$horarioDia) {
+                // Día no laborable (domingo), saltar
+                continue;
+            }
             
             $bloques = HorarioTrabajo::generarBloquesHorarios(
-                HorarioTrabajo::HORA_INICIO_NORMAL,
-                $horaFin
+                $horarioDia['inicio'],
+                $horarioDia['fin']
             );
 
             foreach ($bloques as $hora) {
@@ -151,7 +187,6 @@ class HorarioTrabajoController extends Controller{
                         'fecha' => $fecha->format('Y-m-d'),
                         'hora' => $hora,
                         'disponible' => true,
-                        'tipo_horario' => $tipoHorario,
                     ]);
                     $registrosCreados++;
                 }
@@ -180,16 +215,23 @@ class HorarioTrabajoController extends Controller{
         $fechaInicio = Carbon::create($anio, $mes, 1);
         $fechaFin = $fechaInicio->copy()->endOfMonth();
 
-        $tipoHorario = HorarioTrabajo::tipoHorarioPorMes($mes);
-        $horaFin = HorarioTrabajo::horaFinPorTipo($tipoHorario);
-
         $fecha = $fechaInicio->copy();
         while ($fecha <= $fechaFin) {
             // Solo días laborables (lunes a sábado)
             if (in_array($fecha->dayOfWeek, HorarioTrabajo::DIAS_LABORABLES)) {
+                
+                // Obtener horario específico para este día
+                $horarioDia = HorarioTrabajo::obtenerHorarioPorFecha($fecha);
+                
+                if (!$horarioDia) {
+                    // Día no laborable, saltar
+                    $fecha->addDay();
+                    continue;
+                }
+                
                 $bloques = HorarioTrabajo::generarBloquesHorarios(
-                    HorarioTrabajo::HORA_INICIO_NORMAL,
-                    $horaFin
+                    $horarioDia['inicio'],
+                    $horarioDia['fin']
                 );
 
                 foreach ($bloques as $hora) {
@@ -204,7 +246,6 @@ class HorarioTrabajoController extends Controller{
                             'fecha' => $fecha->format('Y-m-d'),
                             'hora' => $hora,
                             'disponible' => true,
-                            'tipo_horario' => $tipoHorario,
                         ]);
                         $registrosCreados++;
                     }
@@ -235,16 +276,23 @@ class HorarioTrabajoController extends Controller{
             $fechaInicio = Carbon::create($anio, $mes, 1);
             $fechaFin = $fechaInicio->copy()->endOfMonth();
 
-            $tipoHorario = HorarioTrabajo::tipoHorarioPorMes($mes);
-            $horaFin = HorarioTrabajo::horaFinPorTipo($tipoHorario);
-
             $fecha = $fechaInicio->copy();
             while ($fecha <= $fechaFin) {
                 // Solo días laborables (lunes a sábado)
                 if (in_array($fecha->dayOfWeek, HorarioTrabajo::DIAS_LABORABLES)) {
+                    
+                    // Obtener horario específico para este día
+                    $horarioDia = HorarioTrabajo::obtenerHorarioPorFecha($fecha);
+                    
+                    if (!$horarioDia) {
+                        // Día no laborable, saltar
+                        $fecha->addDay();
+                        continue;
+                    }
+                    
                     $bloques = HorarioTrabajo::generarBloquesHorarios(
-                        HorarioTrabajo::HORA_INICIO_NORMAL,
-                        $horaFin
+                        $horarioDia['inicio'],
+                        $horarioDia['fin']
                     );
 
                     foreach ($bloques as $hora) {
@@ -259,7 +307,6 @@ class HorarioTrabajoController extends Controller{
                                 'fecha' => $fecha->format('Y-m-d'),
                                 'hora' => $hora,
                                 'disponible' => true,
-                                'tipo_horario' => $tipoHorario,
                             ]);
                             $registrosCreados++;
                         }

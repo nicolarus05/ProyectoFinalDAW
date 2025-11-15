@@ -88,16 +88,39 @@
                 <p class="text-xs text-gray-500 mt-2">Los productos se añadirán al registrar el cobro.</p>
             </div>
 
-            <div class="flex space-x-4">
-                <div class="flex-1">
-                    <label for="descuento_porcentaje" class="block font-semibold mb-1">Descuento %:</label>
-                    <input type="number" name="descuento_porcentaje" id="descuento_porcentaje" class="w-full border rounded px-3 py-2" step="0.01" value="0">
-                </div>
-                <div class="flex-1">
-                    <label for="descuento_euro" class="block font-semibold mb-1">Descuento €:</label>
-                    <input type="number" name="descuento_euro" id="descuento_euro" class="w-full border rounded px-3 py-2" step="0.01" value="0">
+            <!-- Descuentos para Servicios -->
+            <div class="bg-blue-50 border border-blue-200 rounded p-4">
+                <h3 class="font-semibold mb-3 text-blue-800">💇 Descuentos para Servicios</h3>
+                <div class="flex space-x-4">
+                    <div class="flex-1">
+                        <label for="descuento_servicios_porcentaje" class="block font-semibold mb-1">Descuento %:</label>
+                        <input type="number" name="descuento_servicios_porcentaje" id="descuento_servicios_porcentaje" class="w-full border rounded px-3 py-2" step="0.01" value="0">
+                    </div>
+                    <div class="flex-1">
+                        <label for="descuento_servicios_euro" class="block font-semibold mb-1">Descuento €:</label>
+                        <input type="number" name="descuento_servicios_euro" id="descuento_servicios_euro" class="w-full border rounded px-3 py-2" step="0.01" value="0">
+                    </div>
                 </div>
             </div>
+
+            <!-- Descuentos para Productos -->
+            <div class="bg-green-50 border border-green-200 rounded p-4">
+                <h3 class="font-semibold mb-3 text-green-800">🛍️ Descuentos para Productos</h3>
+                <div class="flex space-x-4">
+                    <div class="flex-1">
+                        <label for="descuento_productos_porcentaje" class="block font-semibold mb-1">Descuento %:</label>
+                        <input type="number" name="descuento_productos_porcentaje" id="descuento_productos_porcentaje" class="w-full border rounded px-3 py-2" step="0.01" value="0">
+                    </div>
+                    <div class="flex-1">
+                        <label for="descuento_productos_euro" class="block font-semibold mb-1">Descuento €:</label>
+                        <input type="number" name="descuento_productos_euro" id="descuento_productos_euro" class="w-full border rounded px-3 py-2" step="0.01" value="0">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Campos ocultos para compatibilidad con el sistema antiguo -->
+            <input type="hidden" name="descuento_porcentaje" id="descuento_porcentaje" value="0">
+            <input type="hidden" name="descuento_euro" id="descuento_euro" value="0">
 
             <div>
                 <label for="total_final" class="block font-semibold mb-1">Total Final:</label>

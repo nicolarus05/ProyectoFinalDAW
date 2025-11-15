@@ -61,19 +61,25 @@ class RegenerarHorariosCommand extends Command
                 $fechaInicio = Carbon::create($anio, $mesActual, 1);
                 $fechaFin = $fechaInicio->copy()->endOfMonth();
 
-                $tipoHorario = HorarioTrabajo::tipoHorarioPorMes($mesActual);
-                $horaFinJornada = HorarioTrabajo::horaFinPorTipo($tipoHorario);
-
                 $fecha = $fechaInicio->copy();
                 
                 while ($fecha <= $fechaFin) {
                     // Solo días laborables (lunes a sábado)
                     if (in_array($fecha->dayOfWeek, HorarioTrabajo::DIAS_LABORABLES)) {
                         
-                        // Generar bloques horarios de 30 minutos
+                        // Obtener horario específico para este día
+                        $horarioDia = HorarioTrabajo::obtenerHorarioPorFecha($fecha);
+                        
+                        if (!$horarioDia) {
+                            // Día no laborable, saltar
+                            $fecha->addDay();
+                            continue;
+                        }
+                        
+                        // Generar bloques horarios de 15 minutos
                         $bloques = HorarioTrabajo::generarBloquesHorarios(
-                            HorarioTrabajo::HORA_INICIO_NORMAL,
-                            $horaFinJornada
+                            $horarioDia['inicio'],
+                            $horarioDia['fin']
                         );
 
                         foreach ($bloques as $hora) {
@@ -90,7 +96,6 @@ class RegenerarHorariosCommand extends Command
                                     'fecha' => $fecha->format('Y-m-d'),
                                     'hora' => $hora,
                                     'disponible' => true,
-                                    'tipo_horario' => $tipoHorario,
                                 ]);
                                 $totalCreados++;
                             }
@@ -106,10 +111,9 @@ class RegenerarHorariosCommand extends Command
                             HorarioTrabajo::create([
                                 'id_empleado' => $empleado->id,
                                 'fecha' => $fecha->format('Y-m-d'),
-                                'hora_inicio' => HorarioTrabajo::HORA_INICIO_NORMAL,
-                                'hora_fin' => $horaFinJornada,
+                                'hora_inicio' => $horarioDia['inicio'],
+                                'hora_fin' => $horarioDia['fin'],
                                 'disponible' => true,
-                                'tipo_horario' => $tipoHorario,
                             ]);
                         }
                     }

@@ -77,6 +77,10 @@ class RegistroCobroController extends Controller{
             'coste' => 'required|numeric|min:0',
             'descuento_porcentaje' => 'nullable|numeric|min:0',
             'descuento_euro' => 'nullable|numeric|min:0',
+            'descuento_servicios_porcentaje' => 'nullable|numeric|min:0',
+            'descuento_servicios_euro' => 'nullable|numeric|min:0',
+            'descuento_productos_porcentaje' => 'nullable|numeric|min:0',
+            'descuento_productos_euro' => 'nullable|numeric|min:0',
             'total_final' => 'required|numeric|min:0',
             'metodo_pago' => 'required|in:efectivo,tarjeta,mixto',
             'dinero_cliente' => 'nullable|numeric|min:0',
@@ -211,6 +215,10 @@ class RegistroCobroController extends Controller{
             'coste' => $data['coste'],
             'descuento_porcentaje' => $data['descuento_porcentaje'] ?? 0,
             'descuento_euro' => ($data['descuento_euro'] ?? 0) + $descuentoBonos, // Sumar descuento por bonos
+            'descuento_servicios_porcentaje' => $data['descuento_servicios_porcentaje'] ?? 0,
+            'descuento_servicios_euro' => $data['descuento_servicios_euro'] ?? 0,
+            'descuento_productos_porcentaje' => $data['descuento_productos_porcentaje'] ?? 0,
+            'descuento_productos_euro' => $data['descuento_productos_euro'] ?? 0,
             'total_final' => $totalAjustado, // Guardar el total ajustado
             'dinero_cliente' => $data['dinero_cliente'] ?? 0,
             'pago_efectivo' => $data['metodo_pago'] === 'mixto' ? ($data['pago_efectivo'] ?? 0) : null,
@@ -249,16 +257,19 @@ class RegistroCobroController extends Controller{
                             ->withErrors(['products' => 'Producto no encontrado: ID ' . $p['id']])
                             ->withInput();
                     }
-
+                    
+                    // Verificar stock
                     if ($producto->stock < $cantidad) {
                         return back()
-                            ->withErrors(['products' => 'Stock insuficiente para el producto: ' . $producto->nombre . '. Stock disponible: ' . $producto->stock])
+                            ->withErrors(['products' => 'Stock insuficiente para: ' . $producto->nombre])
                             ->withInput();
                     }
 
+                    // Descontar del stock
                     $producto->stock -= $cantidad;
                     $producto->save();
 
+                    // Asociar el producto al cobro
                     $cobro->productos()->attach($p['id'], [
                         'cantidad' => $cantidad,
                         'precio_unitario' => $precio,
@@ -267,6 +278,14 @@ class RegistroCobroController extends Controller{
                         'updated_at' => now(),
                     ]);
                 }
+            }
+        }
+
+        // --- IMPORTANTE: Marcar la cita como completada SOLO si el cobro se registró exitosamente ---
+        if (!empty($data['id_cita'])) {
+            $citaParaCompletar = Cita::find($data['id_cita']);
+            if ($citaParaCompletar && $citaParaCompletar->estado !== 'completada') {
+                $citaParaCompletar->update(['estado' => 'completada']);
             }
         }
 

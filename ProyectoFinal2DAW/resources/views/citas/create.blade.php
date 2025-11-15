@@ -340,7 +340,7 @@
                                        value="{{ request('fecha_hora') ? \Carbon\Carbon::parse(request('fecha_hora'))->format('H:i') : '' }}"
                                        required
                                        class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
-                                <p class="text-xs text-gray-500 mt-1">Horario disponible: 08:00 - 20:00</p>
+                                <p class="text-xs text-gray-500 mt-1">Horario según temporada: Invierno L-V 9:00-20:00, Sáb 8:30-14:00 | Verano L-S 8:30-14:00 (Mié 8:30-19:00)</p>
                             </div>
 
                             <!-- Notas Adicionales -->

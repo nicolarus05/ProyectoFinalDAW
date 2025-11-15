@@ -24,10 +24,25 @@ class CitaController extends Controller{
         $fecha = $request->fecha ? Carbon::parse($request->fecha) : Carbon::today();
 
         // Obtener todos los empleados para las columnas del calendario
-        $empleados = Empleado::with('user')->get();
+        // Ordenados por categoría (peluquería primero, luego estética) y luego por nombre
+        $empleados = Empleado::with('user')
+            ->orderByRaw("FIELD(categoria, 'peluqueria', 'estetica')")
+            ->orderBy('id')
+            ->get();
 
-        // Generar franjas horarias cada 30 minutos
-        $horariosArray = HorarioTrabajo::generarBloquesHorarios('08:00', '20:00');
+        // Obtener horario según la fecha (invierno/verano, día de la semana)
+        $horarioDia = HorarioTrabajo::obtenerHorarioPorFecha($fecha);
+        
+        if (!$horarioDia) {
+            // Día no laborable (domingo)
+            $horariosArray = [];
+        } else {
+            // Generar franjas horarias cada 15 minutos según el horario del día
+            $horariosArray = HorarioTrabajo::generarBloquesHorarios(
+                $horarioDia['inicio'], 
+                $horarioDia['fin']
+            );
+        }
 
         if ($user->rol === 'cliente') {
             $cliente = $user->cliente;
@@ -242,7 +257,7 @@ class CitaController extends Controller{
         
         // Calcular duración total de los servicios
         $duracionTotal = $cita->servicios->sum('tiempo_estimado');
-        $bloques = ceil($duracionTotal / 30); // Bloques de 30 minutos
+        $bloques = ceil($duracionTotal / 15); // Bloques de 15 minutos
         
         // Liberar cada bloque de tiempo
         $horaActual = $fechaHora->copy();
@@ -252,7 +267,7 @@ class CitaController extends Controller{
                 ->where('hora', $horaActual->format('H:i:s'))
                 ->update(['disponible' => true]);
             
-            $horaActual->addMinutes(30);
+            $horaActual->addMinutes(15);
         }
         
         // Eliminar permanentemente la cita
@@ -265,6 +280,11 @@ class CitaController extends Controller{
      * Cancelar una cita
      */
     public function cancelar(Cita $cita){
+        // Si la cita tiene un cobro asociado, eliminarlo
+        if ($cita->cobro) {
+            $cita->cobro->delete();
+        }
+        
         // Cambiar el estado a cancelada
         $cita->update(['estado' => 'cancelada']);
 
@@ -275,7 +295,7 @@ class CitaController extends Controller{
         
         // Calcular duración total de los servicios
         $duracionTotal = $cita->servicios->sum('tiempo_estimado');
-        $bloques = ceil($duracionTotal / 30); // Bloques de 30 minutos
+        $bloques = ceil($duracionTotal / 15); // Bloques de 15 minutos
         
         // Liberar cada bloque de tiempo
         $horaActual = $fechaHora->copy();
@@ -285,10 +305,15 @@ class CitaController extends Controller{
                 ->where('hora', $horaActual->format('H:i:s'))
                 ->update(['disponible' => true]);
             
-            $horaActual->addMinutes(30);
+            $horaActual->addMinutes(15);
         }
 
-        return redirect()->route('citas.index')->with('success', 'La cita ha sido cancelada y las horas han sido liberadas.');
+        $mensaje = 'La cita ha sido cancelada y las horas han sido liberadas.';
+        if ($cita->cobro) {
+            $mensaje .= ' El cobro asociado ha sido eliminado.';
+        }
+
+        return redirect()->route('citas.index')->with('success', $mensaje);
     }
 
     /**
@@ -307,7 +332,7 @@ class CitaController extends Controller{
 
         // Validar que todos los bloques necesarios estén disponibles
         $duracionMinutos = $cita->servicios->sum('tiempo_estimado');
-        $bloquesNecesarios = ceil($duracionMinutos / 30);
+        $bloquesNecesarios = ceil($duracionMinutos / 15);
         
         $horaActual = $nuevaFechaHora->copy();
         for ($i = 0; $i < $bloquesNecesarios; $i++) {
@@ -329,11 +354,11 @@ class CitaController extends Controller{
             if (!$horarioDisponible) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No hay suficiente espacio disponible en este horario. La cita necesita ' . $duracionMinutos . ' minutos (' . $bloquesNecesarios . ' bloques de 30min).'
+                    'message' => 'No hay suficiente espacio disponible en este horario. La cita necesita ' . $duracionMinutos . ' minutos (' . $bloquesNecesarios . ' bloques de 15min).'
                 ], 400);
             }
             
-            $horaActual->addMinutes(30);
+            $horaActual->addMinutes(15);
         }
 
         // Validar superposición con otras citas del mismo empleado
@@ -373,7 +398,7 @@ class CitaController extends Controller{
         // Liberar horarios antiguos
         $fechaHoraAntigua = Carbon::parse($cita->fecha_hora);
         $empleadoIdAntiguo = $cita->id_empleado;
-        $bloquesAntiguo = ceil($duracionMinutos / 30);
+        $bloquesAntiguo = ceil($duracionMinutos / 15);
         
         $horaActual = $fechaHoraAntigua->copy();
         for ($i = 0; $i < $bloquesAntiguo; $i++) {
@@ -382,11 +407,11 @@ class CitaController extends Controller{
                 ->where('hora', $horaActual->format('H:i:s'))
                 ->update(['disponible' => true]);
             
-            $horaActual->addMinutes(30);
+            $horaActual->addMinutes(15);
         }
         
         // Ocupar nuevos horarios
-        $bloquesNuevo = ceil($duracionMinutos / 30);
+        $bloquesNuevo = ceil($duracionMinutos / 15);
         $horaActual = $nuevaFechaHora->copy();
         for ($i = 0; $i < $bloquesNuevo; $i++) {
             HorarioTrabajo::where('id_empleado', $nuevoEmpleadoId)
@@ -394,7 +419,7 @@ class CitaController extends Controller{
                 ->where('hora', $horaActual->format('H:i:s'))
                 ->update(['disponible' => false]);
             
-            $horaActual->addMinutes(30);
+            $horaActual->addMinutes(15);
         }
 
         // Actualizar cita
@@ -430,14 +455,14 @@ class CitaController extends Controller{
 
     /**
      * Completar cita y redirigir a cobro
+     * NOTA: La cita NO se marca como completada aquí, se marcará cuando se registre el cobro
      */
     public function completarYCobrar($id){
         $cita = Cita::findOrFail($id);
         
-        // Marcar como completada
-        $cita->estado = 'completada';
-        $cita->save();
-
+        // NO marcar como completada aquí - se hará al registrar el cobro
+        // Esto evita que quede como "completada" si se cancela el cobro
+        
         // Redirigir al formulario de cobro con el id_cita
         return redirect()->route('cobros.create.direct', ['id_cita' => $cita->id]);
     }
@@ -451,32 +476,45 @@ class CitaController extends Controller{
             'duracion_minutos' => 'required|integer|min:15|max:480', // Entre 15 min y 8 horas
         ]);
 
-        $cita = Cita::findOrFail($request->cita_id);
+        $cita = Cita::with(['servicios'])->findOrFail($request->cita_id);
         
         // Validar que la nueva duración no cause superposición
         $horaInicio = Carbon::parse($cita->fecha_hora);
         $nuevaHoraFin = $horaInicio->copy()->addMinutes($request->duracion_minutos);
         
-        $citaSuperpuesta = Cita::where('id_empleado', $cita->id_empleado)
+        // Obtener todas las citas del mismo empleado en el mismo día
+        $citasDelDia = Cita::with(['servicios'])
+            ->where('id_empleado', $cita->id_empleado)
             ->where('id', '!=', $cita->id)
-            ->where('fecha_hora', '>=', $horaInicio)
-            ->where('fecha_hora', '<', $nuevaHoraFin)
-            ->exists();
-
-        if ($citaSuperpuesta) {
-            return response()->json([
-                'success' => false,
-                'message' => 'La nueva duración causaría superposición con otra cita.'
-            ], 400);
+            ->where('estado', '!=', 'cancelada')
+            ->whereDate('fecha_hora', $horaInicio->toDateString())
+            ->get();
+        
+        // Verificar superposición con cada cita
+        foreach ($citasDelDia as $otraCita) {
+            $otraInicio = Carbon::parse($otraCita->fecha_hora);
+            $otraFin = $otraInicio->copy()->addMinutes($otraCita->duracion_minutos);
+            
+            // Hay superposición si:
+            // - La nueva cita empieza antes de que termine la otra Y
+            // - La nueva cita termina después de que empiece la otra
+            if ($horaInicio < $otraFin && $nuevaHoraFin > $otraInicio) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'La nueva duración causaría superposición con otra cita de ' . 
+                                $otraInicio->format('H:i') . ' a ' . $otraFin->format('H:i')
+                ], 400);
+            }
         }
 
-        $cita->duracion_minutos = $request->duracion_minutos;
+        $cita->duracion_real = $request->duracion_minutos;
         $cita->save();
 
         return response()->json([
             'success' => true,
             'message' => 'Duración actualizada correctamente.',
-            'cita' => $cita->load(['cliente.user', 'empleado.user', 'servicios'])
+            'cita' => $cita->load(['cliente.user', 'empleado.user', 'servicios']),
+            'nueva_duracion' => $cita->duracion_minutos
         ]);
     }
 }

@@ -128,7 +128,7 @@
         </div>
 
         <div class="mt-6">
-            <a href="{{ route('dashboard') }}" class="text-blue-600 hover:underline">Volver al inicio</a>
+            <a href="{{ route('citas.index') }}" class="text-blue-600 hover:underline">Volver a las citas</a>
         </div>
     </div>
 </body>

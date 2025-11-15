@@ -148,20 +148,39 @@
                 </table>
             </div>
 
-            <!-- Descuentos -->
-            <div class="bg-gray-50 p-4 rounded">
-                <h2 class="text-lg font-semibold mb-3">Descuentos</h2>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label for="descuento_porcentaje" class="block font-semibold mb-1">Descuento %:</label>
-                        <input type="number" name="descuento_porcentaje" id="descuento_porcentaje" class="w-full border rounded px-3 py-2" step="0.01" value="0" min="0" max="100" oninput="calcularTotales()">
+            <!-- Descuentos para Servicios -->
+            <div class="bg-blue-50 border border-blue-200 rounded p-4">
+                <h3 class="font-semibold mb-3 text-blue-800">💇 Descuentos para Servicios</h3>
+                <div class="flex space-x-4">
+                    <div class="flex-1">
+                        <label for="descuento_servicios_porcentaje" class="block font-semibold mb-1">Descuento %:</label>
+                        <input type="number" name="descuento_servicios_porcentaje" id="descuento_servicios_porcentaje" class="w-full border rounded px-3 py-2" step="0.01" value="0" min="0" max="100" oninput="calcularTotales()">
                     </div>
-                    <div>
-                        <label for="descuento_euro" class="block font-semibold mb-1">Descuento €:</label>
-                        <input type="number" name="descuento_euro" id="descuento_euro" class="w-full border rounded px-3 py-2" step="0.01" value="0" min="0" oninput="calcularTotales()">
+                    <div class="flex-1">
+                        <label for="descuento_servicios_euro" class="block font-semibold mb-1">Descuento €:</label>
+                        <input type="number" name="descuento_servicios_euro" id="descuento_servicios_euro" class="w-full border rounded px-3 py-2" step="0.01" value="0" min="0" oninput="calcularTotales()">
                     </div>
                 </div>
             </div>
+
+            <!-- Descuentos para Productos -->
+            <div class="bg-green-50 border border-green-200 rounded p-4 mt-3">
+                <h3 class="font-semibold mb-3 text-green-800">🛍️ Descuentos para Productos</h3>
+                <div class="flex space-x-4">
+                    <div class="flex-1">
+                        <label for="descuento_productos_porcentaje" class="block font-semibold mb-1">Descuento %:</label>
+                        <input type="number" name="descuento_productos_porcentaje" id="descuento_productos_porcentaje" class="w-full border rounded px-3 py-2" step="0.01" value="0" min="0" max="100" oninput="calcularTotales()">
+                    </div>
+                    <div class="flex-1">
+                        <label for="descuento_productos_euro" class="block font-semibold mb-1">Descuento €:</label>
+                        <input type="number" name="descuento_productos_euro" id="descuento_productos_euro" class="w-full border rounded px-3 py-2" step="0.01" value="0" min="0" oninput="calcularTotales()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Campos ocultos para compatibilidad (descuento general antiguo) -->
+            <input type="hidden" name="descuento_porcentaje" id="descuento_porcentaje" value="0">
+            <input type="hidden" name="descuento_euro" id="descuento_euro" value="0">
 
             <!-- Resumen y pago -->
             <div class="bg-green-50 border-2 border-green-600 p-4 rounded">
@@ -520,28 +539,41 @@ function calcularTotales() {
     // Calcular total de servicios
     const totalServicios = serviciosSeleccionados.reduce((sum, s) => sum + parseFloat(s.precio), 0);
     document.getElementById('services-total').textContent = `€${totalServicios.toFixed(2)}`;
-    
+
     // Calcular total de productos
     const totalProductos = productosSeleccionados.reduce((sum, p) => sum + (parseFloat(p.precio) * parseInt(p.cantidad)), 0);
     document.getElementById('products-total').textContent = `€${totalProductos.toFixed(2)}`;
-    
+
     // Subtotal
     const subtotal = totalServicios + totalProductos;
     document.getElementById('subtotal').textContent = `€${subtotal.toFixed(2)}`;
     document.getElementById('coste').value = subtotal.toFixed(2);
-    
-    // Descuentos
-    const descPorcentaje = parseFloat(document.getElementById('descuento_porcentaje').value || 0);
-    const descEuro = parseFloat(document.getElementById('descuento_euro').value || 0);
-    const descuentoPorPorcentaje = (subtotal * descPorcentaje) / 100;
-    const totalDescuentos = descuentoPorPorcentaje + descEuro;
+
+    // Descuentos separados
+    const descServPor = parseFloat(document.getElementById('descuento_servicios_porcentaje')?.value || 0);
+    const descServEur = parseFloat(document.getElementById('descuento_servicios_euro')?.value || 0);
+    const descProdPor = parseFloat(document.getElementById('descuento_productos_porcentaje')?.value || 0);
+    const descProdEur = parseFloat(document.getElementById('descuento_productos_euro')?.value || 0);
+
+    const descuentoServicios = (totalServicios * (descServPor / 100)) + descServEur;
+    const descuentoProductos = (totalProductos * (descProdPor / 100)) + descProdEur;
+    const totalDescuentos = descuentoServicios + descuentoProductos;
+
     document.getElementById('descuentos-total').textContent = `-€${totalDescuentos.toFixed(2)}`;
-    
+
     // Total final
-    const totalFinal = Math.max(0, subtotal - totalDescuentos);
+    const totalFinal = Math.max(0, (totalServicios - descuentoServicios) + (totalProductos - descuentoProductos));
     document.getElementById('total-final').textContent = `€${totalFinal.toFixed(2)}`;
     document.getElementById('total_final_input').value = totalFinal.toFixed(2);
-    
+
+    // Mantener compatibilidad: actualizar campos ocultos de descuento total
+    const descTotalPor = (descServPor || 0) + (descProdPor || 0);
+    const descTotalEur = (descServEur || 0) + (descProdEur || 0);
+    const hiddenPor = document.getElementById('descuento_porcentaje');
+    const hiddenEur = document.getElementById('descuento_euro');
+    if (hiddenPor) hiddenPor.value = descTotalPor.toFixed(2);
+    if (hiddenEur) hiddenEur.value = descTotalEur.toFixed(2);
+
     // Recalcular según método de pago
     const metodo = document.querySelector('input[name="metodo_pago"]:checked');
     if (metodo) {

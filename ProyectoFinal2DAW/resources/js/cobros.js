@@ -160,16 +160,36 @@ document.addEventListener('DOMContentLoaded', function() {
 
     window.calcularTotales = function() {
       const coste = parseFloat(document.getElementById('coste').value) || 0;
-      const descPor = parseFloat(document.getElementById('descuento_porcentaje').value) || 0;
-      const descEur = parseFloat(document.getElementById('descuento_euro').value) || 0;
+      
+      // Descuentos para servicios
+      const descServiciosPor = parseFloat(document.getElementById('descuento_servicios_porcentaje').value) || 0;
+      const descServiciosEur = parseFloat(document.getElementById('descuento_servicios_euro').value) || 0;
+      
+      // Descuentos para productos
+      const descProductosPor = parseFloat(document.getElementById('descuento_productos_porcentaje').value) || 0;
+      const descProductosEur = parseFloat(document.getElementById('descuento_productos_euro').value) || 0;
+      
       const dineroCliente = parseFloat(document.getElementById('dinero_cliente').value) || 0;
       const productosTotal = parseFloat(totalCell.textContent) || 0;
-      const subtotal = coste + productosTotal;
-      const descuentoTotal = (subtotal * (descPor / 100)) + descEur;
-      const totalFinal = Math.max(subtotal - descuentoTotal, 0);
+      
+      // Calcular descuentos separados
+      const descuentoServicios = (coste * (descServiciosPor / 100)) + descServiciosEur;
+      const descuentoProductos = (productosTotal * (descProductosPor / 100)) + descProductosEur;
+      
+      // Total con descuentos aplicados
+      const totalServicios = Math.max(coste - descuentoServicios, 0);
+      const totalProductos = Math.max(productosTotal - descuentoProductos, 0);
+      const totalFinal = totalServicios + totalProductos;
+      
       const cambio = Math.max(dineroCliente - totalFinal, 0);
       document.getElementById('total_final').value = formatMoney(totalFinal);
       document.getElementById('cambio').value = formatMoney(cambio);
+      
+      // Actualizar campos antiguos para compatibilidad (suma de ambos descuentos)
+      const descuentoTotalPorcentaje = descServiciosPor + descProductosPor;
+      const descuentoTotalEuro = descServiciosEur + descProductosEur;
+      document.getElementById('descuento_porcentaje').value = formatMoney(descuentoTotalPorcentaje);
+      document.getElementById('descuento_euro').value = formatMoney(descuentoTotalEuro);
       
       // Actualizar alerta de deuda en tiempo real
       actualizarAlertaDeuda(totalFinal);

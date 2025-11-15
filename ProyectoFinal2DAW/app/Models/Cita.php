@@ -24,6 +24,7 @@ class Cita extends Model{
         'fecha_hora',
         'estado',
         'notas_adicionales',
+        'duracion_real',
         'id_cliente',
         'id_empleado',
     ];
@@ -50,9 +51,13 @@ class Cita extends Model{
 
     /**
      * Calcula la duración total de la cita sumando los servicios
+     * Si existe duracion_real, la usa; si no, suma los tiempos de servicios
      */
     public function getDuracionMinutosAttribute()
     {
+        if ($this->duracion_real !== null) {
+            return $this->duracion_real;
+        }
         return $this->servicios->sum('tiempo_estimado');
     }
 

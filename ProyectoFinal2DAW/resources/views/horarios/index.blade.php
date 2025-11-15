@@ -145,7 +145,9 @@
                     <div class="bg-blue-50 border border-blue-200 rounded p-3">
                         <p class="text-sm text-blue-800">
                             <strong>ℹ️ Información:</strong> 
-                            Los horarios se generarán de 08:00 a 20:00 (días normales) y de 08:00 a 15:00 (julio-agosto). 
+                            Los horarios se generan según la temporada:<br>
+                            <strong>Invierno (Sep-Jun):</strong> Lunes a Viernes 9:00-20:00, Sábado 8:30-14:00<br>
+                            <strong>Verano (Jul-Ago):</strong> Lunes a Sábado 8:30-14:00 (Miércoles hasta 19:00) 
                             Solo se crean bloques que no existan previamente.
                         </p>
                     </div>

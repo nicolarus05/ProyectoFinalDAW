@@ -106,9 +106,10 @@
                             $esDomingo = $fechaDia->dayOfWeek == 0;
                             $esHoy = $fechaDia->isToday();
                             
-                            // Obtener jornada (hora inicio y fin)
-                            $horaInicio = $horariosDelDia->min('hora');
-                            $horaFin = $horariosDelDia->max('hora');
+                            // Obtener jornada (hora inicio y fin) del registro general
+                            $horarioGeneral = $horariosDelDia->whereNotNull('hora_inicio')->first();
+                            $horaInicio = $horarioGeneral ? $horarioGeneral->hora_inicio : $horariosDelDia->min('hora');
+                            $horaFin = $horarioGeneral ? $horarioGeneral->hora_fin : $horariosDelDia->max('hora');
                             
                             // Obtener horas deshabilitadas con sus notas
                             $horasDeshabilitadas = $horariosDelDia->where('disponible', false);
