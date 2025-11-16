@@ -8,7 +8,10 @@
 </head>
 <body class="bg-gray-100 p-6">
     <div class="w-full max-w-none mx-auto bg-white shadow-md rounded p-6">
-        <h1 class="text-3xl font-bold mb-4">Clientes registrados</h1>
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-3xl font-bold">Clientes registrados</h1>
+            <a href="{{ route('dashboard') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">← Volver al Inicio</a>
+        </div>
         <a href="{{ route('clientes.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Añadir un nuevo cliente</a>
 
         <!-- Barra de búsqueda y controles -->
@@ -49,7 +52,6 @@
                         <th class="px-4 py-2">Direccion</th>
                         <th class="px-4 py-2">Notas</th>
                         <th class="px-4 py-2">Registro</th>
-                        <th class="px-4 py-2">Rol</th>
                         <th class="px-4 py-2">Acciones</th>
                     </tr>
                 </thead>
@@ -70,10 +72,10 @@
                         <td class="px-4 py-2">{{ $cliente->direccion ?? '-' }}</td>
                         <td class="px-4 py-2">{{ $cliente->notas_adicionales ?? '-' }}</td>
                         <td class="px-4 py-2">{{ $cliente->fecha_registro ?? '-' }}</td>
-                        <td class="px-4 py-2">{{ $cliente->user->rol ?? '-' }}</td>
                         <td class="px-4 py-2 space-x-2">
                             <a href="{{ route('clientes.show', $cliente->id) }}" class="text-blue-600 hover:underline">Ver</a>
                             <a href="{{ route('clientes.edit', $cliente->id) }}" class="text-yellow-600 hover:underline">Editar</a>
+                            <a href="{{ route('clientes.historial', $cliente->id) }}" class="text-green-600 hover:underline">📅 Historial</a>
                             <a href="{{ route('bonos.misClientes', $cliente->id) }}" class="text-purple-600 hover:underline">🎫 Bonos</a>
                             <form id="delete-form-{{ $cliente->id }}" action="{{ route('clientes.destroy', $cliente->id) }}" method="POST" class="inline">
                                 @csrf
@@ -86,8 +88,6 @@
                 </tbody>
             </table>
         </div>
-
-        <a href="{{ route('dashboard') }}" class="inline-block mt-6 text-gray-700 hover:underline">Volver al Inicio</a>
     </div>
 </body>
 </html>

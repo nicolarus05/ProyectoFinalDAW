@@ -7,7 +7,10 @@
 </head>
 <body class="bg-gray-100 p-8">
     <div class="max-w-4xl mx-auto bg-white p-6 rounded shadow">
-        <h1 class="text-3xl font-bold mb-6">Servicios</h1>
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold">Servicios</h1>
+            <a href="{{ route('dashboard') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">← Volver al Inicio</a>
+        </div>
 
         <div class="mb-4">
             <a href="{{ route('servicios.create') }}" 
@@ -53,7 +56,6 @@
                 @endforelse
             </tbody>
         </table>
-        <a href="{{ route('dashboard') }}" class="inline-block mt-6 text-gray-700 hover:underline">Volver al Inicio</a>
     </div>
 </body>
 </html>

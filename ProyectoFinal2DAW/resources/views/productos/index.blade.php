@@ -10,7 +10,10 @@
     <div class="max-w-4xl mx-auto bg-white p-6 rounded shadow">
         <div class="flex items-center justify-between mb-6">
             <h1 class="text-3xl font-bold">Productos</h1>
-            <a href="{{ route('productos.create') }}" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Nuevo producto</a>
+            <div class="flex gap-3">
+                <a href="{{ route('productos.create') }}" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Nuevo producto</a>
+                <a href="{{ route('dashboard') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">← Volver al inicio</a>
+            </div>
         </div>
 
         @if(session('success'))
@@ -81,10 +84,6 @@
             @if(method_exists($productos,'links'))
                 {{ $productos->links() }}
             @endif
-        </div>
-
-        <div class="mt-6">
-            <a href="{{ route('dashboard') }}" class="text-blue-600 hover:underline">Volver al inicio</a>
         </div>
     </div>
 </body>

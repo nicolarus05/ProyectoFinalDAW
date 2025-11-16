@@ -8,10 +8,24 @@
 <body class="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6">
 
     <div class="bg-white rounded-lg shadow-md w-full max-w-2xl p-8">
-        <h1 class="text-3xl font-bold text-center text-black mb-6">Detalle de la Cita</h1>
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-black">Detalle de la Cita</h1>
+            <a href="{{ route('citas.index') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">← Volver</a>
+        </div>
 
         <div class="space-y-4 text-gray-800 text-base">
             <p><strong class="font-semibold">Cliente:</strong> {{ $cita->cliente->user->nombre }} {{ $cita->cliente->user->apellidos }}</p>
+            
+            @if($cita->cliente && $cita->cliente->notas_adicionales)
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md shadow-sm">
+                    <p class="font-semibold text-yellow-800 mb-2 flex items-center">
+                        <span class="text-xl mr-2">📝</span>
+                        <span>Notas del Cliente:</span>
+                    </p>
+                    <p class="text-yellow-900 whitespace-pre-line">{{ $cita->cliente->notas_adicionales }}</p>
+                </div>
+            @endif
+            
             <p><strong class="font-semibold">Empleado:</strong> {{ $cita->empleado->user->nombre }} {{ $cita->empleado->user->apellidos }}</p>
 
             <div>
@@ -48,11 +62,6 @@
                     <span>Cita Cobrada</span>
                 </span>
             @endif
-            
-            <a href="{{ route('citas.index') }}"
-               class="inline-block bg-black text-white px-6 py-2 rounded hover:bg-gray-800 transition-colors duration-300 font-semibold">
-                Volver
-            </a>
         </div>
     </div>
 

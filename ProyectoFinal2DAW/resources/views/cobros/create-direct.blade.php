@@ -13,7 +13,7 @@
     <div class="max-w-4xl mx-auto bg-white p-6 rounded shadow">
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-3xl font-bold">💰 Nuevo Cobro Directo</h1>
-            <a href="{{ route('cobros.index') }}" class="text-blue-600 hover:underline">← Volver a cobros</a>
+            <a href="{{ route('cobros.index') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">← Volver a cobros</a>
         </div>
 
         <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
@@ -51,6 +51,9 @@
             <div class="bg-gray-50 p-4 rounded">
                 <h2 class="text-lg font-semibold mb-3">Cliente</h2>
                 <div>
+                    <label for="buscar-cliente" class="block font-semibold mb-1">🔍 Buscar cliente:</label>
+                    <input type="text" id="buscar-cliente" class="w-full border rounded px-3 py-2 mb-2" placeholder="Escribe nombre o apellido..." oninput="filtrarClientes()">
+                    
                     <label for="id_cliente" class="block font-semibold mb-1">Seleccionar cliente:</label>
                     <select name="id_cliente" id="id_cliente" class="w-full border rounded px-3 py-2" onchange="actualizarDeudaCliente()">
                         <option value="">-- Sin cliente --</option>
@@ -59,7 +62,7 @@
                                 $deuda = $cliente->deuda ? $cliente->deuda->saldo_pendiente : 0;
                                 $selected = isset($cita) && $cita->id_cliente == $cliente->id ? 'selected' : '';
                             @endphp
-                            <option value="{{ $cliente->id }}" data-deuda="{{ $deuda }}" {{ $selected }}>
+                            <option value="{{ $cliente->id }}" data-deuda="{{ $deuda }}" data-nombre="{{ strtolower(($cliente->user->nombre ?? '') . ' ' . ($cliente->user->apellidos ?? '')) }}" {{ $selected }}>
                                 {{ $cliente->user->nombre ?? '' }} {{ $cliente->user->apellidos ?? '' }}
                                 @if($deuda > 0) (Deuda: €{{ number_format($deuda, 2) }}) @endif
                             </option>
@@ -281,6 +284,12 @@
                 <h3 class="text-xl font-bold">Seleccionar Servicio</h3>
                 <button type="button" onclick="closeModalServices()" class="text-gray-600 hover:text-gray-800 text-2xl">&times;</button>
             </div>
+            
+            <!-- Buscador de servicios -->
+            <div class="mb-4">
+                <input type="text" id="buscar-servicio" class="w-full border rounded px-3 py-2" placeholder="🔍 Buscar servicio..." oninput="filtrarServicios()">
+            </div>
+            
             <div class="max-h-96 overflow-y-auto">
                 <table class="w-full">
                     <thead class="bg-gray-100 sticky top-0">
@@ -290,9 +299,9 @@
                             <th class="p-2"></th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="servicios-tbody-modal">
                         @foreach($servicios as $servicio)
-                        <tr class="border-b hover:bg-gray-50">
+                        <tr class="border-b hover:bg-gray-50 servicio-row" data-nombre="{{ strtolower($servicio->nombre) }}">
                             <td class="p-2">{{ $servicio->nombre }}</td>
                             <td class="p-2 text-right">€{{ number_format($servicio->precio, 2) }}</td>
                             <td class="p-2">
@@ -315,6 +324,12 @@
                 <h3 class="text-xl font-bold">Seleccionar Producto</h3>
                 <button type="button" onclick="closeModalProducts()" class="text-gray-600 hover:text-gray-800 text-2xl">&times;</button>
             </div>
+            
+            <!-- Buscador de productos -->
+            <div class="mb-4">
+                <input type="text" id="buscar-producto" class="w-full border rounded px-3 py-2" placeholder="🔍 Buscar producto..." oninput="filtrarProductos()">
+            </div>
+            
             <div id="products-loading" class="text-center py-4">Cargando productos...</div>
             <div id="products-content" class="hidden max-h-96 overflow-y-auto">
                 <table class="w-full">
@@ -355,6 +370,65 @@ function actualizarDeudaCliente() {
         info.textContent = '✓ Sin deudas pendientes';
         info.className = 'text-sm text-green-600 mt-2';
     }
+}
+
+// Filtrar clientes
+function filtrarClientes() {
+    const busqueda = document.getElementById('buscar-cliente').value.toLowerCase().trim();
+    const select = document.getElementById('id_cliente');
+    const options = select.querySelectorAll('option');
+    
+    let encontrados = 0;
+    options.forEach((option, index) => {
+        if (index === 0) return; // Skip first "-- Sin cliente --" option
+        
+        const nombre = option.dataset.nombre || '';
+        if (nombre.includes(busqueda)) {
+            option.style.display = '';
+            encontrados++;
+        } else {
+            option.style.display = 'none';
+        }
+    });
+    
+    // Si no hay búsqueda, mostrar todos
+    if (busqueda === '') {
+        options.forEach(option => option.style.display = '');
+    }
+}
+
+// Filtrar servicios en el modal
+function filtrarServicios() {
+    const busqueda = document.getElementById('buscar-servicio').value.toLowerCase().trim();
+    const rows = document.querySelectorAll('.servicio-row');
+    
+    let encontrados = 0;
+    rows.forEach(row => {
+        const nombre = row.dataset.nombre || '';
+        if (nombre.includes(busqueda)) {
+            row.style.display = '';
+            encontrados++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+// Filtrar productos en el modal
+function filtrarProductos() {
+    const busqueda = document.getElementById('buscar-producto').value.toLowerCase().trim();
+    const rows = document.querySelectorAll('.producto-row');
+    
+    let encontrados = 0;
+    rows.forEach(row => {
+        const nombre = row.dataset.nombre || '';
+        if (nombre.includes(busqueda)) {
+            row.style.display = '';
+            encontrados++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
 }
 
 // Modal de servicios
@@ -441,7 +515,8 @@ async function loadProducts() {
         
         productos.forEach(producto => {
             const tr = document.createElement('tr');
-            tr.className = 'border-b hover:bg-gray-50';
+            tr.className = 'border-b hover:bg-gray-50 producto-row';
+            tr.dataset.nombre = producto.nombre.toLowerCase();
             tr.innerHTML = `
                 <td class="p-2">${producto.nombre}</td>
                 <td class="p-2 text-center">${producto.stock}</td>

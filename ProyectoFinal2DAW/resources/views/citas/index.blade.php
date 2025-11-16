@@ -69,7 +69,7 @@
                             <span>⛔ Deshabilitada</span>
                         </div>
                         <div class="leyenda-item">
-                            <div class="leyenda-color" style="background-color: #f3f4f6;"></div>
+                            <div class="leyenda-color" style="background-color: #9ca3af;"></div>
                             <span>Fuera de horario</span>
                         </div>
                     </div>

@@ -215,6 +215,33 @@ class RegistroEntradaSalidaController extends Controller{
     }
 
     /**
+     * Desconectar empleado (Solo Admin)
+     */
+    public function desconectarEmpleado($registroId){
+        // Verificar que el usuario es admin
+        if (Auth::user()->rol !== 'admin') {
+            abort(403, 'No tienes permiso para realizar esta acción.');
+        }
+
+        $registro = RegistroEntradaSalida::findOrFail($registroId);
+
+        if (!$registro->estaEnJornada()) {
+            return back()->with('error', 'Este empleado ya ha registrado su salida.');
+        }
+
+        // Registrar salida con hora actual
+        $horaSalida = Carbon::now()->format('H:i:s');
+        $registro->update([
+            'hora_salida' => $horaSalida,
+        ]);
+
+        $horasTrabajadas = $registro->calcularHorasTrabajadas();
+        $nombreEmpleado = $registro->empleado->user->nombre . ' ' . $registro->empleado->user->apellidos;
+        
+        return back()->with('success', "✓ {$nombreEmpleado} desconectado a las " . Carbon::now()->format('H:i') . '. Trabajó ' . $horasTrabajadas['formatted']);
+    }
+
+    /**
      * Ver historial personal del empleado
      */
     public function miHistorial(Request $request){
@@ -273,13 +300,17 @@ class RegistroEntradaSalidaController extends Controller{
         $registros = RegistroEntradaSalida::where('id_empleado', $empleadoId)
             ->whereBetween('fecha', [$fechaInicio, $fechaFin])
             ->orderBy('fecha', 'desc')
-            ->get();
+            ->paginate(15);
 
-        // Calcular totales
+        // Calcular totales (obtener todos los registros para las estadísticas)
+        $todosRegistros = RegistroEntradaSalida::where('id_empleado', $empleadoId)
+            ->whereBetween('fecha', [$fechaInicio, $fechaFin])
+            ->get();
+            
         $totalMinutos = 0;
         $diasTrabajados = 0;
 
-        foreach ($registros as $registro) {
+        foreach ($todosRegistros as $registro) {
             $horas = $registro->calcularHorasTrabajadas();
             if ($horas) {
                 $totalMinutos += $horas['total_minutos'];

@@ -121,6 +121,19 @@ class ClienteController extends Controller{
         return redirect()->route('clientes.index')->with('success', 'El Cliente ha sido actualizado con éxito.');
     }
 
+    /**
+     * Mostrar historial de citas del cliente.
+     */
+    public function historial(Cliente $cliente)
+    {
+        // Cargar las citas con sus relaciones
+        $citas = $cliente->citas()
+            ->with(['empleado.user', 'servicios'])
+            ->orderBy('fecha_hora', 'desc')
+            ->get();
+        
+        return view('clientes.historial', compact('cliente', 'citas'));
+    }
 
     /**
      * Remove the specified resource from storage.

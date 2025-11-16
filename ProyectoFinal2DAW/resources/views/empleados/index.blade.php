@@ -15,7 +15,10 @@
 </head>
 <body class="bg-gray-100 p-8">
     <div class="max-w-7xl mx-auto bg-white p-6 rounded shadow">
-        <h1 class="text-3xl font-bold mb-6">Empleados registrados</h1>
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold">Empleados registrados</h1>
+            <a href="{{ route('dashboard') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">← Volver al Inicio</a>
+        </div>
 
         <div class="mb-4">
             <a href="{{ route('empleados.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Añadir un nuevo empleado</a>
@@ -111,10 +114,6 @@
                     @endforeach
                 </tbody>
             </table>
-        </div>
-
-        <div class="mt-6">
-            <a href="{{ route('dashboard') }}" class="text-blue-600 hover:underline">Volver al Inicio</a>
         </div>
     </div>
 </body>

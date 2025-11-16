@@ -23,12 +23,11 @@
 </head>
 <body class="bg-gray-100 p-6">
     <div class="max-w-7xl mx-auto">
-        <div class="mb-6">
-            <a href="{{ route('dashboard') }}" class="btn-volver">← Volver al Inicio</a>
-        </div>
-
         <div class="bg-white shadow-md rounded p-6">
-            <h1 class="text-3xl font-bold mb-6">🎫 Clientes con Bonos Activos</h1>
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-3xl font-bold">🎫 Clientes con Bonos Activos</h1>
+                <a href="{{ route('dashboard') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">← Volver al Inicio</a>
+            </div>
 
             @if($clientes->count() > 0)
                 <div class="grid gap-6">

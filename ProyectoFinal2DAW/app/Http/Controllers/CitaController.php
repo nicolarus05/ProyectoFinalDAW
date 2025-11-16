@@ -218,6 +218,8 @@ class CitaController extends Controller{
      * Display the specified resource.
      */
     public function show(Cita $cita){
+        // Cargar las relaciones necesarias
+        $cita->load(['cliente.user', 'empleado.user', 'servicios']);
         return view('citas.show', compact('cita'));
     }
 

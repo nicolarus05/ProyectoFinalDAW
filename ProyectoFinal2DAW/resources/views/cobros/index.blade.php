@@ -7,7 +7,10 @@
 </head>
 <body class="bg-gray-100 p-8">
     <div class="max-w-7xl mx-auto bg-white p-6 rounded shadow">
-        <h1 class="text-3xl font-bold mb-6">Registros de Cobro</h1>
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold">Registros de Cobro</h1>
+            <a href="{{ route('citas.index') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">← Volver a las citas</a>
+        </div>
 
         <div class="mb-4 flex gap-3">
             <a href="{{ route('cobros.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
@@ -125,10 +128,6 @@
                     @endforelse
                 </tbody>
             </table>
-        </div>
-
-        <div class="mt-6">
-            <a href="{{ route('citas.index') }}" class="text-blue-600 hover:underline">Volver a las citas</a>
         </div>
     </div>
 </body>

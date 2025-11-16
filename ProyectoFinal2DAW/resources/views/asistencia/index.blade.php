@@ -51,9 +51,17 @@
                                         </p>
                                     </div>
                                 </div>
-                                <div class="text-right">
-                                    <p class="text-sm text-gray-600">Tiempo trabajado:</p>
-                                    <p class="text-lg font-bold text-green-600">{{ $horasActuales['formatted'] }}</p>
+                                <div class="flex items-center gap-4">
+                                    <div class="text-right">
+                                        <p class="text-sm text-gray-600">Tiempo trabajado:</p>
+                                        <p class="text-lg font-bold text-green-600">{{ $horasActuales['formatted'] }}</p>
+                                    </div>
+                                    <form action="{{ route('asistencia.desconectar', $registro->id) }}" method="POST" onsubmit="return confirm('¿Desconectar a este empleado?');">
+                                        @csrf
+                                        <button type="submit" class="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 transition text-sm font-semibold">
+                                            🔌 Desconectar
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
                         @endforeach

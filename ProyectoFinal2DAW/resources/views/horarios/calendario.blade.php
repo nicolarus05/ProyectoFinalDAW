@@ -199,6 +199,58 @@
                 <h3 class="text-2xl font-bold" id="modalTitulo">Día</h3>
                 <button onclick="cerrarModal()" class="text-gray-500 hover:text-gray-700 text-2xl">×</button>
             </div>
+
+            <!-- Botón para deshabilitar rango de horas -->
+            <div class="mb-4 pb-4 border-b">
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="toggleDeshabilitarRango()" type="button" 
+                            style="background-color: #ea580c; color: white; padding: 0.5rem 1rem; border-radius: 0.375rem; width: 100%; font-weight: 600; cursor: pointer; border: none;"
+                            onmouseover="this.style.backgroundColor='#c2410c'" 
+                            onmouseout="this.style.backgroundColor='#ea580c'">
+                        🚫 Deshabilitar Rango de Horas
+                    </button>
+                    
+                    <button onclick="deshabilitarTodoPorVacaciones()" type="button" 
+                            style="background-color: #7c3aed; color: white; padding: 0.5rem 1rem; border-radius: 0.375rem; width: 100%; font-weight: 600; cursor: pointer; border: none;"
+                            onmouseover="this.style.backgroundColor='#6d28d9'" 
+                            onmouseout="this.style.backgroundColor='#7c3aed'">
+                        🏖️ Vacaciones
+                    </button>
+                </div>
+                
+                <!-- Formulario para deshabilitar rango (oculto por defecto) -->
+                <div id="formDeshabilitarRango" class="hidden mt-4 bg-orange-50 border-2 border-orange-300 rounded p-4">
+                    <h4 class="font-semibold text-orange-800 mb-3">Deshabilitar múltiples horas</h4>
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Desde:</label>
+                                <select id="horaDesde" class="w-full border rounded px-3 py-2">
+                                    <option value="">-- Seleccionar --</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Hasta:</label>
+                                <select id="horaHasta" class="w-full border rounded px-3 py-2">
+                                    <option value="">-- Seleccionar --</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Motivo:</label>
+                            <input type="text" id="motivoRango" placeholder="Ej: Comida, Reunión, Evento especial..." class="w-full border rounded px-3 py-2" maxlength="255">
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="aplicarDeshabilitarRango()" type="button" class="flex-1 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 font-semibold">
+                                ✓ Aplicar
+                            </button>
+                            <button onclick="toggleDeshabilitarRango()" type="button" class="flex-1 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
             
             <div id="modalContenido" class="space-y-2">
                 <!-- Se llenará con JavaScript -->
@@ -208,20 +260,32 @@
 
     <script>
         let empleadoIdActual = {{ $empleadoId ?? 'null' }};
+        let bloquesDelDia = []; // Guardar los bloques para usarlos en el formulario de rango
+        let fechaActual = ''; // Guardar la fecha actual
 
         function abrirModalDia(fecha, dia) {
             if (!empleadoIdActual) return;
             
+            fechaActual = fecha; // Guardar fecha para usar en deshabilitar rango
             document.getElementById('modalTitulo').textContent = `Horarios del ${dia} de {{ \Carbon\Carbon::create($anio, $mes, 1)->locale('es')->translatedFormat('F Y') }}`;
             document.getElementById('modalContenido').innerHTML = '<p class="text-center">Cargando...</p>';
             document.getElementById('modalDia').classList.remove('hidden');
+            
+            // Resetear formulario de rango
+            const formRango = document.getElementById('formDeshabilitarRango');
+            if (formRango && !formRango.classList.contains('hidden')) {
+                formRango.classList.add('hidden');
+            }
             
             // Cargar bloques con AJAX
             fetch(`{{ route('horarios.bloquesDia') }}?empleado_id=${empleadoIdActual}&fecha=${fecha}`)
                 .then(response => response.json())
                 .then(data => {
                     console.log('Bloques recibidos:', data.bloques); // Debug
+                    bloquesDelDia = data.bloques || []; // Guardar bloques
+                    
                     if (data.success && data.bloques.length > 0) {
+                        poblarSelectorHoras(data.bloques); // Poblar selectores de rango
                         let html = '<div class="space-y-2">';
                         data.bloques.forEach(bloque => {
                             // Asegurar que disponible sea un booleano verdadero
@@ -277,6 +341,176 @@
                     console.error('Error:', error);
                     document.getElementById('modalContenido').innerHTML = '<p class="text-center text-red-500">Error al cargar los bloques</p>';
                 });
+        }
+
+        function poblarSelectorHoras(bloques) {
+            const horaDesde = document.getElementById('horaDesde');
+            const horaHasta = document.getElementById('horaHasta');
+            
+            // Limpiar opciones anteriores (excepto la primera)
+            horaDesde.innerHTML = '<option value="">-- Seleccionar --</option>';
+            horaHasta.innerHTML = '<option value="">-- Seleccionar --</option>';
+            
+            // Solo incluir bloques disponibles
+            const bloquesDisponibles = bloques.filter(b => b.disponible);
+            
+            bloquesDisponibles.forEach(bloque => {
+                const hora = bloque.hora.substring(0, 5);
+                const optionDesde = document.createElement('option');
+                optionDesde.value = bloque.id;
+                optionDesde.textContent = hora;
+                horaDesde.appendChild(optionDesde);
+                
+                const optionHasta = document.createElement('option');
+                optionHasta.value = bloque.id;
+                optionHasta.textContent = hora;
+                horaHasta.appendChild(optionHasta);
+            });
+        }
+
+        function toggleDeshabilitarRango() {
+            const form = document.getElementById('formDeshabilitarRango');
+            form.classList.toggle('hidden');
+            
+            // Resetear formulario
+            document.getElementById('horaDesde').value = '';
+            document.getElementById('horaHasta').value = '';
+            document.getElementById('motivoRango').value = '';
+        }
+
+        function aplicarDeshabilitarRango() {
+            const horaDesdeId = document.getElementById('horaDesde').value;
+            const horaHastaId = document.getElementById('horaHasta').value;
+            const motivo = document.getElementById('motivoRango').value.trim();
+            
+            // Validaciones
+            if (!horaDesdeId || !horaHastaId) {
+                alert('Por favor, selecciona el rango de horas (desde y hasta)');
+                return;
+            }
+            
+            if (!motivo) {
+                alert('Por favor, indica el motivo de la deshabilitación');
+                document.getElementById('motivoRango').focus();
+                return;
+            }
+            
+            // Encontrar índices de los bloques
+            const indexDesde = bloquesDelDia.findIndex(b => b.id == horaDesdeId);
+            const indexHasta = bloquesDelDia.findIndex(b => b.id == horaHastaId);
+            
+            if (indexDesde === -1 || indexHasta === -1) {
+                alert('Error al procesar el rango de horas');
+                return;
+            }
+            
+            if (indexDesde > indexHasta) {
+                alert('La hora de inicio debe ser anterior a la hora de fin');
+                return;
+            }
+            
+            // Obtener IDs de todos los bloques en el rango que están disponibles
+            const bloquesADeshabilitar = [];
+            for (let i = indexDesde; i <= indexHasta; i++) {
+                if (bloquesDelDia[i].disponible) {
+                    bloquesADeshabilitar.push(bloquesDelDia[i].id);
+                }
+            }
+            
+            if (bloquesADeshabilitar.length === 0) {
+                alert('No hay bloques disponibles en el rango seleccionado');
+                return;
+            }
+            
+            // Confirmar acción
+            const horaDesdeTexto = bloquesDelDia[indexDesde].hora.substring(0, 5);
+            const horaHastaTexto = bloquesDelDia[indexHasta].hora.substring(0, 5);
+            const confirmacion = confirm(`¿Deshabilitar ${bloquesADeshabilitar.length} bloques desde ${horaDesdeTexto} hasta ${horaHastaTexto}?\n\nMotivo: ${motivo}`);
+            
+            if (!confirmacion) return;
+            
+            // Deshabilitar botón y mostrar loading
+            const btnAplicar = event.target;
+            btnAplicar.disabled = true;
+            btnAplicar.textContent = 'Procesando...';
+            
+            // Enviar solicitud al servidor
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+            
+            fetch('{{ route("horarios.toggleDisponibilidadRango") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({
+                    ids: bloquesADeshabilitar,
+                    notas: motivo
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`✓ ${data.count || bloquesADeshabilitar.length} bloques deshabilitados correctamente`);
+                    window.location.reload();
+                } else {
+                    alert('Error al deshabilitar los bloques: ' + (data.message || 'Error desconocido'));
+                    btnAplicar.disabled = false;
+                    btnAplicar.textContent = '✓ Aplicar';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error de conexión al servidor');
+                btnAplicar.disabled = false;
+                btnAplicar.textContent = '✓ Aplicar';
+            });
+        }
+
+        function deshabilitarTodoPorVacaciones() {
+            // Obtener todos los bloques disponibles
+            const bloquesDisponibles = bloquesDelDia.filter(b => b.disponible);
+            
+            if (bloquesDisponibles.length === 0) {
+                alert('No hay bloques disponibles para deshabilitar en este día');
+                return;
+            }
+            
+            // Confirmar acción
+            const confirmacion = confirm(`¿Deshabilitar todas las horas del día por vacaciones?\n\nSe deshabilitarán ${bloquesDisponibles.length} bloques horarios.`);
+            
+            if (!confirmacion) return;
+            
+            // Obtener IDs de todos los bloques disponibles
+            const idsADeshabilitar = bloquesDisponibles.map(b => b.id);
+            
+            // Enviar solicitud al servidor
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+            
+            fetch('{{ route("horarios.toggleDisponibilidadRango") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({
+                    ids: idsADeshabilitar,
+                    notas: 'Vacaciones'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`✓ Día marcado como vacaciones. ${data.count || idsADeshabilitar.length} bloques deshabilitados.`);
+                    window.location.reload();
+                } else {
+                    alert('Error al marcar el día como vacaciones: ' + (data.message || 'Error desconocido'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error de conexión al servidor');
+            });
         }
 
         function cerrarModal() {

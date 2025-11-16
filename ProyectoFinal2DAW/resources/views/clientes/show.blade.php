@@ -8,7 +8,10 @@
 </head>
 <body class="bg-gray-100 p-8">
     <div class="max-w-4xl mx-auto bg-white p-6 rounded shadow">
-        <h1 class="text-2xl font-semibold mb-6">Detalles del cliente</h1>
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-semibold">Detalles del cliente</h1>
+            <a href="{{ route('clientes.index') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">← Volver a la lista</a>
+        </div>
         <ul class="space-y-3">
             <li>
                 <span class="font-medium">Nombre:</span>
@@ -47,9 +50,8 @@
                 <span class="ml-2">{{ $cliente->created_at ? $cliente->created_at->format('d/m/Y') : '-' }}</span>
             </li>
         </ul>
-        <div class="flex justify-between mt-8">
+        <div class="mt-8">
             <a href="{{ route('clientes.edit', $cliente->id) }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Editar</a>
-            <a href="{{ route('clientes.index') }}" class="text-blue-600 hover:underline">Volver a la lista</a>
         </div>
     </div>
 </body>

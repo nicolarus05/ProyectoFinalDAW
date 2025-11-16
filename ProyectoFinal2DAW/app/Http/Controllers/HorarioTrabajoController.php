@@ -352,6 +352,34 @@ class HorarioTrabajoController extends Controller{
     }
 
     /**
+     * Toggle disponibilidad de múltiples bloques horarios (rango) (AJAX)
+     */
+    public function toggleDisponibilidadRango(Request $request){
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'required|exists:horario_trabajo,id',
+            'notas' => 'required|string|max:255',
+        ]);
+
+        $count = 0;
+        foreach ($request->ids as $id) {
+            $horario = HorarioTrabajo::find($id);
+            if ($horario && $horario->disponible) {
+                $horario->disponible = false;
+                $horario->notas = $request->notas;
+                $horario->save();
+                $count++;
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'count' => $count,
+            'mensaje' => "{$count} bloques deshabilitados correctamente"
+        ]);
+    }
+
+    /**
      * Deshabilitar un rango de horas
      */
     public function deshabilitarBloque(Request $request){

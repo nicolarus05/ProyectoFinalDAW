@@ -350,12 +350,12 @@ body {
 }
 
 .celda-horario.no-disponible {
-    background: #f3f4f6;
+    background: #9ca3af;
     cursor: not-allowed;
 }
 
 .celda-horario.no-disponible:hover {
-    background: #f3f4f6;
+    background: #9ca3af;
 }
 
 /* Horas deshabilitadas (bloques específicos marcados como no disponibles) */

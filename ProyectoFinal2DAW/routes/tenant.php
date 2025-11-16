@@ -86,6 +86,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::post('horarios/generar-mes', [HorarioTrabajoController::class, 'generarMes'])->name('horarios.generarMes');
     Route::post('horarios/generar-anual', [HorarioTrabajoController::class, 'generarAnual'])->name('horarios.generarAnual');
     Route::post('horarios/toggle-disponibilidad', [HorarioTrabajoController::class, 'toggleDisponibilidad'])->name('horarios.toggleDisponibilidad');
+    Route::post('horarios/toggle-disponibilidad-rango', [HorarioTrabajoController::class, 'toggleDisponibilidadRango'])->name('horarios.toggleDisponibilidadRango');
     Route::post('horarios/deshabilitar-bloque', [HorarioTrabajoController::class, 'deshabilitarBloque'])->name('horarios.deshabilitarBloque');
     Route::get('horarios/bloques-dia', [HorarioTrabajoController::class, 'bloquesDia'])->name('horarios.bloquesDia');
     
@@ -95,6 +96,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 // Rutas accesibles por ADMIN y EMPLEADO
 Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
     Route::resource('clientes', ClienteController::class)->names('clientes');
+    Route::get('clientes/{cliente}/historial', [ClienteController::class, 'historial'])->name('clientes.historial');
     Route::resource('empleados', EmpleadoController::class)->names('empleados');
     Route::resource('servicios', ServicioController::class)->names('servicios');
 
@@ -164,6 +166,7 @@ Route::middleware(['auth'])->group(function () {
     // Para admin
     Route::get('asistencia', [RegistroEntradaSalidaController::class, 'index'])->name('asistencia.index');
     Route::get('asistencia/empleado/{empleado}', [RegistroEntradaSalidaController::class, 'porEmpleado'])->name('asistencia.empleado');
+    Route::post('asistencia/desconectar/{registro}', [RegistroEntradaSalidaController::class, 'desconectarEmpleado'])->name('asistencia.desconectar');
 });
 
 // Rutas de citas accesibles por ADMIN, EMPLEADO y CLIENTE

@@ -44,9 +44,14 @@
     <div class="max-w-7xl mx-auto bg-white shadow-md rounded p-6">
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-3xl font-bold">Bonos Disponibles</h1>
-            <a href="{{ route('bonos.create') }}" class="btn-crear-top">
-                ➕ Crear Nuevo Bono
-            </a>
+            <div class="flex gap-3">
+                <a href="{{ route('bonos.create') }}" class="btn-crear-top">
+                    ➕ Crear Nuevo Bono
+                </a>
+                <a href="{{ route('dashboard') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 transition">
+                    ← Volver al Inicio
+                </a>
+            </div>
         </div>
 
         @if(session('success'))
@@ -110,10 +115,6 @@
                 <a href="{{ route('bonos.create') }}" class="text-blue-600 hover:underline">Crear el primer bono</a>
             </div>
         @endif
-
-        <div class="mt-6">
-            <a href="{{ route('dashboard') }}" class="text-blue-600 hover:underline">Volver al Inicio</a>
-        </div>
     </div>
 
     <!-- Botón flotante para crear bono -->
