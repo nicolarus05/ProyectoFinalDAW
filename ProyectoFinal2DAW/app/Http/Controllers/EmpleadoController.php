@@ -46,8 +46,6 @@ class EmpleadoController extends Controller{
             'categoria' => 'required|in:peluqueria,estetica',
         ]);
 
-        //dd($request->all());
-
         // Crear user
         $user = user::create([
             'nombre' => $request->input('nombre'),

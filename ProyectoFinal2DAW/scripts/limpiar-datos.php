@@ -5,6 +5,8 @@ require __DIR__ . '/../vendor/autoload.php';
 $app = require_once __DIR__ . '/../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
+use Illuminate\Support\Facades\DB;
+
 $tenants = ['tenantredireccion', 'tenantsalon4', 'tenantsalon5', 'tenantsalongarcia', 'tenantsalonlh'];
 
 foreach ($tenants as $tenant) {

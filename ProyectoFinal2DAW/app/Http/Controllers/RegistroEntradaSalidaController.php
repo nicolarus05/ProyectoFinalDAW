@@ -140,8 +140,8 @@ class RegistroEntradaSalidaController extends Controller{
             
             // Determinar hora de inicio según mes (verano o normal)
             $horaInicio = in_array($mes, \App\Models\HorarioTrabajo::MESES_VERANO) 
-                ? \App\Models\HorarioTrabajo::HORA_INICIO_NORMAL 
-                : \App\Models\HorarioTrabajo::HORA_INICIO_NORMAL;
+                ? \App\Models\HorarioTrabajo::HORA_INICIO_VERANO 
+                : \App\Models\HorarioTrabajo::HORA_INICIO_INVIERNO_LV;
             
             $horaInicioPermitida = Carbon::parse($hoy->format('Y-m-d') . ' ' . $horaInicio);
             $margenAntes = 15;

@@ -7,6 +7,7 @@ use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
@@ -24,23 +25,23 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        \Log::info('=== INTENTO DE LOGIN ===');
-        \Log::info('Email: ' . $request->email);
-        \Log::info('Host recibido: ' . $request->getHost());
-        \Log::info('HTTP Host header: ' . $request->getHttpHost());
-        \Log::info('URL completa: ' . $request->fullUrl());
-        \Log::info('Datos del request:', $request->all());
+        Log::info('=== INTENTO DE LOGIN ===');
+        Log::info('Email: ' . $request->email);
+        Log::info('Host recibido: ' . $request->getHost());
+        Log::info('HTTP Host header: ' . $request->getHttpHost());
+        Log::info('URL completa: ' . $request->fullUrl());
+        Log::info('Datos del request:', $request->all());
         
         try {
             $request->authenticate();
-            \Log::info('Autenticación exitosa');
+            Log::info('Autenticación exitosa');
         } catch (\Exception $e) {
-            \Log::error('Error en autenticación: ' . $e->getMessage());
+            Log::error('Error en autenticación: ' . $e->getMessage());
             throw $e;
         }
 
         $request->session()->regenerate();
-        \Log::info('Sesión regenerada, redirigiendo a dashboard');
+        Log::info('Sesión regenerada, redirigiendo a dashboard');
 
         return redirect()->intended(route('dashboard', absolute: false));
     }
