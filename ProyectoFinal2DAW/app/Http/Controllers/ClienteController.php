@@ -139,8 +139,25 @@ class ClienteController extends Controller{
      * Remove the specified resource from storage.
      */
     public function destroy(Cliente $cliente){
-        $cliente->delete();
-        return redirect()->route('clientes.index')->with('success', 'El Cliente ha sido eliminado con exito.');
+        try {
+            // Guardar el ID del usuario antes de eliminar el cliente
+            $userId = $cliente->id_user;
+            
+            // Eliminar el cliente (las relaciones con cascade se eliminarán automáticamente)
+            $cliente->delete();
+            
+            // Eliminar el usuario asociado si existe
+            if ($userId) {
+                $user = user::find($userId);
+                if ($user) {
+                    $user->delete();
+                }
+            }
+            
+            return redirect()->route('clientes.index')->with('success', 'El Cliente ha sido eliminado con éxito.');
+        } catch (\Exception $e) {
+            return redirect()->route('clientes.index')->with('error', 'Error al eliminar el cliente: ' . $e->getMessage());
+        }
     }
 }
 

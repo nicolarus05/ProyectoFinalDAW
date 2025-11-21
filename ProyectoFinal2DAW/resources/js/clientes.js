@@ -4,7 +4,7 @@
 let currentSort = 'asc';
 
 // Función de confirmación de eliminación
-function confirmarEliminacion(id) {
+window.confirmarEliminacion = function(id) {
     if (confirm('¿Estás seguro de que quieres eliminar este cliente?')) {
         document.getElementById('delete-form-' + id).submit();
     }
