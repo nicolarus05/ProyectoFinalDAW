@@ -10,6 +10,17 @@
     <div class="max-w-4xl mx-auto bg-white p-6 rounded shadow">
         <h1 class="text-2xl font-semibold mb-6">Crear nuevo cliente</h1>
 
+        @if ($errors->any())
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                <strong>Errores:</strong>
+                <ul class="list-disc list-inside">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         <form action="{{ route('clientes.store') }}" method="POST" class="space-y-4">
             @csrf
 
@@ -43,8 +54,8 @@
                     <label for="genero" class="block font-medium">Género:</label>
                     <select name="genero" required class="w-full border border-gray-300 rounded p-2">
                         <option value="">Seleccione</option>
-                        <option value="Masculino">Masculino</option>
-                        <option value="Femenino">Femenino</option>
+                        <option value="Hombre">Hombre</option>
+                        <option value="Mujer">Mujer</option>
                         <option value="Otro">Otro</option>
                     </select>
                 </div>
@@ -65,10 +76,8 @@
                 <textarea name="notas_adicionales" class="w-full border border-gray-300 rounded p-2"></textarea>
             </div>
 
-            <div>
-                <label for="fecha_registro" class="block font-medium">Fecha de Registro:</label>
-                <input type="date" name="fecha_registro" value="{{ date('Y-m-d') }}" required class="w-full border border-gray-300 rounded p-2">
-            </div>
+            <!-- Campo oculto para fecha_registro -->
+            <input type="hidden" name="fecha_registro" value="{{ date('Y-m-d') }}">
 
             <div class="flex justify-between mt-6">
                 <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Guardar</button>

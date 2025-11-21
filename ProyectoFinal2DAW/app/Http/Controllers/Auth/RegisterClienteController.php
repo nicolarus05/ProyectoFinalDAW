@@ -24,12 +24,14 @@ class RegisterClienteController extends Controller
             'telefono' => 'required|string|max:20',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
-            'genero' => 'required|in:masculino,femenino,otro',
+            'genero' => 'required|in:Hombre,Mujer,Otro',
             'edad' => 'required|integer|min:0|max:120',
             'direccion' => 'required|string|max:255',
             'notas_adicionales' => 'nullable|string|max:1000',
-            'fecha_registro' => 'required|date',
         ]);
+
+        // Asignar fecha de registro automáticamente
+        $fechaRegistro = $request->fecha_registro ?? date('Y-m-d');
 
         $user = user::create([
             'nombre' => $request->nombre,
@@ -42,7 +44,7 @@ class RegisterClienteController extends Controller
             'rol' => 'cliente',
             'direccion' => $request->direccion,
             'notas_adicionales' => $request->notas_adicionales,
-            'fecha_registro' => $request->fecha_registro,
+            'fecha_registro' => $fechaRegistro,
         ]);
 
         // Crear registro en tabla clientes vinculado al user
@@ -50,7 +52,7 @@ class RegisterClienteController extends Controller
             'id_user' => $user->id,
             'direccion' => $request->direccion,
             'notas_adicionales' => $request->notas_adicionales,
-            'fecha_registro' => $request->fecha_registro,
+            'fecha_registro' => $fechaRegistro,
         ]);
 
 

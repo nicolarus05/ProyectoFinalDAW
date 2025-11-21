@@ -39,12 +39,15 @@ class ClienteController extends Controller{
             'apellidos' => 'required|string|max:255',
             'telefono' => 'nullable|string|max:20',
             'email' => 'required|email|unique:users,email',
+            'password' => 'required|string|min:6',
             'genero' => 'required|string|max:20',
             'edad' => 'required|integer|min:0',
             'direccion' => 'required|string|max:255',
             'notas_adicionales' => 'nullable|string|max:255',
-            'fecha_registro' => 'required|date',
         ]);
+
+        // Asignar fecha de registro automáticamente
+        $fechaRegistro = $request->fecha_registro ?? date('Y-m-d');
 
         // Crear user
         $user = user::create([
@@ -63,10 +66,10 @@ class ClienteController extends Controller{
             'id_user' => $user->id,
             'direccion' => $request->input('direccion'),
             'notas_adicionales' => $request->input('notas_adicionales'),
-            'fecha_registro' => $request->input('fecha_registro'),
+            'fecha_registro' => $fechaRegistro,
         ]);
 
-        return redirect()->route('clientes.index')->with('success', 'El Cliente ha sido creado con exito.');
+        return redirect()->route('clientes.index')->with('success', 'El Cliente ha sido creado con éxito.');
     }
 
     /**

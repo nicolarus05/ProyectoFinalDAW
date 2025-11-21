@@ -13,6 +13,17 @@
         class="bg-white shadow-lg rounded-lg p-8 w-full max-w-2xl space-y-5">
         @csrf
 
+        @if ($errors->any())
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                <strong>Errores:</strong>
+                <ul class="list-disc list-inside">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         <div class="flex flex-col md:flex-row gap-4">
             <div class="w-full md:w-1/2">
                 <label class="block text-gray-700 font-semibold mb-1">Nombre:</label>
@@ -62,9 +73,9 @@
                 <select name="genero" required
                         class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black">
                     <option value="">Selecciona</option>
-                    <option value="masculino" {{ old('genero') == 'masculino' ? 'selected' : '' }}>Masculino</option>
-                    <option value="femenino" {{ old('genero') == 'femenino' ? 'selected' : '' }}>Femenino</option>
-                    <option value="otro" {{ old('genero') == 'otro' ? 'selected' : '' }}>Otro</option>
+                    <option value="Hombre" {{ old('genero') == 'Hombre' ? 'selected' : '' }}>Hombre</option>
+                    <option value="Mujer" {{ old('genero') == 'Mujer' ? 'selected' : '' }}>Mujer</option>
+                    <option value="Otro" {{ old('genero') == 'Otro' ? 'selected' : '' }}>Otro</option>
                 </select>
             </div>
             <div class="w-full md:w-1/2">
@@ -86,11 +97,8 @@
                     class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black">{{ old('notas_adicionales') }}</textarea>
         </div>
 
-        <div>
-            <label class="block text-gray-700 font-semibold mb-1">Fecha de registro:</label>
-            <input type="date" name="fecha_registro" value="{{ old('fecha_registro', date('Y-m-d')) }}" required readonly
-                class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-black">
-        </div>
+        <!-- Campo oculto para fecha_registro -->
+        <input type="hidden" name="fecha_registro" value="{{ date('Y-m-d') }}">
 
         <button type="submit"
                 class="w-full bg-black text-white py-2 rounded font-semibold hover:bg-gray-800 transition-colors duration-300">
