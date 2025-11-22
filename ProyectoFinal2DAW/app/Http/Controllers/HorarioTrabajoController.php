@@ -12,41 +12,48 @@ class HorarioTrabajoController extends Controller{
     /**
      * Display a listing of the resource.
      */
-    public function index(){
-        // Obtener horarios agrupados por empleado, fecha
-        $horariosRaw = HorarioTrabajo::with('empleado.user')
-            ->whereNotNull('hora')
-            ->orderBy('fecha', 'desc')
-            ->orderBy('id_empleado')
-            ->get();
-        
-        // Agrupar por empleado y fecha para mostrar jornadas completas
-        $horariosAgrupados = $horariosRaw->groupBy(function($item) {
-            return $item->id_empleado . '_' . $item->fecha->format('Y-m-d');
-        })->map(function($grupo) {
-            $primero = $grupo->first();
-            $horas = $grupo->pluck('hora')->sort();
-            $disponibles = $grupo->where('disponible', true)->count();
-            $totales = $grupo->count();
-            
-            return (object)[
-                'id_empleado' => $primero->id_empleado,
-                'empleado' => $primero->empleado,
-                'fecha' => $primero->fecha,
-                'hora_inicio' => $horas->first(),
-                'hora_fin' => $horas->last(),
-                'total_bloques' => $totales,
-                'bloques_disponibles' => $disponibles,
-                'tipo_horario' => $primero->tipo_horario,
-                'notas' => $primero->notas,
-                'primer_id' => $primero->id, // Para acciones
-            ];
-        })->values()->take(50);
-        
-        $empleados = Empleado::with('user')->get();
-        
-        return view('horarios.index', compact('horariosAgrupados', 'empleados'));
-    }
+   public function index(){
+	   // LIMITAR consulta a los últimos 3 meses y próximos 1 mes
+	   $fechaInicio = now()->subMonths(3)->startOfDay();
+	   $fechaFin = now()->addMonth()->endOfDay();
+
+	   // Obtener solo horarios dentro del rango de fechas
+	   $horariosRaw = HorarioTrabajo::with('empleado.user')
+		   ->whereNotNull('hora')
+		   ->whereBetween('fecha', [$fechaInicio, $fechaFin])
+		   ->orderBy('fecha', 'desc')
+		   ->orderBy('id_empleado')
+		   ->limit(500) // Límite adicional de seguridad
+		   ->get();
+
+	   // Agrupar por empleado y fecha para mostrar jornadas completas
+	   $horariosAgrupados = $horariosRaw->groupBy(function($item) {
+		   return $item->id_empleado . '_' . $item->fecha->format('Y-m-d');
+	   })->map(function($grupo) {
+		   $primero = $grupo->first();
+		   $horas = $grupo->pluck('hora')->sort();
+		   $disponibles = $grupo->where('disponible', true)->count();
+		   $totales = $grupo->count();
+
+		   return (object)[
+			   'id_empleado' => $primero->id_empleado,
+			   'empleado' => $primero->empleado,
+			   'fecha' => $primero->fecha,
+			   'hora_inicio' => $horas->first(),
+			   'hora_fin' => $horas->last(),
+			   'total_bloques' => $totales,
+			   'bloques_disponibles' => $disponibles,
+			   'tipo_horario' => $primero->tipo_horario,
+			   'notas' => $primero->notas,
+			   'primer_id' => $primero->id,
+		   ];
+	   })->values()->take(50);
+
+	   $empleados = Empleado::with('user')->get();
+
+	   return view('horarios.index', compact('horariosAgrupados', 'empleados'));
+	}
+
 
     /**
      * Show the form for creating a new resource.
@@ -424,16 +431,18 @@ class HorarioTrabajoController extends Controller{
         $primerDiaSemana = $fecha->dayOfWeek; // 0 = domingo
 
         // Obtener horarios del mes si hay empleado seleccionado
-        $horarios = collect();
-        if ($empleadoId) {
-            $horarios = HorarioTrabajo::where('id_empleado', $empleadoId)
-                ->whereYear('fecha', $anio)
-                ->whereMonth('fecha', $mes)
-                ->get()
-                ->groupBy(function($item) {
-                    return $item->fecha->format('Y-m-d');
-                });
-        }
+        // Obtener horarios del mes si hay empleado seleccionado
+		$horarios = collect();
+		if ($empleadoId) {
+			$horarios = HorarioTrabajo::where('id_empleado', $empleadoId)
+				->whereYear('fecha', $anio)
+				->whereMonth('fecha', $mes)
+				->select('id', 'fecha', 'hora', 'disponible', 'notas', 'tipo_horario') // Solo campos necesarios
+				->get()
+				->groupBy(function($item) {
+					return $item->fecha->format('Y-m-d');
+				});
+		}
 
         return view('horarios.calendario', compact(
             'empleados',

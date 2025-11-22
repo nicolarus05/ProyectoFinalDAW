@@ -76,9 +76,35 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
 });
 
+// Rutas accesibles por ADMIN y EMPLEADO
+Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
+    // Clientes
+    Route::resource('clientes', ClienteController::class)->names('clientes');
+    Route::get('clientes/{cliente}/historial', [ClienteController::class, 'historial'])->name('clientes.historial');
+    
+    // Cobros
+    Route::get('cobros/direct/create', [RegistroCobroController::class, 'createDirect'])->name('cobros.create.direct');
+    Route::resource('cobros', RegistroCobroController::class)->names('cobros');
+    
+    // Caja diaria
+    Route::get('/caja', [CajaDiariaController::class, 'index'])->name('caja.index');
+    
+    // Citas - rutas específicas
+    Route::post('citas/mover', [CitaController::class, 'moverCita'])->name('citas.mover');
+    Route::post('citas/marcar-completada', [CitaController::class, 'marcarCompletada'])->name('citas.marcarCompletada');
+    Route::post('citas/actualizar-duracion', [CitaController::class, 'actualizarDuracion'])->name('citas.actualizarDuracion');
+    Route::post('citas/{cita}/completar-y-cobrar', [CitaController::class, 'completarYCobrar'])->name('citas.completarYCobrar');
+    Route::post('citas/{cita}/cancelar', [CitaController::class, 'cancelar'])->name('citas.cancelar');
+    Route::resource('citas', CitaController::class)->names('citas');
+});
+
 // Rutas solo para ADMIN
 Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::resource('users', userController::class)->names('users');
+    Route::resource('empleados', EmpleadoController::class)->names('empleados');
+    Route::resource('servicios', ServicioController::class)->names('servicios');
+    Route::get('productos/available', [ProductosController::class, 'available'])->name('productos.available');
+    Route::resource('productos', ProductosController::class)->names('productos');
     
     // Horarios - rutas específicas ANTES del resource
     Route::get('horarios/calendario', [HorarioTrabajoController::class, 'calendario'])->name('horarios.calendario');
@@ -89,16 +115,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::post('horarios/toggle-disponibilidad-rango', [HorarioTrabajoController::class, 'toggleDisponibilidadRango'])->name('horarios.toggleDisponibilidadRango');
     Route::post('horarios/deshabilitar-bloque', [HorarioTrabajoController::class, 'deshabilitarBloque'])->name('horarios.deshabilitarBloque');
     Route::get('horarios/bloques-dia', [HorarioTrabajoController::class, 'bloquesDia'])->name('horarios.bloquesDia');
-    
     Route::resource('horarios', HorarioTrabajoController::class)->names('horarios');
-});
-
-// Rutas accesibles por ADMIN y EMPLEADO
-Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
-    Route::resource('clientes', ClienteController::class)->names('clientes');
-    Route::get('clientes/{cliente}/historial', [ClienteController::class, 'historial'])->name('clientes.historial');
-    Route::resource('empleados', EmpleadoController::class)->names('empleados');
-    Route::resource('servicios', ServicioController::class)->names('servicios');
 
     // Rutas anidadas de servicios
     Route::get('/servicios/{servicio}/empleados/create', [ServicioController::class, 'createEmpleado'])->name('servicios.createempleado');
@@ -116,21 +133,6 @@ Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
     Route::post('/servicios/{servicio}/empleados', [ServicioController::class, 'addEmpleado'])->name('servicios.addempleado');
     Route::get('/servicios/{servicio}/citas', [ServicioController::class, 'citas'])->name('servicios.citas');
     Route::post('/servicios/{servicio}/citas', [ServicioController::class, 'addCita'])->name('servicios.addcita');
-
-    Route::get('cobros/direct/create', [RegistroCobroController::class, 'createDirect'])->name('cobros.create.direct');
-    Route::resource('cobros', RegistroCobroController::class)->names('cobros');
-    Route::get('/caja', [CajaDiariaController::class, 'index'])->name('caja.index');
-    Route::get('productos/available', [ProductosController::class, 'available'])->name('productos.available');
-    Route::resource('productos', ProductosController::class)->names('productos');
-    
-    // Rutas específicas de citas (antes del resource)
-    Route::post('citas/mover', [CitaController::class, 'moverCita'])->name('citas.mover');
-    Route::post('citas/marcar-completada', [CitaController::class, 'marcarCompletada'])->name('citas.marcarCompletada');
-    Route::post('citas/actualizar-duracion', [CitaController::class, 'actualizarDuracion'])->name('citas.actualizarDuracion');
-    Route::post('citas/{cita}/completar-y-cobrar', [CitaController::class, 'completarYCobrar'])->name('citas.completarYCobrar');
-    Route::post('citas/{cita}/cancelar', [CitaController::class, 'cancelar'])->name('citas.cancelar');
-    
-    Route::resource('citas', CitaController::class)->names('citas');
     
     // Rutas de deudas
     Route::prefix('deudas')->name('deudas.')->group(function () {

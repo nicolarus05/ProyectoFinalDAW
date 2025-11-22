@@ -171,8 +171,8 @@
                 @include('asistencia.widget-empleado')
             </div>
 
-            <!-- Grid para Empleados -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Grid para Empleados - Solo acceso a operaciones diarias -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 max-w-4xl mx-auto">
                 
                 <!-- Gestionar Citas -->
                 <a href="{{ route('citas.index') }}" class="card-hover bg-white border-2 border-black rounded-xl p-6 text-center group">
@@ -192,33 +192,6 @@
                     <p class="text-gray-600 text-sm">Gestionar información de clientes</p>
                 </a>
 
-                <!-- Gestionar Empleados -->
-                <a href="{{ route('empleados.index') }}" class="card-hover bg-white border-2 border-black rounded-xl p-6 text-center group">
-                    <div class="w-16 h-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-gray-800 transition">
-                        <span class="text-3xl">💼</span>
-                    </div>
-                    <h3 class="text-xl font-bold text-black mb-2">Empleados</h3>
-                    <p class="text-gray-600 text-sm">Administrar personal del salón</p>
-                </a>
-
-                <!-- Gestionar Servicios -->
-                <a href="{{ route('servicios.index') }}" class="card-hover bg-white border-2 border-black rounded-xl p-6 text-center group">
-                    <div class="w-16 h-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-gray-800 transition">
-                        <span class="text-3xl">💇</span>
-                    </div>
-                    <h3 class="text-xl font-bold text-black mb-2">Servicios</h3>
-                    <p class="text-gray-600 text-sm">Gestionar servicios de belleza</p>
-                </a>
-
-                <!-- Gestionar Productos -->
-                <a href="{{ route('productos.index') }}" class="card-hover bg-white border-2 border-black rounded-xl p-6 text-center group">
-                    <div class="w-16 h-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-gray-800 transition">
-                        <span class="text-3xl">🛍️</span>
-                    </div>
-                    <h3 class="text-xl font-bold text-black mb-2">Productos</h3>
-                    <p class="text-gray-600 text-sm">Control de inventario y productos</p>
-                </a>
-
                 <!-- Registro de Cobros -->
                 <a href="{{ route('cobros.index') }}" class="card-hover bg-white border-2 border-black rounded-xl p-6 text-center group">
                     <div class="w-16 h-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-gray-800 transition">
@@ -226,33 +199,6 @@
                     </div>
                     <h3 class="text-xl font-bold text-black mb-2">Registro de Cobros</h3>
                     <p class="text-gray-600 text-sm">Historial de pagos y transacciones</p>
-                </a>
-
-                <!-- Gestionar Deudas (Destacado) -->
-                <a href="{{ route('deudas.index') }}" class="card-hover card-deudas border-2 border-black rounded-xl p-6 text-center group">
-                    <div class="w-16 h-16 bg-red-500 text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-red-600 transition">
-                        <span class="text-3xl">💰</span>
-                    </div>
-                    <h3 class="text-xl font-bold text-red-700 mb-2">Gestionar Deudas</h3>
-                    <p class="text-red-600 text-sm">Control de cuentas pendientes</p>
-                </a>
-
-                <!-- Gestionar Bonos -->
-                <a href="{{ route('bonos.index') }}" class="card-hover border-2 border-black rounded-xl p-6 text-center group">
-                    <div class="w-16 h-16 bg-purple-500 text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-purple-600 transition">
-                        <span class="text-3xl">🎫</span>
-                    </div>
-                    <h3 class="text-xl font-bold text-purple-700 mb-2">Gestionar Bonos</h3>
-                    <p class="text-purple-600 text-sm">Crear y vender bonos de servicios</p>
-                </a>
-
-                <!-- Clientes con Bonos -->
-                <a href="{{ route('bonos.clientesConBonos') }}" class="card-hover border-2 border-black rounded-xl p-6 text-center group">
-                    <div class="w-16 h-16 bg-indigo-500 text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-indigo-600 transition">
-                        <span class="text-3xl">👥</span>
-                    </div>
-                    <h3 class="text-xl font-bold text-indigo-700 mb-2">Clientes con Bonos</h3>
-                    <p class="text-indigo-600 text-sm">Ver clientes con bonos activos</p>
                 </a>
 
                 <!-- Caja del Día (Destacado) -->
