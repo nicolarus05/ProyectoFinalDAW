@@ -145,9 +145,15 @@
             @endif
         </div>
 
-        <div class="flex space-x-4">
-            <a href="{{ route('empleados.edit', $empleado->id) }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Editar</a>
-            <a href="{{ route('empleados.index') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">Volver a la lista</a>
+        <div class="flex flex-wrap gap-4">
+            <a href="{{ route('empleados.edit', $empleado->id) }}" 
+               class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
+                ✏️ Editar
+            </a>
+            <a href="{{ route('empleados.index') }}" 
+               class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 transition">
+                ← Volver a la lista
+            </a>
         </div>
     </div>
 </body>

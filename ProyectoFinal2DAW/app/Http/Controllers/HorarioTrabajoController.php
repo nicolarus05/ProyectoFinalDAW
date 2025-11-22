@@ -152,6 +152,26 @@ class HorarioTrabajoController extends Controller{
     }
 
     /**
+     * Mostrar formulario para configurar horarios antes de generar
+     */
+    public function mostrarFormularioGeneracion(Request $request){
+        $empleadoId = $request->get('empleado');
+        $tipo = $request->get('tipo');
+        $empleado = Empleado::findOrFail($empleadoId);
+        
+        // Datos adicionales según el tipo
+        $datos = [
+            'empleado' => $empleado,
+            'tipo' => $tipo,
+            'fecha_inicio' => $request->get('fecha_inicio'),
+            'mes' => $request->get('mes'),
+            'anio' => $request->get('anio'),
+        ];
+        
+        return view('horarios.configurar-generacion', $datos);
+    }
+
+    /**
      * Generar horarios para una semana completa (lunes a sábado)
      */
     public function generarSemana(Request $request){
@@ -160,7 +180,17 @@ class HorarioTrabajoController extends Controller{
             'fecha_inicio' => 'required|date',
         ]);
 
-        $empleadoId = $request->id_empleado;
+        $empleado = Empleado::findOrFail($request->id_empleado);
+        
+        // PRIMERO: Guardar la configuración en el empleado
+        if ($request->has('horario_invierno')) {
+            $empleado->horario_invierno = $request->horario_invierno;
+        }
+        if ($request->has('horario_verano')) {
+            $empleado->horario_verano = $request->horario_verano;
+        }
+        $empleado->save();
+
         $fechaInicio = Carbon::parse($request->fecha_inicio)->startOfWeek(); // Lunes
         $registrosCreados = 0;
 
@@ -168,8 +198,8 @@ class HorarioTrabajoController extends Controller{
         for ($dia = 0; $dia < 6; $dia++) {
             $fecha = $fechaInicio->copy()->addDays($dia);
             
-            // Obtener horario específico para este día
-            $horarioDia = HorarioTrabajo::obtenerHorarioPorFecha($fecha);
+            // Obtener horario personalizado del empleado o usar global
+            $horarioDia = $empleado->obtenerHorario($fecha);
             
             if (!$horarioDia) {
                 // Día no laborable (domingo), saltar
@@ -183,14 +213,14 @@ class HorarioTrabajoController extends Controller{
 
             foreach ($bloques as $hora) {
                 // Verificar si ya existe
-                $existe = HorarioTrabajo::where('id_empleado', $empleadoId)
+                $existe = HorarioTrabajo::where('id_empleado', $empleado->id)
                     ->where('fecha', $fecha->format('Y-m-d'))
                     ->where('hora', $hora)
                     ->exists();
 
                 if (!$existe) {
                     HorarioTrabajo::create([
-                        'id_empleado' => $empleadoId,
+                        'id_empleado' => $empleado->id,
                         'fecha' => $fecha->format('Y-m-d'),
                         'hora' => $hora,
                         'disponible' => true,
@@ -214,7 +244,17 @@ class HorarioTrabajoController extends Controller{
             'anio' => 'required|integer|min:2024',
         ]);
 
-        $empleadoId = $request->id_empleado;
+        $empleado = Empleado::findOrFail($request->id_empleado);
+        
+        // PRIMERO: Guardar la configuración en el empleado
+        if ($request->has('horario_invierno')) {
+            $empleado->horario_invierno = $request->horario_invierno;
+        }
+        if ($request->has('horario_verano')) {
+            $empleado->horario_verano = $request->horario_verano;
+        }
+        $empleado->save();
+
         $mes = $request->mes;
         $anio = $request->anio;
         $registrosCreados = 0;
@@ -227,8 +267,8 @@ class HorarioTrabajoController extends Controller{
             // Solo días laborables (lunes a sábado)
             if (in_array($fecha->dayOfWeek, HorarioTrabajo::DIAS_LABORABLES)) {
                 
-                // Obtener horario específico para este día
-                $horarioDia = HorarioTrabajo::obtenerHorarioPorFecha($fecha);
+                // Obtener horario personalizado del empleado o usar global
+                $horarioDia = $empleado->obtenerHorario($fecha);
                 
                 if (!$horarioDia) {
                     // Día no laborable, saltar
@@ -242,14 +282,14 @@ class HorarioTrabajoController extends Controller{
                 );
 
                 foreach ($bloques as $hora) {
-                    $existe = HorarioTrabajo::where('id_empleado', $empleadoId)
+                    $existe = HorarioTrabajo::where('id_empleado', $empleado->id)
                         ->where('fecha', $fecha->format('Y-m-d'))
                         ->where('hora', $hora)
                         ->exists();
 
                     if (!$existe) {
                         HorarioTrabajo::create([
-                            'id_empleado' => $empleadoId,
+                            'id_empleado' => $empleado->id,
                             'fecha' => $fecha->format('Y-m-d'),
                             'hora' => $hora,
                             'disponible' => true,
@@ -274,7 +314,17 @@ class HorarioTrabajoController extends Controller{
             'anio' => 'required|integer|min:2024',
         ]);
 
-        $empleadoId = $request->id_empleado;
+        $empleado = Empleado::findOrFail($request->id_empleado);
+        
+        // PRIMERO: Guardar la configuración en el empleado
+        if ($request->has('horario_invierno')) {
+            $empleado->horario_invierno = $request->horario_invierno;
+        }
+        if ($request->has('horario_verano')) {
+            $empleado->horario_verano = $request->horario_verano;
+        }
+        $empleado->save();
+
         $anio = $request->anio;
         $registrosCreados = 0;
 
@@ -288,8 +338,8 @@ class HorarioTrabajoController extends Controller{
                 // Solo días laborables (lunes a sábado)
                 if (in_array($fecha->dayOfWeek, HorarioTrabajo::DIAS_LABORABLES)) {
                     
-                    // Obtener horario específico para este día
-                    $horarioDia = HorarioTrabajo::obtenerHorarioPorFecha($fecha);
+                    // Obtener horario personalizado del empleado o usar global
+                    $horarioDia = $empleado->obtenerHorario($fecha);
                     
                     if (!$horarioDia) {
                         // Día no laborable, saltar
@@ -303,14 +353,14 @@ class HorarioTrabajoController extends Controller{
                     );
 
                     foreach ($bloques as $hora) {
-                        $existe = HorarioTrabajo::where('id_empleado', $empleadoId)
+                        $existe = HorarioTrabajo::where('id_empleado', $empleado->id)
                             ->where('fecha', $fecha->format('Y-m-d'))
                             ->where('hora', $hora)
                             ->exists();
 
                         if (!$existe) {
                             HorarioTrabajo::create([
-                                'id_empleado' => $empleadoId,
+                                'id_empleado' => $empleado->id,
                                 'fecha' => $fecha->format('Y-m-d'),
                                 'hora' => $hora,
                                 'disponible' => true,

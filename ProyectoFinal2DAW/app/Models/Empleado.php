@@ -21,6 +21,13 @@ class Empleado extends Model{
     protected $fillable = [
         'id_user',
         'categoria',
+        'horario_invierno',
+        'horario_verano',
+    ];
+
+    protected $casts = [
+        'horario_invierno' => 'array',
+        'horario_verano' => 'array',
     ];
 
     public function user(){
@@ -110,5 +117,37 @@ class Empleado extends Model{
             ->where('citas.id_empleado', $this->id)
             ->whereBetween('registro_cobros.created_at', [now()->startOfMonth(), now()->endOfMonth()])
             ->count();
+    }
+
+    /**
+     * Obtener horario personalizado del empleado para una fecha específica
+     * Si no tiene configuración personalizada, devuelve los horarios globales
+     */
+    public function obtenerHorario($fecha)
+    {
+        $carbon = \Carbon\Carbon::parse($fecha);
+        $diaSemana = $carbon->dayOfWeek; // 0=Domingo, 1=Lunes, ..., 6=Sábado
+        $mes = $carbon->month;
+        $esVerano = in_array($mes, [7, 8]); // Julio y Agosto
+        
+        // Seleccionar horario según temporada
+        $horarios = $esVerano ? $this->horario_verano : $this->horario_invierno;
+        
+        // Si el empleado tiene configuración personalizada para este día
+        if ($horarios && is_array($horarios)) {
+            // Buscar tanto con clave numérica como string
+            $horarioDia = $horarios[$diaSemana] ?? $horarios[(string)$diaSemana] ?? null;
+            
+            if ($horarioDia && is_array($horarioDia) && isset($horarioDia['inicio']) && isset($horarioDia['fin'])) {
+                return [
+                    'inicio' => $horarioDia['inicio'],
+                    'fin' => $horarioDia['fin'],
+                    'tipo' => $esVerano ? 'verano_personalizado' : 'invierno_personalizado'
+                ];
+            }
+        }
+        
+        // Fallback: usar horarios globales del sistema
+        return HorarioTrabajo::obtenerHorarioPorFecha($fecha);
     }
 }

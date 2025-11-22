@@ -63,12 +63,16 @@ Route::middleware([
     Route::middleware(['auth', 'role:admin'])->group(function () {
         Route::resource('users', userController::class)->names('users');
         Route::resource('empleados', EmpleadoController::class)->names('empleados');
+        
+        // Rutas adicionales para horarios de empleados
+
         Route::resource('servicios', ServicioController::class)->names('servicios');
         Route::resource('productos', ProductosController::class)->names('productos');
         Route::get('productos/available', [ProductosController::class, 'available'])->name('productos.available');
 
         // Horarios (solo admin)
         Route::get('horarios/calendario', [HorarioTrabajoController::class, 'calendario'])->name('horarios.calendario');
+        Route::get('horarios/configurar', [HorarioTrabajoController::class, 'mostrarFormularioGeneracion'])->name('horarios.configurar');
         Route::post('horarios/generar-semana', [HorarioTrabajoController::class, 'generarSemana'])->name('horarios.generarSemana');
         Route::post('horarios/generar-mes', [HorarioTrabajoController::class, 'generarMes'])->name('horarios.generarMes');
         Route::post('horarios/generar-anual', [HorarioTrabajoController::class, 'generarAnual'])->name('horarios.generarAnual');

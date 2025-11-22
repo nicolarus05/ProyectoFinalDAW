@@ -97,8 +97,8 @@
                             <h3 class="font-bold text-blue-700 mb-2">📅 Generar Semana</h3>
                             <p class="text-sm text-gray-600 mb-3">Lunes a Sábado de la semana actual</p>
                             <input type="date" name="fecha_inicio" id="fecha_semana" value="{{ now()->startOfWeek()->format('Y-m-d') }}" class="w-full border rounded px-2 py-1 mb-2 text-sm">
-                            <button type="button" onclick="generarHorarios('semana')" class="btn-primary w-full text-white px-4 py-2 rounded hover:bg-blue-700 font-semibold">
-                                Generar Semana
+                            <button type="button" onclick="irAConfiguracion('semana')" class="btn-primary w-full text-white px-4 py-2 rounded hover:bg-blue-700 font-semibold">
+                                Configurar y Generar
                             </button>
                         </div>
 
@@ -120,8 +120,8 @@
                                     <option value="2026">2026</option>
                                 </select>
                             </div>
-                            <button type="button" onclick="generarHorarios('mes')" class="btn-green w-full text-white px-4 py-2 rounded hover:bg-green-700 font-semibold">
-                                Generar Mes
+                            <button type="button" onclick="irAConfiguracion('mes')" class="btn-green w-full text-white px-4 py-2 rounded hover:bg-green-700 font-semibold">
+                                Configurar y Generar
                             </button>
                         </div>
 
@@ -134,8 +134,8 @@
                                 <option value="2025" selected>2025</option>
                                 <option value="2026">2026</option>
                             </select>
-                            <button type="button" onclick="generarHorarios('anual')" class="btn-purple w-full text-white px-4 py-2 rounded hover:bg-purple-700 font-semibold">
-                                Generar Año Completo
+                            <button type="button" onclick="irAConfiguracion('anual')" class="btn-purple w-full text-white px-4 py-2 rounded hover:bg-purple-700 font-semibold">
+                                Configurar y Generar
                             </button>
                         </div>
 
@@ -168,34 +168,28 @@
     </div>
 
     <script>
-        function generarHorarios(tipo) {
+        function irAConfiguracion(tipo) {
             const empleado = document.getElementById('empleado_gen').value;
             if (!empleado) {
                 alert('Por favor, selecciona un empleado primero');
                 return;
             }
 
-            if (!confirmarGeneracion(tipo)) {
-                return;
-            }
-
-            const form = document.getElementById('formGeneracion');
+            let url = '/horarios/configurar?empleado=' + empleado + '&tipo=' + tipo;
             
             if (tipo === 'semana') {
-                form.action = '{{ route('horarios.generarSemana') }}';
+                const fecha = document.getElementById('fecha_semana').value;
+                url += '&fecha_inicio=' + fecha;
             } else if (tipo === 'mes') {
-                form.action = '{{ route('horarios.generarMes') }}';
+                const mes = document.getElementById('mes_gen').value;
+                const anio = document.getElementById('anio_gen').value;
+                url += '&mes=' + mes + '&anio=' + anio;
             } else if (tipo === 'anual') {
-                form.action = '{{ route('horarios.generarAnual') }}';
-                // Cambiar el nombre del campo para anual
-                const anioInput = document.createElement('input');
-                anioInput.type = 'hidden';
-                anioInput.name = 'anio';
-                anioInput.value = document.getElementById('anio_completo').value;
-                form.appendChild(anioInput);
+                const anio = document.getElementById('anio_completo').value;
+                url += '&anio=' + anio;
             }
 
-            form.submit();
+            window.location.href = url;
         }
     </script>
 

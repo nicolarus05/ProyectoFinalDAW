@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Empleado;
 use App\Models\user;
+use Illuminate\Support\Facades\Log;
 
 class EmpleadoController extends Controller{
     /**
