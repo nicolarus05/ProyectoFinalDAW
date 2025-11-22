@@ -28,6 +28,11 @@ $app = Application::configure(basePath: dirname(__DIR__))
         // Agregar CORS headers a los assets estáticos para multi-tenancy
         $middleware->append(\App\Http\Middleware\AddCorsHeadersToAssets::class);
     })
+    ->withMiddleware(function (Middleware $middleware) {
+        $middleware->alias([
+            'desktop.only' => \App\Http\Middleware\CheckDevice::class,
+        ]);
+    })
     ->withExceptions(function (Exceptions $exceptions) {
         //
     })->create();

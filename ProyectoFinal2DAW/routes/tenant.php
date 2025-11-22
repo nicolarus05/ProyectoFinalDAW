@@ -13,188 +13,168 @@ use App\Http\Controllers\{
     CajaDiariaController, ProductosController, DeudaController, BonoController
 };
 
-/*
-|--------------------------------------------------------------------------
-| Tenant Routes
-|--------------------------------------------------------------------------
-|
-| Estas son las rutas de la aplicación que se ejecutan en el contexto
-| de cada tenant (salón). Cada salón accede a través de su subdominio:
-| ejemplo: salonlola.misalon.com, salonbelen.misalon.com
-|
-| IMPORTANTE: Los middleware de tenancy se aplican aquí directamente
-|
-*/
-
 // GRUPO PRINCIPAL: Middleware de tenancy para TODAS las rutas
-// ORDEN CRÍTICO: 1. InitializeTenancy, 2. PreventAccess, 3. web (sesiones)
 Route::middleware([
     \Stancl\Tenancy\Middleware\InitializeTenancyByDomain::class,
     \Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains::class,
-    'web', // Sesiones, CSRF, cookies - DESPUÉS de inicializar tenant
+    'web',
 ])->group(function () {
 
-// Dashboard - Página principal del tenant
-Route::get('/', fn () => view('dashboard'))
-    ->middleware(['auth'])
-    ->name('dashboard');
+    // Dashboard
+    Route::get('/', fn () => view('dashboard'))
+        ->middleware(['auth'])
+        ->name('dashboard');
+    Route::get('/dashboard', fn () => view('dashboard'))
+        ->middleware(['auth'])
+        ->name('dashboard.legacy');
 
-Route::get('/dashboard', fn () => view('dashboard'))
-    ->middleware(['auth'])
-    ->name('dashboard.legacy');
+    // Autenticación
+    Route::get('/login', [AuthenticatedSessionController::class, 'create'])
+        ->middleware('guest')
+        ->name('login');
+    Route::post('/login', [AuthenticatedSessionController::class, 'store'])
+        ->middleware('guest')
+        ->name('login.post');
+    Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
+        ->middleware('auth')
+        ->name('logout');
 
-// Rutas de autenticación (login, logout, password reset)
-Route::get('/login', [AuthenticatedSessionController::class, 'create'])
-    ->middleware('guest')
-    ->name('login');
+    Route::get('/forgot-password', [PasswordResetLinkController::class, 'create'])
+        ->middleware('guest')
+        ->name('password.request');
+    Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])
+        ->middleware('guest')
+        ->name('password.email');
+    Route::get('/reset-password/{token}', [NewPasswordController::class, 'create'])
+        ->middleware('guest')
+        ->name('password.reset');
 
-Route::post('/login', [AuthenticatedSessionController::class, 'store'])
-    ->middleware('guest')
-    ->name('login.post');
-
-Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
-    ->middleware('auth')
-    ->name('logout');
-
-Route::get('/forgot-password', [PasswordResetLinkController::class, 'create'])
-    ->middleware('guest')
-    ->name('password.request');
-
-Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])
-    ->middleware('guest')
-    ->name('password.email');
-
-Route::get('/reset-password/{token}', [NewPasswordController::class, 'create'])
-    ->middleware('guest')
-    ->name('password.reset');
-
-// Perfil de usuario (todos los roles autenticados)
-Route::middleware(['auth'])->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
-});
-
-// Rutas accesibles por ADMIN y EMPLEADO
-Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
-    // Clientes
-    Route::resource('clientes', ClienteController::class)->names('clientes');
-    Route::get('clientes/{cliente}/historial', [ClienteController::class, 'historial'])->name('clientes.historial');
-    
-    // Cobros
-    Route::get('cobros/direct/create', [RegistroCobroController::class, 'createDirect'])->name('cobros.create.direct');
-    Route::resource('cobros', RegistroCobroController::class)->names('cobros');
-    
-    // Caja diaria
-    Route::get('/caja', [CajaDiariaController::class, 'index'])->name('caja.index');
-    
-    // Citas - rutas específicas
-    Route::post('citas/mover', [CitaController::class, 'moverCita'])->name('citas.mover');
-    Route::post('citas/marcar-completada', [CitaController::class, 'marcarCompletada'])->name('citas.marcarCompletada');
-    Route::post('citas/actualizar-duracion', [CitaController::class, 'actualizarDuracion'])->name('citas.actualizarDuracion');
-    Route::post('citas/{cita}/completar-y-cobrar', [CitaController::class, 'completarYCobrar'])->name('citas.completarYCobrar');
-    Route::post('citas/{cita}/cancelar', [CitaController::class, 'cancelar'])->name('citas.cancelar');
-    Route::resource('citas', CitaController::class)->names('citas');
-});
-
-// Rutas solo para ADMIN
-Route::middleware(['auth', 'role:admin'])->group(function () {
-    Route::resource('users', userController::class)->names('users');
-    Route::resource('empleados', EmpleadoController::class)->names('empleados');
-    Route::resource('servicios', ServicioController::class)->names('servicios');
-    Route::get('productos/available', [ProductosController::class, 'available'])->name('productos.available');
-    Route::resource('productos', ProductosController::class)->names('productos');
-    
-    // Horarios - rutas específicas ANTES del resource
-    Route::get('horarios/calendario', [HorarioTrabajoController::class, 'calendario'])->name('horarios.calendario');
-    Route::post('horarios/generar-semana', [HorarioTrabajoController::class, 'generarSemana'])->name('horarios.generarSemana');
-    Route::post('horarios/generar-mes', [HorarioTrabajoController::class, 'generarMes'])->name('horarios.generarMes');
-    Route::post('horarios/generar-anual', [HorarioTrabajoController::class, 'generarAnual'])->name('horarios.generarAnual');
-    Route::post('horarios/toggle-disponibilidad', [HorarioTrabajoController::class, 'toggleDisponibilidad'])->name('horarios.toggleDisponibilidad');
-    Route::post('horarios/toggle-disponibilidad-rango', [HorarioTrabajoController::class, 'toggleDisponibilidadRango'])->name('horarios.toggleDisponibilidadRango');
-    Route::post('horarios/deshabilitar-bloque', [HorarioTrabajoController::class, 'deshabilitarBloque'])->name('horarios.deshabilitarBloque');
-    Route::get('horarios/bloques-dia', [HorarioTrabajoController::class, 'bloquesDia'])->name('horarios.bloquesDia');
-    Route::resource('horarios', HorarioTrabajoController::class)->names('horarios');
-
-    // Rutas anidadas de servicios
-    Route::get('/servicios/{servicio}/empleados/create', [ServicioController::class, 'createEmpleado'])->name('servicios.createempleado');
-    Route::post('/servicios/{servicio}/empleados/store', [ServicioController::class, 'storeEmpleado'])->name('servicios.storeempleado');
-    Route::get('/servicios/{servicio}/empleados/{empleado}/edit', [ServicioController::class, 'editEmpleado'])->name('servicios.editempleado');
-    Route::put('/servicios/{servicio}/empleados/{empleado}', [ServicioController::class, 'updateEmpleado'])->name('servicios.updateempleado');
-    Route::delete('/servicios/{servicio}/empleados/{empleado}', [ServicioController::class, 'removeEmpleado'])->name('servicios.removeempleado');
-
-    Route::get('/servicios/{servicio}/citas/create', [ServicioController::class, 'createCita'])->name('servicios.createcita');
-    Route::post('/servicios/{servicio}/citas/store', [ServicioController::class, 'storeCita'])->name('servicios.storecita');
-    Route::get('/servicios/{servicio}/citas/{cita}/edit', [ServicioController::class, 'editCita'])->name('servicios.editcita');
-    Route::delete('/servicios/{servicio}/citas/{cita}', [ServicioController::class, 'removeCita'])->name('servicios.removecita');
-
-    Route::get('/servicios/{servicio}/empleados', [ServicioController::class, 'empleados'])->name('servicios.empleados');
-    Route::post('/servicios/{servicio}/empleados', [ServicioController::class, 'addEmpleado'])->name('servicios.addempleado');
-    Route::get('/servicios/{servicio}/citas', [ServicioController::class, 'citas'])->name('servicios.citas');
-    Route::post('/servicios/{servicio}/citas', [ServicioController::class, 'addCita'])->name('servicios.addcita');
-    
-    // Rutas de deudas
-    Route::prefix('deudas')->name('deudas.')->group(function () {
-        Route::get('/', [DeudaController::class, 'index'])->name('index');
-        Route::get('/cliente/{cliente}', [DeudaController::class, 'show'])->name('show');
-        Route::get('/cliente/{cliente}/pago', [DeudaController::class, 'crearPago'])->name('pago.create');
-        Route::post('/cliente/{cliente}/pago', [DeudaController::class, 'registrarPago'])->name('pago.store');
-        Route::get('/cliente/{cliente}/historial', [DeudaController::class, 'historial'])->name('historial');
+    // Perfil de usuario
+    Route::middleware(['auth'])->group(function () {
+        Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+        Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+        Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
     });
 
-    // Rutas de bonos
-    Route::prefix('bonos')->name('bonos.')->group(function () {
-        Route::get('/', [BonoController::class, 'index'])->name('index');
-        Route::get('/crear', [BonoController::class, 'create'])->name('create');
-        Route::post('/', [BonoController::class, 'store'])->name('store');
-        Route::get('/clientes-con-bonos', [BonoController::class, 'clientesConBonos'])->name('clientesConBonos');
-        Route::get('/{plantilla}/comprar', [BonoController::class, 'comprar'])->name('comprar');
-        Route::post('/{plantilla}/comprar', [BonoController::class, 'procesarCompra'])->name('procesarCompra');
-        Route::get('/cliente/{cliente}', [BonoController::class, 'misClientes'])->name('misClientes');
-        Route::get('/{bono}/editar', [BonoController::class, 'edit'])->name('edit');
-        Route::put('/{bono}', [BonoController::class, 'update'])->name('update');
+    // ============================================================================
+    // SOLO ADMIN - Acceso completo a todas las funcionalidades
+    // ============================================================================
+    Route::middleware(['auth', 'role:admin'])->group(function () {
+        Route::resource('users', userController::class)->names('users');
+        Route::resource('empleados', EmpleadoController::class)->names('empleados');
+        Route::resource('servicios', ServicioController::class)->names('servicios');
+        Route::resource('productos', ProductosController::class)->names('productos');
+        Route::get('productos/available', [ProductosController::class, 'available'])->name('productos.available');
+
+        // Horarios (solo admin)
+        Route::get('horarios/calendario', [HorarioTrabajoController::class, 'calendario'])->name('horarios.calendario');
+        Route::post('horarios/generar-semana', [HorarioTrabajoController::class, 'generarSemana'])->name('horarios.generarSemana');
+        Route::post('horarios/generar-mes', [HorarioTrabajoController::class, 'generarMes'])->name('horarios.generarMes');
+        Route::post('horarios/generar-anual', [HorarioTrabajoController::class, 'generarAnual'])->name('horarios.generarAnual');
+        Route::post('horarios/toggle-disponibilidad', [HorarioTrabajoController::class, 'toggleDisponibilidad'])->name('horarios.toggleDisponibilidad');
+        Route::post('horarios/toggle-disponibilidad-rango', [HorarioTrabajoController::class, 'toggleDisponibilidadRango'])->name('horarios.toggleDisponibilidadRango');
+        Route::post('horarios/deshabilitar-bloque', [HorarioTrabajoController::class, 'deshabilitarBloque'])->name('horarios.deshabilitarBloque');
+        Route::get('horarios/bloques-dia', [HorarioTrabajoController::class, 'bloquesDia'])->name('horarios.bloquesDia');
+        Route::resource('horarios', HorarioTrabajoController::class)->names('horarios');
+
+        // Servicios anidados (solo admin)
+        Route::get('/servicios/{servicio}/empleados/create', [ServicioController::class, 'createEmpleado'])->name('servicios.createempleado');
+        Route::post('/servicios/{servicio}/empleados/store', [ServicioController::class, 'storeEmpleado'])->name('servicios.storeempleado');
+        Route::get('/servicios/{servicio}/empleados/{empleado}/edit', [ServicioController::class, 'editEmpleado'])->name('servicios.editempleado');
+        Route::put('/servicios/{servicio}/empleados/{empleado}', [ServicioController::class, 'updateEmpleado'])->name('servicios.updateempleado');
+        Route::delete('/servicios/{servicio}/empleados/{empleado}', [ServicioController::class, 'removeEmpleado'])->name('servicios.removeempleado');
+        Route::get('/servicios/{servicio}/citas/create', [ServicioController::class, 'createCita'])->name('servicios.createcita');
+        Route::post('/servicios/{servicio}/citas/store', [ServicioController::class, 'storeCita'])->name('servicios.storecita');
+        Route::get('/servicios/{servicio}/citas/{cita}/edit', [ServicioController::class, 'editCita'])->name('servicios.editcita');
+        Route::delete('/servicios/{servicio}/citas/{cita}', [ServicioController::class, 'removeCita'])->name('servicios.removecita');
+        Route::get('/servicios/{servicio}/empleados', [ServicioController::class, 'empleados'])->name('servicios.empleados');
+        Route::post('/servicios/{servicio}/empleados', [ServicioController::class, 'addEmpleado'])->name('servicios.addempleado');
+        Route::get('/servicios/{servicio}/citas', [ServicioController::class, 'citas'])->name('servicios.citas');
+        Route::post('/servicios/{servicio}/citas', [ServicioController::class, 'addCita'])->name('servicios.addcita');
+
+        // Deudas (solo admin)
+        Route::prefix('deudas')->name('deudas.')->group(function () {
+            Route::get('/', [DeudaController::class, 'index'])->name('index');
+            Route::get('/cliente/{cliente}', [DeudaController::class, 'show'])->name('show');
+            Route::get('/cliente/{cliente}/pago', [DeudaController::class, 'crearPago'])->name('pago.create');
+            Route::post('/cliente/{cliente}/pago', [DeudaController::class, 'registrarPago'])->name('pago.store');
+            Route::get('/cliente/{cliente}/historial', [DeudaController::class, 'historial'])->name('historial');
+        });
+
+        // Bonos (solo admin)
+        Route::prefix('bonos')->name('bonos.')->group(function () {
+            Route::get('/', [BonoController::class, 'index'])->name('index');
+            Route::get('/crear', [BonoController::class, 'create'])->name('create');
+            Route::post('/', [BonoController::class, 'store'])->name('store');
+            Route::get('/clientes-con-bonos', [BonoController::class, 'clientesConBonos'])->name('clientesConBonos');
+            Route::get('/{plantilla}/comprar', [BonoController::class, 'comprar'])->name('comprar');
+            Route::post('/{plantilla}/comprar', [BonoController::class, 'procesarCompra'])->name('procesarCompra');
+            Route::get('/cliente/{cliente}', [BonoController::class, 'misClientes'])->name('misClientes');
+            Route::get('/{bono}/editar', [BonoController::class, 'edit'])->name('edit');
+            Route::put('/{bono}', [BonoController::class, 'update'])->name('update');
+        });
+
+        // Asistencia completa (solo admin)
+        Route::get('asistencia', [RegistroEntradaSalidaController::class, 'index'])->name('asistencia.index');
+        Route::get('asistencia/empleado/{empleado}', [RegistroEntradaSalidaController::class, 'porEmpleado'])->name('asistencia.empleado');
+        Route::post('asistencia/desconectar/{registro}', [RegistroEntradaSalidaController::class, 'desconectarEmpleado'])->name('asistencia.desconectar');
     });
+
+    // ============================================================================
+    // ADMIN Y EMPLEADO - Acceso limitado solo a: Citas, Clientes, Cobros y Caja
+    // ============================================================================
+    Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
+        // Clientes
+        Route::resource('clientes', ClienteController::class)->names('clientes');
+        Route::get('clientes/{cliente}/historial', [ClienteController::class, 'historial'])->name('clientes.historial');
+
+        // Citas - Rutas específicas antes del resource
+        Route::post('citas/mover', [CitaController::class, 'moverCita'])->name('citas.mover');
+        Route::post('citas/marcar-completada', [CitaController::class, 'marcarCompletada'])->name('citas.marcarCompletada');
+        Route::post('citas/actualizar-duracion', [CitaController::class, 'actualizarDuracion'])->name('citas.actualizarDuracion');
+        Route::post('citas/{cita}/completar-y-cobrar', [CitaController::class, 'completarYCobrar'])->name('citas.completarYCobrar');
+        Route::post('citas/{cita}/cancelar', [CitaController::class, 'cancelar'])->name('citas.cancelar');
+        Route::resource('citas', CitaController::class)->names('citas');
+
+        // Cobros
+        Route::get('cobros/direct/create', [RegistroCobroController::class, 'createDirect'])->name('cobros.create.direct');
+        Route::resource('cobros', RegistroCobroController::class)->names('cobros');
+        
+        // Caja diaria
+        Route::get('/caja', [CajaDiariaController::class, 'index'])->name('caja.index');
+    });
+
+    // ============================================================================
+    // Registro asistencia (todos los autenticados)
+    // ============================================================================
+    Route::middleware(['auth', 'desktop.only'])->group(function () {
+        Route::post('asistencia/entrada', [RegistroEntradaSalidaController::class, 'registrarEntrada'])->name('asistencia.entrada');
+        Route::post('asistencia/salida', [RegistroEntradaSalidaController::class, 'registrarSalida'])->name('asistencia.salida');
+        Route::get('asistencia/mi-historial', [RegistroEntradaSalidaController::class, 'miHistorial'])->name('asistencia.mi-historial');
+        Route::get('asistencia/estado', [RegistroEntradaSalidaController::class, 'estadoActual'])->name('asistencia.estado');
+    });
+
+    // ============================================================================
+    // Citas para CLIENTES (solo lectura)
+    // ============================================================================
+    Route::middleware(['auth', 'role:cliente'])->group(function () {
+        Route::get('/mis-citas', [CitaController::class, 'index'])->name('cliente.citas.index');
+        Route::get('/mis-citas/create', [CitaController::class, 'create'])->name('cliente.citas.create');
+        Route::post('/mis-citas', [CitaController::class, 'store'])->name('cliente.citas.store');
+        Route::get('/mis-citas/{cita}', [CitaController::class, 'show'])->name('cliente.citas.show');
+    });
+
+    // Registro de clientes (público)
+    Route::middleware('guest')->group(function () {
+        Route::get('/register/cliente', [RegisterClienteController::class, 'create'])->name('register.cliente');
+        Route::post('/register/cliente', [RegisterClienteController::class, 'store'])->name('register.cliente.store');
+    });
+
+    // Perfil adicional
+    Route::middleware('auth')->group(function(){
+        Route::get('/perfil/edit', [ProfileController::class, 'edit'])->name('perfil.edit');
+        Route::put('/perfil/update', [ProfileController::class, 'update'])->name('perfil.update');
+    });
+
 });
-
-// Rutas de asistencia (Registro de entrada/salida)
-Route::middleware(['auth'])->group(function () {
-    // Para empleados
-    Route::post('asistencia/entrada', [RegistroEntradaSalidaController::class, 'registrarEntrada'])->name('asistencia.entrada');
-    Route::post('asistencia/salida', [RegistroEntradaSalidaController::class, 'registrarSalida'])->name('asistencia.salida');
-    Route::get('asistencia/mi-historial', [RegistroEntradaSalidaController::class, 'miHistorial'])->name('asistencia.mi-historial');
-    Route::get('asistencia/estado', [RegistroEntradaSalidaController::class, 'estadoActual'])->name('asistencia.estado');
-    
-    // Para admin
-    Route::get('asistencia', [RegistroEntradaSalidaController::class, 'index'])->name('asistencia.index');
-    Route::get('asistencia/empleado/{empleado}', [RegistroEntradaSalidaController::class, 'porEmpleado'])->name('asistencia.empleado');
-    Route::post('asistencia/desconectar/{registro}', [RegistroEntradaSalidaController::class, 'desconectarEmpleado'])->name('asistencia.desconectar');
-});
-
-// Rutas de citas accesibles por ADMIN, EMPLEADO y CLIENTE
-Route::middleware(['auth', 'role:admin,empleado,cliente'])->group(function () {
-    Route::get('/citas', [CitaController::class, 'index'])->name('citas.index');
-    Route::get('/citas/create', [CitaController::class, 'create'])->name('citas.create');
-    Route::post('/citas', [CitaController::class, 'store'])->name('citas.store');
-    Route::get('/citas/{cita}', [CitaController::class, 'show'])->name('citas.show');
-    Route::get('/citas/{cita}/edit', [CitaController::class, 'edit'])->name('citas.edit');
-    Route::put('/citas/{cita}', [CitaController::class, 'update'])->name('citas.update');
-    Route::patch('/citas/{cita}', [CitaController::class, 'update'])->name('citas.update');
-});
-
-// Rutas para que un cliente se pueda registrar
-Route::middleware('guest')->group(function () {
-    Route::get('/register/cliente', [RegisterClienteController::class, 'create'])->name('register.cliente');
-    Route::post('/register/cliente', [RegisterClienteController::class, 'store'])->name('register.cliente.store');
-});
-
-// Rutas para la edición del perfil
-Route::middleware('auth')->group(function(){
-    Route::get('/perfil/edit', [ProfileController::class, 'edit'])->name('perfil.edit');
-    Route::put('/perfil/update', [ProfileController::class, 'update'])->name('perfil.update');
-});
-
-// NOTA: No incluimos auth.php aquí porque las rutas de autenticación ya están definidas arriba
-// require __DIR__.'/auth.php';
-
-}); // FIN grupo middleware tenancy

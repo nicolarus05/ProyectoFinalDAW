@@ -10,6 +10,9 @@
     @php
         $user = Auth::user();
         $rol = $user->rol ?? null;
+        
+        // Inicializamos el agente para detectar el dispositivo
+        $agent = new \Jenssegers\Agent\Agent();
     @endphp
 
     <!-- Header Superior -->
@@ -167,8 +170,29 @@
 
         @if ($rol === 'empleado')
             <!-- Widget de Asistencia para Empleados -->
+            <!-- LÓGICA PARA OCULTAR EN MÓVIL -->
             <div class="mb-8">
-                @include('asistencia.widget-empleado')
+                @if($agent->isDesktop())
+                    {{-- Si es ordenador, mostramos el botón de registrar --}}
+                    @include('asistencia.widget-empleado')
+                @else
+                    {{-- Si es móvil/tablet, mostramos aviso y ocultamos el botón --}}
+                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded shadow-sm">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <span class="text-2xl">📱</span>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-blue-700 font-bold">
+                                    Modo móvil detectado
+                                </p>
+                                <p class="text-sm text-blue-600">
+                                    El registro de entrada y salida de jornada solo está disponible desde el ordenador del salón.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                @endif
             </div>
 
             <!-- Grid para Empleados - Solo acceso a operaciones diarias -->
