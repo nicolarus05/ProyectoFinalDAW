@@ -192,6 +192,13 @@ class HorarioTrabajoController extends Controller{
         $empleado->save();
 
         $fechaInicio = Carbon::parse($request->fecha_inicio)->startOfWeek(); // Lunes
+        $fechaFin = $fechaInicio->copy()->endOfWeek()->subDay(); // Sábado
+        
+        // ELIMINAR horarios existentes de esta semana para este empleado
+        HorarioTrabajo::where('id_empleado', $empleado->id)
+            ->whereBetween('fecha', [$fechaInicio->format('Y-m-d'), $fechaFin->format('Y-m-d')])
+            ->delete();
+        
         $registrosCreados = 0;
 
         // Generar para 6 días (lunes a sábado)
@@ -212,21 +219,13 @@ class HorarioTrabajoController extends Controller{
             );
 
             foreach ($bloques as $hora) {
-                // Verificar si ya existe
-                $existe = HorarioTrabajo::where('id_empleado', $empleado->id)
-                    ->where('fecha', $fecha->format('Y-m-d'))
-                    ->where('hora', $hora)
-                    ->exists();
-
-                if (!$existe) {
-                    HorarioTrabajo::create([
-                        'id_empleado' => $empleado->id,
-                        'fecha' => $fecha->format('Y-m-d'),
-                        'hora' => $hora,
-                        'disponible' => true,
-                    ]);
-                    $registrosCreados++;
-                }
+                HorarioTrabajo::create([
+                    'id_empleado' => $empleado->id,
+                    'fecha' => $fecha->format('Y-m-d'),
+                    'hora' => $hora,
+                    'disponible' => true,
+                ]);
+                $registrosCreados++;
             }
         }
 
@@ -257,10 +256,16 @@ class HorarioTrabajoController extends Controller{
 
         $mes = $request->mes;
         $anio = $request->anio;
-        $registrosCreados = 0;
-
+        
         $fechaInicio = Carbon::create($anio, $mes, 1);
         $fechaFin = $fechaInicio->copy()->endOfMonth();
+        
+        // ELIMINAR horarios existentes de este mes para este empleado
+        HorarioTrabajo::where('id_empleado', $empleado->id)
+            ->whereBetween('fecha', [$fechaInicio->format('Y-m-d'), $fechaFin->format('Y-m-d')])
+            ->delete();
+        
+        $registrosCreados = 0;
 
         $fecha = $fechaInicio->copy();
         while ($fecha <= $fechaFin) {
@@ -282,20 +287,13 @@ class HorarioTrabajoController extends Controller{
                 );
 
                 foreach ($bloques as $hora) {
-                    $existe = HorarioTrabajo::where('id_empleado', $empleado->id)
-                        ->where('fecha', $fecha->format('Y-m-d'))
-                        ->where('hora', $hora)
-                        ->exists();
-
-                    if (!$existe) {
-                        HorarioTrabajo::create([
-                            'id_empleado' => $empleado->id,
-                            'fecha' => $fecha->format('Y-m-d'),
-                            'hora' => $hora,
-                            'disponible' => true,
-                        ]);
-                        $registrosCreados++;
-                    }
+                    HorarioTrabajo::create([
+                        'id_empleado' => $empleado->id,
+                        'fecha' => $fecha->format('Y-m-d'),
+                        'hora' => $hora,
+                        'disponible' => true,
+                    ]);
+                    $registrosCreados++;
                 }
             }
             $fecha->addDay();
@@ -326,6 +324,15 @@ class HorarioTrabajoController extends Controller{
         $empleado->save();
 
         $anio = $request->anio;
+        
+        // ELIMINAR todos los horarios existentes de este año para este empleado
+        $fechaInicioAnio = Carbon::create($anio, 1, 1);
+        $fechaFinAnio = Carbon::create($anio, 12, 31);
+        
+        HorarioTrabajo::where('id_empleado', $empleado->id)
+            ->whereBetween('fecha', [$fechaInicioAnio->format('Y-m-d'), $fechaFinAnio->format('Y-m-d')])
+            ->delete();
+        
         $registrosCreados = 0;
 
         // Iterar por todos los meses del año
@@ -353,20 +360,13 @@ class HorarioTrabajoController extends Controller{
                     );
 
                     foreach ($bloques as $hora) {
-                        $existe = HorarioTrabajo::where('id_empleado', $empleado->id)
-                            ->where('fecha', $fecha->format('Y-m-d'))
-                            ->where('hora', $hora)
-                            ->exists();
-
-                        if (!$existe) {
-                            HorarioTrabajo::create([
-                                'id_empleado' => $empleado->id,
-                                'fecha' => $fecha->format('Y-m-d'),
-                                'hora' => $hora,
-                                'disponible' => true,
-                            ]);
-                            $registrosCreados++;
-                        }
+                        HorarioTrabajo::create([
+                            'id_empleado' => $empleado->id,
+                            'fecha' => $fecha->format('Y-m-d'),
+                            'hora' => $hora,
+                            'disponible' => true,
+                        ]);
+                        $registrosCreados++;
                     }
                 }
                 $fecha->addDay();

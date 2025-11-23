@@ -121,7 +121,7 @@ class Empleado extends Model{
 
     /**
      * Obtener horario personalizado del empleado para una fecha específica
-     * Si no tiene configuración personalizada, devuelve los horarios globales
+     * Si no tiene configuración personalizada para ese día, devuelve null
      */
     public function obtenerHorario($fecha)
     {
@@ -147,7 +147,8 @@ class Empleado extends Model{
             }
         }
         
-        // Fallback: usar horarios globales del sistema
-        return HorarioTrabajo::obtenerHorarioPorFecha($fecha);
+        // Si no hay horario personalizado para este día, devolver null
+        // Esto significa que el empleado NO trabaja ese día
+        return null;
     }
 }
