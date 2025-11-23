@@ -138,6 +138,15 @@
                     <p class="text-green-600 text-sm">Resumen de ingresos diarios</p>
                 </a>
 
+                <!-- Facturación Mensual -->
+                <a href="{{ route('facturacion.index') }}" class="card-hover bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-black rounded-xl p-6 text-center group">
+                    <div class="w-16 h-16 bg-emerald-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-emerald-700 transition">
+                        <span class="text-3xl">💰</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-emerald-700 mb-2">Facturación</h3>
+                    <p class="text-emerald-600 text-sm">Informe mensual detallado</p>
+                </a>
+
                 <!-- Horarios de Trabajo -->
                 <a href="{{ route('horarios.index') }}" class="card-hover bg-white border-2 border-black rounded-xl p-6 text-center group">
                     <div class="w-16 h-16 bg-black text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-gray-800 transition">

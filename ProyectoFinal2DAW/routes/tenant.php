@@ -10,7 +10,8 @@ use App\Http\Controllers\{
     Auth\AuthenticatedSessionController, Auth\RegisterClienteController, 
     Auth\PerfilController, Auth\PasswordResetLinkController,
     Auth\NewPasswordController,
-    CajaDiariaController, ProductosController, DeudaController, BonoController
+    CajaDiariaController, ProductosController, DeudaController, BonoController,
+    FacturacionController
 };
 
 // GRUPO PRINCIPAL: Middleware de tenancy para TODAS las rutas
@@ -147,6 +148,9 @@ Route::middleware([
         
         // Caja diaria
         Route::get('/caja', [CajaDiariaController::class, 'index'])->name('caja.index');
+        
+        // Facturación mensual
+        Route::get('/facturacion', [FacturacionController::class, 'index'])->name('facturacion.index');
     });
 
     // ============================================================================
