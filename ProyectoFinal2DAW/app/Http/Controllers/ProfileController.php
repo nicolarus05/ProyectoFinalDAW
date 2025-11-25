@@ -35,6 +35,8 @@ class ProfileController extends Controller{
             'genero'     => 'required|string|in:masculino,femenino,otro',
             'edad'       => 'nullable|integer|min:0',
             'foto_perfil' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'current_password' => 'nullable|string',
+            'password' => 'nullable|confirmed|min:8',
         ]);
 
         $user->nombre = $validated['nombre'];
@@ -46,6 +48,26 @@ class ProfileController extends Controller{
 
         if ($user->isDirty('email')) {
             $user->email_verified_at = null;
+        }
+
+        // Actualizar contraseña si se proporcionó
+        if ($request->filled('password')) {
+            // Verificar que se proporcionó la contraseña actual
+            if (!$request->filled('current_password')) {
+                return Redirect::back()
+                    ->withErrors(['current_password' => 'Debes proporcionar tu contraseña actual para cambiarla.'])
+                    ->withInput();
+            }
+
+            // Verificar que la contraseña actual es correcta
+            if (!Hash::check($request->current_password, $user->password)) {
+                return Redirect::back()
+                    ->withErrors(['current_password' => 'La contraseña actual no es correcta.'])
+                    ->withInput();
+            }
+
+            // Actualizar la contraseña
+            $user->password = Hash::make($request->password);
         }
 
         // FASE 6: Manejo de la foto de perfil con storage tenant-aware
@@ -65,7 +87,12 @@ class ProfileController extends Controller{
 
         $user->save();
 
-        return Redirect::route('dashboard')->with('status', 'profile-updated');
+        $statusMessage = 'profile-updated';
+        if ($request->filled('password')) {
+            $statusMessage = 'password-updated';
+        }
+
+        return Redirect::route('dashboard')->with('status', $statusMessage);
     }
 
     /**
