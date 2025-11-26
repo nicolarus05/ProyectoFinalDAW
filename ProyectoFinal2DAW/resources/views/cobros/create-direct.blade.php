@@ -159,6 +159,7 @@
                     <thead class="bg-gray-200">
                         <tr>
                             <th class="p-2 text-left">Servicio</th>
+                            <th class="p-2 text-left">Empleado</th>
                             <th class="p-2 text-right">Precio</th>
                             <th class="p-2"></th>
                         </tr>
@@ -168,7 +169,7 @@
                     </tbody>
                     <tfoot>
                         <tr class="border-t-2 border-gray-300">
-                            <td class="p-2 text-right font-semibold">Total servicios:</td>
+                            <td colspan="2" class="p-2 text-right font-semibold">Total servicios:</td>
                             <td id="services-total" class="p-2 text-right font-semibold">€0.00</td>
                             <td></td>
                         </tr>
@@ -506,7 +507,11 @@ window.addService = function(id, nombre, precio) {
         return;
     }
     
-    serviciosSeleccionados.push({ id, nombre, precio });
+    // Obtener el empleado por defecto (el seleccionado en el formulario principal)
+    const empleadoSelect = document.getElementById('id_empleado');
+    const empleadoId = empleadoSelect.value ? parseInt(empleadoSelect.value) : null;
+    
+    serviciosSeleccionados.push({ id, nombre, precio, empleado_id: empleadoId });
     renderServicios();
     closeModalServices();
     calcularTotales();
@@ -518,20 +523,42 @@ window.removeService = function(id) {
     calcularTotales();
 }
 
+window.updateServicioEmpleado = function(index, empleadoId) {
+    if (serviciosSeleccionados[index]) {
+        serviciosSeleccionados[index].empleado_id = parseInt(empleadoId);
+        document.getElementById('servicios_data').value = JSON.stringify(serviciosSeleccionados);
+    }
+}
+
 function renderServicios() {
     const tbody = document.getElementById('services-tbody');
     tbody.innerHTML = '';
     
     if (serviciosSeleccionados.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" class="p-2 text-center text-gray-500">No hay servicios añadidos</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="p-2 text-center text-gray-500">No hay servicios añadidos</td></tr>';
         return;
     }
     
-    serviciosSeleccionados.forEach(servicio => {
+    serviciosSeleccionados.forEach((servicio, index) => {
         const tr = document.createElement('tr');
         tr.className = 'border-b';
+        
+        // Crear select de empleados
+        const empleadosOptions = `
+            @foreach($empleados as $empleado)
+                <option value="{{ $empleado->id }}" ${servicio.empleado_id == {{ $empleado->id }} ? 'selected' : ''}>
+                    {{ $empleado->user->nombre ?? '' }} {{ $empleado->user->apellidos ?? '' }}
+                </option>
+            @endforeach
+        `;
+        
         tr.innerHTML = `
             <td class="p-2">${servicio.nombre}</td>
+            <td class="p-2">
+                <select onchange="updateServicioEmpleado(${index}, this.value)" class="w-full border rounded px-2 py-1 text-sm">
+                    ${empleadosOptions}
+                </select>
+            </td>
             <td class="p-2 text-right">€${servicio.precio.toFixed(2)}</td>
             <td class="p-2 text-center">
                 <button type="button" onclick="removeService(${servicio.id})" class="text-red-600 hover:text-red-800">✕</button>
@@ -781,7 +808,8 @@ calcularTotales();
             serviciosSeleccionados.push({
                 id: {{ $servicio->id }},
                 nombre: "{{ $servicio->nombre }} ({{ \Carbon\Carbon::parse($citaItem->fecha_hora)->format('H:i') }})",
-                precio: {{ $servicio->precio }}
+                precio: {{ $servicio->precio }},
+                empleado_id: {{ $citaItem->id_empleado }}
             });
         @endforeach
     @endforeach
@@ -795,7 +823,8 @@ calcularTotales();
         serviciosSeleccionados.push({
             id: {{ $servicio->id }},
             nombre: "{{ $servicio->nombre }}",
-            precio: {{ $servicio->precio }}
+            precio: {{ $servicio->precio }},
+            empleado_id: {{ $cita->id_empleado }}
         });
     @endforeach
     renderServicios();

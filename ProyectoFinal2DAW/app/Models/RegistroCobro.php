@@ -45,7 +45,8 @@ class RegistroCobro extends Model {
         return $this->belongsTo(Empleado::class, 'id_empleado');
     }
 
-     public function productos()
+    // Relación con productos (tabla pivot)
+    public function productos()
     {
         return $this->belongsToMany(
             \App\Models\Productos::class,
@@ -54,6 +55,19 @@ class RegistroCobro extends Model {
             'id_producto'
         )
         ->withPivot(['cantidad','precio_unitario','subtotal'])
+        ->withTimestamps();
+    }
+
+    // Relación con servicios (tabla pivot con empleado_id)
+    public function servicios()
+    {
+        return $this->belongsToMany(
+            Servicio::class,
+            'registro_cobro_servicio',
+            'registro_cobro_id',
+            'servicio_id'
+        )
+        ->withPivot(['empleado_id', 'precio'])
         ->withTimestamps();
     }
 }

@@ -256,7 +256,31 @@ class RegistroCobroController extends Controller{
             }
         }
 
-        // --- Para cobros directos: procesar productos_data y servicios_data ---
+        // --- Para cobros directos: procesar servicios_data ---
+        if ($request->has('servicios_data') && !empty($data['servicios_data'])) {
+            $serviciosData = json_decode($data['servicios_data'], true);
+            if (is_array($serviciosData)) {
+                foreach ($serviciosData as $s) {
+                    $servicioId = (int) $s['id'];
+                    $precio = (float) $s['precio'];
+                    $empleadoId = isset($s['empleado_id']) ? (int) $s['empleado_id'] : null;
+
+                    // Si no hay empleado_id, usar el empleado principal del cobro
+                    if (!$empleadoId && !empty($data['id_empleado'])) {
+                        $empleadoId = $data['id_empleado'];
+                    }
+
+                    $cobro->servicios()->attach($servicioId, [
+                        'precio' => $precio,
+                        'empleado_id' => $empleadoId,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+        }
+
+        // --- Para cobros directos: procesar productos_data ---
         if ($request->has('productos_data') && !empty($data['productos_data'])) {
             $productosData = json_decode($data['productos_data'], true);
             if (is_array($productosData)) {
