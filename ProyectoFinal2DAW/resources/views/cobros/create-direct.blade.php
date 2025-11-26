@@ -36,8 +36,33 @@
         <form action="{{ route('cobros.store') }}" method="POST" id="cobro-form" class="space-y-6">
             @csrf
 
-            <!-- ID de cita (oculto si viene desde completar cita) -->
-            @if(isset($cita))
+            <!-- Detectar si viene UNA cita o MÚLTIPLES citas -->
+            @if(isset($citas) && $citas->count() > 1)
+                {{-- COBRO AGRUPADO: Múltiples citas del mismo cliente y día --}}
+                @foreach($citas as $citaItem)
+                    <input type="hidden" name="citas_ids[]" value="{{ $citaItem->id }}">
+                @endforeach
+                
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+                    <p class="text-lg text-blue-900 font-semibold mb-2">
+                        🎉 <strong>Cobro Agrupado:</strong> {{ $citas->count() }} citas del mismo día
+                    </p>
+                    <p class="text-sm text-blue-800">
+                        Cliente: <strong>{{ $citas->first()->cliente->user->nombre ?? '' }} {{ $citas->first()->cliente->user->apellidos ?? '' }}</strong><br>
+                        Fecha: <strong>{{ \Carbon\Carbon::parse($citas->first()->fecha_hora)->format('d/m/Y') }}</strong>
+                    </p>
+                    <div class="mt-3 text-xs text-blue-700">
+                        <strong>Citas incluidas:</strong>
+                        <ul class="list-disc list-inside mt-1">
+                            @foreach($citas as $citaItem)
+                                <li>{{ \Carbon\Carbon::parse($citaItem->fecha_hora)->format('H:i') }} - {{ $citaItem->servicios->pluck('nombre')->implode(', ') }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                </div>
+                
+            @elseif(isset($cita))
+                {{-- COBRO INDIVIDUAL: Una sola cita --}}
                 <input type="hidden" name="id_cita" value="{{ $cita->id }}">
                 
                 <div class="bg-green-50 border-l-4 border-green-500 p-4 mb-6">
@@ -60,7 +85,13 @@
                         @foreach($clientes as $cliente)
                             @php
                                 $deuda = $cliente->deuda ? $cliente->deuda->saldo_pendiente : 0;
-                                $selected = isset($cita) && $cita->id_cliente == $cliente->id ? 'selected' : '';
+                                // Pre-seleccionar cliente si viene de cita individual o de citas agrupadas
+                                $selected = '';
+                                if (isset($cita) && $cita->id_cliente == $cliente->id) {
+                                    $selected = 'selected';
+                                } elseif (isset($citas) && $citas->count() > 0 && $citas->first()->id_cliente == $cliente->id) {
+                                    $selected = 'selected';
+                                }
                             @endphp
                             <option value="{{ $cliente->id }}" data-deuda="{{ $deuda }}" data-nombre="{{ strtolower(($cliente->user->nombre ?? '') . ' ' . ($cliente->user->apellidos ?? '')) }}" {{ $selected }}>
                                 {{ $cliente->user->nombre ?? '' }} {{ $cliente->user->apellidos ?? '' }}
@@ -75,20 +106,45 @@
             <!-- Empleado -->
             <div class="bg-gray-50 p-4 rounded">
                 <h2 class="text-lg font-semibold mb-3">Empleado que atiende</h2>
-                <div>
-                    <label for="id_empleado" class="block font-semibold mb-1">Seleccionar empleado:</label>
-                    <select name="id_empleado" id="id_empleado" class="w-full border rounded px-3 py-2">
-                        <option value="">-- Seleccionar empleado --</option>
+                @if(isset($citas) && $citas->count() > 1)
+                    {{-- Si hay múltiples citas, mostrar todos los empleados involucrados --}}
+                    <div class="bg-blue-50 p-3 rounded border border-blue-200">
+                        <p class="text-sm text-blue-800 mb-2"><strong>Empleados de las citas:</strong></p>
+                        <ul class="list-disc list-inside text-sm text-blue-700">
+                            @foreach($citas->unique('id_empleado') as $citaItem)
+                                <li>{{ $citaItem->empleado->user->nombre ?? '' }} {{ $citaItem->empleado->user->apellidos ?? '' }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                    <select name="id_empleado" id="id_empleado" class="w-full border rounded px-3 py-2 mt-3">
+                        <option value="">-- Seleccionar empleado principal --</option>
                         @foreach($empleados as $empleado)
                             @php
-                                $selected = isset($cita) && $cita->id_empleado == $empleado->id ? 'selected' : '';
+                                // Pre-seleccionar el primer empleado de las citas
+                                $selected = isset($citas) && $citas->first()->id_empleado == $empleado->id ? 'selected' : '';
                             @endphp
                             <option value="{{ $empleado->id }}" {{ $selected }}>
                                 {{ $empleado->user->nombre ?? '' }} {{ $empleado->user->apellidos ?? '' }}
                             </option>
                         @endforeach
                     </select>
-                </div>
+                @else
+                    {{-- Una sola cita o sin cita --}}
+                    <div>
+                        <label for="id_empleado" class="block font-semibold mb-1">Seleccionar empleado:</label>
+                        <select name="id_empleado" id="id_empleado" class="w-full border rounded px-3 py-2">
+                            <option value="">-- Seleccionar empleado --</option>
+                            @foreach($empleados as $empleado)
+                                @php
+                                    $selected = isset($cita) && $cita->id_empleado == $empleado->id ? 'selected' : '';
+                                @endphp
+                                <option value="{{ $empleado->id }}" {{ $selected }}>
+                                    {{ $empleado->user->nombre ?? '' }} {{ $empleado->user->apellidos ?? '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
             </div>
 
             <!-- Servicios -->
@@ -717,8 +773,24 @@ renderServicios();
 renderProductos();
 calcularTotales();
 
-// Pre-cargar servicios de la cita si existe
-@if(isset($cita) && $cita->servicios->isNotEmpty())
+// Pre-cargar servicios de las citas (una o múltiples)
+@if(isset($citas) && $citas->count() > 1)
+    // COBRO AGRUPADO: Cargar servicios de TODAS las citas
+    @foreach($citas as $citaItem)
+        @foreach($citaItem->servicios as $servicio)
+            serviciosSeleccionados.push({
+                id: {{ $servicio->id }},
+                nombre: "{{ $servicio->nombre }} ({{ \Carbon\Carbon::parse($citaItem->fecha_hora)->format('H:i') }})",
+                precio: {{ $servicio->precio }}
+            });
+        @endforeach
+    @endforeach
+    renderServicios();
+    calcularTotales();
+    console.log('✅ Cobro agrupado: {{ $citas->count() }} citas cargadas automáticamente');
+    
+@elseif(isset($cita) && $cita->servicios->isNotEmpty())
+    // COBRO INDIVIDUAL: Cargar servicios de una sola cita
     @foreach($cita->servicios as $servicio)
         serviciosSeleccionados.push({
             id: {{ $servicio->id }},
@@ -728,13 +800,11 @@ calcularTotales();
     @endforeach
     renderServicios();
     calcularTotales();
-    
-    // Mostrar mensaje de información
     console.log('Servicios de la cita cargados automáticamente');
 @endif
 
 // Actualizar deuda del cliente si está pre-seleccionado
-@if(isset($cita))
+@if(isset($cita) || (isset($citas) && $citas->count() > 0))
     actualizarDeudaCliente();
 @endif
 

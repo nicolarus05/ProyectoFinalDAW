@@ -458,14 +458,27 @@ class CitaController extends Controller{
     /**
      * Completar cita y redirigir a cobro
      * NOTA: La cita NO se marca como completada aquí, se marcará cuando se registre el cobro
+     * Busca TODAS las citas pendientes del mismo cliente del mismo día para cobro agrupado
      */
     public function completarYCobrar($id){
         $cita = Cita::findOrFail($id);
         
-        // NO marcar como completada aquí - se hará al registrar el cobro
-        // Esto evita que quede como "completada" si se cancela el cobro
+        // Buscar TODAS las citas pendientes del mismo cliente del mismo día
+        $fechaCita = Carbon::parse($cita->fecha_hora)->startOfDay();
+        $citasDelDia = Cita::where('id_cliente', $cita->id_cliente)
+            ->whereDate('fecha_hora', $fechaCita)
+            ->where('estado', 'pendiente')
+            ->with(['servicios', 'cliente.user', 'empleado.user'])
+            ->get();
         
-        // Redirigir al formulario de cobro con el id_cita
+        // Si hay múltiples citas, cobrarlas todas juntas
+        if ($citasDelDia->count() > 1) {
+            return redirect()->route('cobros.create.direct', [
+                'citas_ids' => $citasDelDia->pluck('id')->toArray()
+            ]);
+        }
+        
+        // Si es solo una, flujo normal
         return redirect()->route('cobros.create.direct', ['id_cita' => $cita->id]);
     }
 

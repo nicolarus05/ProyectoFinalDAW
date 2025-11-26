@@ -49,20 +49,28 @@ class RegistroCobroController extends Controller{
     }
 
     /**
-     * Mostrar formulario para cobro directo (sin cita)
+     * Mostrar formulario para cobro directo (sin cita o con múltiples citas agrupadas)
      */
     public function createDirect(Request $request){
         $clientes = Cliente::with(['user', 'deuda'])->get();
         $empleados = \App\Models\Empleado::with('user')->get();
         $servicios = \App\Models\Servicio::where('activo', true)->get();
         
-        // Obtener la cita si se proporciona el id_cita
         $cita = null;
+        $citas = collect(); // Colección vacía por defecto
+        
+        // Detectar si viene UNA cita o MÚLTIPLES citas
         if ($request->has('id_cita')) {
+            // Flujo normal: una sola cita
             $cita = \App\Models\Cita::with(['cliente.user', 'empleado.user', 'servicios'])->find($request->id_cita);
+        } elseif ($request->has('citas_ids')) {
+            // Flujo agrupado: múltiples citas del mismo cliente y día
+            $citas = \App\Models\Cita::with(['cliente.user', 'empleado.user', 'servicios'])
+                ->whereIn('id', $request->citas_ids)
+                ->get();
         }
         
-        return view('cobros.create-direct', compact('clientes', 'empleados', 'servicios', 'cita'));
+        return view('cobros.create-direct', compact('clientes', 'empleados', 'servicios', 'cita', 'citas'));
     }
 
     /**
@@ -72,6 +80,8 @@ class RegistroCobroController extends Controller{
         // --- Validación base ---
         $data = $request->validate([
             'id_cita' => 'nullable|exists:citas,id',
+            'citas_ids' => 'nullable|array', // Para cobro agrupado
+            'citas_ids.*' => 'exists:citas,id',
             'id_cliente' => 'nullable|exists:clientes,id',
             'id_empleado' => 'nullable|exists:empleados,id',
             'coste' => 'required|numeric|min:0',
@@ -91,8 +101,8 @@ class RegistroCobroController extends Controller{
             'servicios_data' => 'nullable|json',
         ]);
 
-        // Validar que al menos tenga una cita O un cliente
-        if (empty($data['id_cita']) && empty($data['id_cliente'])) {
+        // Validar que al menos tenga una cita, múltiples citas O un cliente
+        if (empty($data['id_cita']) && empty($data['citas_ids']) && empty($data['id_cliente'])) {
             return back()
                 ->withErrors(['id_cliente' => 'Debe seleccionar una cita o un cliente.'])
                 ->withInput();
@@ -202,11 +212,16 @@ class RegistroCobroController extends Controller{
         // --- Calcular deuda si el dinero del cliente es menor que el total ajustado ---
         $deuda = max(0, $totalAjustado - ($data['dinero_cliente'] ?? 0));
 
-        // Obtener el ID del cliente (puede venir de la cita o directamente)
+        // Obtener el ID del cliente (puede venir de la cita, citas agrupadas o directamente)
         $clienteId = $data['id_cliente'] ?? null;
         if (!$clienteId && !empty($data['id_cita'])) {
+            // Cobro individual con cita
             $cita = Cita::find($data['id_cita']);
             $clienteId = $cita ? $cita->id_cliente : null;
+        } elseif (!$clienteId && !empty($data['citas_ids']) && is_array($data['citas_ids'])) {
+            // Cobro agrupado - obtener cliente de la primera cita
+            $primeraCita = Cita::find($data['citas_ids'][0]);
+            $clienteId = $primeraCita ? $primeraCita->id_cliente : null;
         }
 
         // --- Crear el registro principal ---
@@ -281,12 +296,21 @@ class RegistroCobroController extends Controller{
             }
         }
 
-        // --- IMPORTANTE: Marcar la cita como completada SOLO si el cobro se registró exitosamente ---
-        if (!empty($data['id_cita'])) {
+        // --- IMPORTANTE: Marcar citas como completadas SOLO si el cobro se registró exitosamente ---
+        $numCitas = 0;
+        if (isset($data['citas_ids']) && is_array($data['citas_ids']) && count($data['citas_ids']) > 0) {
+            // COBRO AGRUPADO: Marcar TODAS las citas como completadas
+            Cita::whereIn('id', $data['citas_ids'])
+                ->where('estado', '!=', 'completada')
+                ->update(['estado' => 'completada']);
+            $numCitas = count($data['citas_ids']);
+        } elseif (!empty($data['id_cita'])) {
+            // COBRO INDIVIDUAL: Marcar una sola cita como completada
             $citaParaCompletar = Cita::find($data['id_cita']);
             if ($citaParaCompletar && $citaParaCompletar->estado !== 'completada') {
                 $citaParaCompletar->update(['estado' => 'completada']);
             }
+            $numCitas = 1;
         }
 
         // --- Guardar productos asociados (si existen - formato antiguo) ---
@@ -327,8 +351,11 @@ class RegistroCobroController extends Controller{
             }
         }
 
-        // Mensaje de éxito con información de deuda y bonos si aplica
+        // Mensaje de éxito con información de citas agrupadas, deuda y bonos si aplica
         $mensaje = 'Cobro registrado correctamente.';
+        if (isset($numCitas) && $numCitas > 1) {
+            $mensaje = "🎉 Cobro agrupado de {$numCitas} citas registrado correctamente.";
+        }
         if ($deuda > 0) {
             $mensaje .= ' Deuda registrada: €' . number_format($deuda, 2);
         }
