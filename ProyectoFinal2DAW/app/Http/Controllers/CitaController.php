@@ -133,15 +133,27 @@ class CitaController extends Controller{
         // Establecer estado automáticamente en "pendiente"
         $data['estado'] = 'pendiente';
 
-        // Validar que los servicios sean de la misma categoría que el empleado
-        $empleado = Empleado::findOrFail($data['id_empleado']);
+        // Validar que el empleado pueda realizar los servicios seleccionados
+        // Primero verificar si el servicio está en la relación empleado_servicio
+        // Si está, el empleado puede realizarlo aunque sea de otra categoría
+        // Si no está, verificar que sea de la misma categoría que el empleado
+        $empleado = Empleado::with('servicios')->findOrFail($data['id_empleado']);
         $serviciosSeleccionados = Servicio::whereIn('id', $data['servicios'])->get();
         
+        // Obtener IDs de servicios que el empleado puede realizar explícitamente
+        $serviciosPermitidosIds = $empleado->servicios->pluck('id')->toArray();
+        
         foreach ($serviciosSeleccionados as $servicio) {
+            // Si el servicio está explícitamente permitido en empleado_servicio, OK
+            if (in_array($servicio->id, $serviciosPermitidosIds)) {
+                continue;
+            }
+            
+            // Si no está explícitamente permitido, verificar que sea de la misma categoría
             if ($servicio->categoria !== $empleado->categoria) {
                 return redirect()->back()
                     ->withInput()
-                    ->withErrors(['servicios' => "El empleado seleccionado ({$empleado->user->nombre}) es de categoría '{$empleado->categoria}', pero se ha seleccionado un servicio de categoría '{$servicio->categoria}' ({$servicio->nombre}). Por favor, seleccione servicios de la misma categoría."]);
+                    ->withErrors(['servicios' => "El empleado seleccionado ({$empleado->user->nombre}) es de categoría '{$empleado->categoria}' y no puede realizar el servicio '{$servicio->nombre}' que es de categoría '{$servicio->categoria}'."]);
             }
         }
 
