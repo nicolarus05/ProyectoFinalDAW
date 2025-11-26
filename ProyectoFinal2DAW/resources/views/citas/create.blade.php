@@ -105,6 +105,12 @@
                             <button type="button" id="clear-filters" class="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-semibold">
                                 Limpiar
                             </button>
+                            
+                            <!-- Botón Continuar Superior -->
+                            <button type="button" id="btn-next-step-2-top" disabled
+                                    class="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed">
+                                Continuar →
+                            </button>
                         </div>
                         
                         <!-- Contador de resultados -->

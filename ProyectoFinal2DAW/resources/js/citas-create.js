@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const step3 = document.getElementById('step-3');
     
     const btnNextStep2 = document.getElementById('btn-next-step-2');
+    const btnNextStep2Top = document.getElementById('btn-next-step-2-top'); // Botón superior
     const btnNextStep3 = document.getElementById('btn-next-step-3');
     const btnBackStep1 = document.getElementById('btn-back-step-1');
     const btnBackStep2 = document.getElementById('btn-back-step-2');
@@ -99,6 +100,7 @@ document.addEventListener('DOMContentLoaded', function() {
             selectedContainer.classList.add('hidden');
             selectedCount.textContent = '';
             btnNextStep2.disabled = true;
+            btnNextStep2Top.disabled = true; // Deshabilitar botón superior
             return;
         }
         
@@ -106,6 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
         selectedContainer.classList.remove('hidden');
         selectedCount.textContent = `(${serviciosSeleccionados.length} seleccionado${serviciosSeleccionados.length > 1 ? 's' : ''})`;
         btnNextStep2.disabled = false;
+        btnNextStep2Top.disabled = false; // Habilitar botón superior
         
         // Actualizar lista
         selectedServicesList.innerHTML = '';
@@ -135,6 +138,20 @@ document.addEventListener('DOMContentLoaded', function() {
     // ===== NAVEGACIÓN ENTRE PASOS =====
     
     btnNextStep2.addEventListener('click', function() {
+        if (serviciosSeleccionados.length > 0) {
+            goToStep(2);
+        }
+    });
+    
+    // Botón superior "Continuar"
+    btnNextStep2.addEventListener('click', function() {
+        if (serviciosSeleccionados.length > 0) {
+            goToStep(2);
+        }
+    });
+    
+    // Botón superior "Continuar"
+    btnNextStep2Top.addEventListener('click', function() {
         if (serviciosSeleccionados.length > 0) {
             goToStep(2);
         }

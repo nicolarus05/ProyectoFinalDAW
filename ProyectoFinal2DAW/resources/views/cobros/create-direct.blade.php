@@ -351,13 +351,16 @@
     </div>
 
 <script>
-// Variables globales
+// Variables globales (fuera del DOMContentLoaded para que las funciones window puedan acceder)
 let serviciosSeleccionados = [];
 let productosSeleccionados = [];
-const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+let csrfToken;
+
+document.addEventListener('DOMContentLoaded', function() {
+csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
 // Actualizar deuda del cliente
-function actualizarDeudaCliente() {
+window.actualizarDeudaCliente = function() {
     const select = document.getElementById('id_cliente');
     const option = select.options[select.selectedIndex];
     const deuda = parseFloat(option.dataset.deuda || 0);
@@ -373,7 +376,7 @@ function actualizarDeudaCliente() {
 }
 
 // Filtrar clientes
-function filtrarClientes() {
+window.filtrarClientes = function() {
     const busqueda = document.getElementById('buscar-cliente').value.toLowerCase().trim();
     const select = document.getElementById('id_cliente');
     const options = select.querySelectorAll('option');
@@ -398,7 +401,7 @@ function filtrarClientes() {
 }
 
 // Filtrar servicios en el modal
-function filtrarServicios() {
+window.filtrarServicios = function() {
     const busqueda = document.getElementById('buscar-servicio').value.toLowerCase().trim();
     const rows = document.querySelectorAll('.servicio-row');
     
@@ -415,7 +418,7 @@ function filtrarServicios() {
 }
 
 // Filtrar productos en el modal
-function filtrarProductos() {
+window.filtrarProductos = function() {
     const busqueda = document.getElementById('buscar-producto').value.toLowerCase().trim();
     const rows = document.querySelectorAll('.producto-row');
     
@@ -436,11 +439,11 @@ document.getElementById('btn-add-service').addEventListener('click', function() 
     document.getElementById('modal-services').classList.remove('hidden');
 });
 
-function closeModalServices() {
+window.closeModalServices = function() {
     document.getElementById('modal-services').classList.add('hidden');
 }
 
-function addService(id, nombre, precio) {
+window.addService = function(id, nombre, precio) {
     // Verificar si ya está añadido
     if (serviciosSeleccionados.find(s => s.id === id)) {
         alert('Este servicio ya está añadido');
@@ -453,7 +456,7 @@ function addService(id, nombre, precio) {
     calcularTotales();
 }
 
-function removeService(id) {
+window.removeService = function(id) {
     serviciosSeleccionados = serviciosSeleccionados.filter(s => s.id !== id);
     renderServicios();
     calcularTotales();
@@ -491,7 +494,7 @@ document.getElementById('btn-add-product').addEventListener('click', async funct
     await loadProducts();
 });
 
-function closeModalProducts() {
+window.closeModalProducts = function() {
     document.getElementById('modal-products').classList.add('hidden');
 }
 
@@ -541,7 +544,7 @@ async function loadProducts() {
     }
 }
 
-function addProduct(id, nombre, precio, stock) {
+window.addProduct = function(id, nombre, precio, stock) {
     const qtyInput = document.getElementById(`qty-${id}`);
     const cantidad = parseInt(qtyInput.value);
     
@@ -563,13 +566,13 @@ function addProduct(id, nombre, precio, stock) {
     calcularTotales();
 }
 
-function removeProduct(id) {
+window.removeProduct = function(id) {
     productosSeleccionados = productosSeleccionados.filter(p => p.id !== id);
     renderProductos();
     calcularTotales();
 }
 
-function updateProductQty(id, cantidad) {
+window.updateProductQty = function(id, cantidad) {
     const producto = productosSeleccionados.find(p => p.id === id);
     if (producto) {
         producto.cantidad = parseInt(cantidad);
@@ -610,7 +613,7 @@ function renderProductos() {
 }
 
 // Calcular totales
-function calcularTotales() {
+window.calcularTotales = function() {
     // Calcular total de servicios
     const totalServicios = serviciosSeleccionados.reduce((sum, s) => sum + parseFloat(s.precio), 0);
     document.getElementById('services-total').textContent = `€${totalServicios.toFixed(2)}`;
@@ -658,7 +661,7 @@ function calcularTotales() {
 }
 
 // Cambiar método de pago
-function cambiarMetodoPago() {
+window.cambiarMetodoPago = function() {
     const metodo = document.querySelector('input[name="metodo_pago"]:checked').value;
     
     document.getElementById('pago-efectivo').classList.add('hidden');
@@ -671,7 +674,7 @@ function cambiarMetodoPago() {
     }
 }
 
-function calcularCambio() {
+window.calcularCambio = function() {
     const totalFinal = parseFloat(document.getElementById('total_final_input').value || 0);
     const dineroCliente = parseFloat(document.getElementById('dinero_cliente').value || 0);
     const cambio = Math.max(0, dineroCliente - totalFinal);
@@ -680,7 +683,7 @@ function calcularCambio() {
     document.getElementById('cambio').value = cambio.toFixed(2);
 }
 
-function calcularPagoMixto() {
+window.calcularPagoMixto = function() {
     const totalFinal = parseFloat(document.getElementById('total_final_input').value || 0);
     const pagoEfectivo = parseFloat(document.getElementById('pago_efectivo').value || 0);
     const pagoTarjeta = parseFloat(document.getElementById('pago_tarjeta').value || 0);
@@ -734,6 +737,8 @@ calcularTotales();
 @if(isset($cita))
     actualizarDeudaCliente();
 @endif
+
+}); // Fin DOMContentLoaded
 </script>
 
 </body>
