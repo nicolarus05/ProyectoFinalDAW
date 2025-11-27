@@ -207,6 +207,12 @@ class CitaController extends Controller{
         // Obtener servicios seleccionados con sus categorías y duraciones
         $serviciosSeleccionados = Servicio::whereIn('id', $servicios)->get();
         
+        // Reordenar servicios según el orden de selección del usuario
+        // whereIn() no respeta el orden del array, así que lo ordenamos manualmente
+        $serviciosSeleccionados = $serviciosSeleccionados->sortBy(function($servicio) use ($servicios) {
+            return array_search($servicio->id, $servicios);
+        })->values();
+        
         // Determinar si hay servicios de peluquería
         $hayPeluqueria = $serviciosSeleccionados->where('categoria', 'peluqueria')->count() > 0;
         $hayMultiplesServicios = $serviciosSeleccionados->count() > 1;
