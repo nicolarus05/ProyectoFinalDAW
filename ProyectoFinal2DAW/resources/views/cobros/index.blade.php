@@ -64,9 +64,28 @@
                             <!-- Servicios -->
                             <td class="p-2 border">
                                 @php
-                                    $servicios = $cobro->cita && $cobro->cita->servicios 
-                                        ? $cobro->cita->servicios->pluck('nombre')->implode(', ') 
-                                        : '-';
+                                    $serviciosNombres = [];
+                                    
+                                    // Servicios de cita individual
+                                    if ($cobro->cita && $cobro->cita->servicios) {
+                                        $serviciosNombres = array_merge($serviciosNombres, $cobro->cita->servicios->pluck('nombre')->toArray());
+                                    }
+                                    
+                                    // Servicios de citas agrupadas
+                                    if ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                                        foreach ($cobro->citasAgrupadas as $citaGrupo) {
+                                            if ($citaGrupo->servicios) {
+                                                $serviciosNombres = array_merge($serviciosNombres, $citaGrupo->servicios->pluck('nombre')->toArray());
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Servicios directos (sin cita)
+                                    if ($cobro->servicios && $cobro->servicios->count() > 0) {
+                                        $serviciosNombres = array_merge($serviciosNombres, $cobro->servicios->pluck('nombre')->toArray());
+                                    }
+                                    
+                                    $servicios = !empty($serviciosNombres) ? implode(', ', $serviciosNombres) : '-';
                                 @endphp
                                 {{ $servicios }}
                             </td>

@@ -27,6 +27,8 @@ class Cita extends Model{
         'duracion_real',
         'id_cliente',
         'id_empleado',
+        'grupo_cita_id',
+        'orden_servicio',
     ];
 
     public function cliente(){
@@ -52,12 +54,20 @@ class Cita extends Model{
     /**
      * Calcula la duración total de la cita sumando los servicios
      * Si existe duracion_real, la usa; si no, suma los tiempos de servicios
+     * Para citas individuales de un grupo, solo cuenta el servicio propio
      */
     public function getDuracionMinutosAttribute()
     {
         if ($this->duracion_real !== null) {
             return $this->duracion_real;
         }
+        
+        // Para citas individuales (un solo servicio), usar su duración
+        if ($this->servicios->count() === 1) {
+            return $this->servicios->first()->duracion_minutos ?? $this->servicios->first()->tiempo_estimado ?? 30;
+        }
+        
+        // Para citas con múltiples servicios (estética), sumar todos
         return $this->servicios->sum('tiempo_estimado');
     }
 
@@ -92,5 +102,32 @@ class Cita extends Model{
      */
     public function scopePorEmpleado($query, $empleadoId){
         return $query->where('id_empleado', $empleadoId);
+    }
+
+    /**
+     * Relación con citas del mismo grupo
+     */
+    public function citasGrupo(){
+        return $this->hasMany(Cita::class, 'grupo_cita_id', 'grupo_cita_id')
+            ->orderBy('orden_servicio');
+    }
+
+    /**
+     * Verifica si esta cita pertenece a un grupo
+     */
+    public function esParteDeGrupo(){
+        return $this->grupo_cita_id !== null;
+    }
+
+    /**
+     * Obtiene la cita principal del grupo (orden 1)
+     */
+    public function citaPrincipal(){
+        if (!$this->esParteDeGrupo()) {
+            return $this;
+        }
+        return Cita::where('grupo_cita_id', $this->grupo_cita_id)
+            ->where('orden_servicio', 1)
+            ->first();
     }
 }

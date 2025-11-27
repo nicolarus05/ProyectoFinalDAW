@@ -264,27 +264,18 @@
                                 $horarioDia = \App\Models\HorarioTrabajo::obtenerHorarioPorFecha($fecha);
                                 $horaBaseStr = $horarioDia ? $horarioDia['inicio'] : '09:00';
                                 $horaBase = \Carbon\Carbon::parse($fecha->format('Y-m-d') . ' ' . $horaBaseStr);
+                                
                                 // Calcular minutos desde la hora de inicio del día
                                 $minutosDesdeInicio = $horaBase->diffInMinutes($horaInicio, false);
                                 // Calcular número de bloques de 15 minutos desde la hora de inicio
                                 $numeroBloque = $minutosDesdeInicio / 15;
-                                // Cada celda ocupa exactamente 30px de altura
                                 // Posición: 90px (header) + (bloques * 30px por bloque) + 2px margen
                                 $topPosition = 90 + ($numeroBloque * 30) + 2;
                                 
                                 // CÁLCULO BASADO EN TIEMPO REAL
-                                // Cada bloque de 15 minutos = 30px
-                                // La cita ocupa 92% del espacio proporcional a su duración
-                                // Mínimo: 1 celda completa (92%) aunque la cita dure menos de 15 min
                                 $bloquesOcupados = max(1, $cita->duracion_minutos / 15);
-                                $altura = ($bloquesOcupados * 30) * 0.92;
-                                
-                                // Ejemplos de cálculo:
-                                // 15 min: max(1, 15/15) = 1 → 1 * 30 * 0.92 = 27.6px (92% de 1 celda)
-                                // 30 min: max(1, 30/15) = 2 → 2 * 30 * 0.92 = 55.2px (92% de 2 celdas)
-                                // 45 min: max(1, 45/15) = 3 → 3 * 30 * 0.92 = 82.8px (92% de 3 celdas)
-                                // 60 min: max(1, 60/15) = 4 → 4 * 20 * 0.92 = 73.6px (92% de 4 celdas)
-                                // 90 min: max(1, 90/15) = 6 → 6 * 20 * 0.92 = 110.4px (92% de 6 celdas)
+                                // Para citas de 15min o menos, ocupar exactamente 30px (1 bloque)
+                                $altura = $cita->duracion_minutos <= 15 ? 30 : ($bloquesOcupados * 30) * 0.92;
                                 
                                 // Determinar categoría predominante de los servicios
                                 $categoriaServicio = 'peluqueria'; // por defecto
@@ -294,20 +285,37 @@
                                         $categoriaServicio = 'estetica';
                                     }
                                 }
+                                
+                                // Determinar si es parte de un grupo
+                                $esParteDeGrupo = $cita->grupo_cita_id !== null;
+                                $esGrupoPeluqueria = $esParteDeGrupo && $categoriaServicio === 'peluqueria';
+                                
+                                // Si es parte de un grupo, verificar si es el último del grupo (mostrar botones solo en el último)
+                                $esUltimoDelGrupo = false;
+                                if ($esParteDeGrupo) {
+                                    $maxOrden = \App\Models\Cita::where('grupo_cita_id', $cita->grupo_cita_id)
+                                        ->max('orden_servicio');
+                                    $esUltimoDelGrupo = $cita->orden_servicio == $maxOrden;
+                                }
                             @endphp
                             
                             <div class="cita-card {{ $cita->estado }} cita-{{ $categoriaServicio }} 
+                                 @if($esGrupoPeluqueria) cita-grupo-peluqueria @endif
                                  @if($cita->duracion_minutos < 30) cita-corta 
                                  @elseif($cita->duracion_minutos >= 30 && $cita->duracion_minutos < 60) cita-mediana 
                                  @else cita-larga 
                                  @endif"
                                  data-cita-id="{{ $cita->id }}"
+                                 data-grupo-id="{{ $cita->grupo_cita_id ?? '' }}"
+                                 data-orden="{{ $cita->orden_servicio ?? 1 }}"
                                  data-duracion-actual="{{ $cita->duracion_minutos }}"
                                  @if($cita->estado !== 'completada' && $cita->estado !== 'cancelada')
                                  draggable="true"
                                  ondragstart="drag(event)"
                                  @endif
-                                 style="top: {{ $topPosition }}px; height: {{ $altura }}px; @if($cita->estado !== 'completada' && $cita->estado !== 'cancelada') cursor: move; @endif">
+                                 style="top: {{ $topPosition }}px; height: {{ $altura }}px; 
+                                 @if($esGrupoPeluqueria) border-left: 3px solid #6366f1; @endif
+                                 @if($cita->estado !== 'completada' && $cita->estado !== 'cancelada') cursor: move; @endif">
                                 
                                 <div class="cita-content">
                                     <div class="cita-info">
@@ -328,6 +336,12 @@
                                     </div>
 
                                     @if($cita->estado !== 'completada' && $cita->estado !== 'cancelada')
+                                        @php
+                                            // Mostrar botones solo si NO es parte de grupo, O si es el último del grupo
+                                            $mostrarBotones = !$esParteDeGrupo || $esUltimoDelGrupo;
+                                        @endphp
+                                        
+                                        @if($mostrarBotones)
                                         <div class="cita-acciones">
                                             <!-- Botones de ajuste de duración -->
                                             <button class="btn-accion btn-duracion-menos" 
@@ -363,6 +377,7 @@
                                                 👁
                                             </button>
                                         </div>
+                                        @endif
                                     @endif
                                 </div>
                             </div>

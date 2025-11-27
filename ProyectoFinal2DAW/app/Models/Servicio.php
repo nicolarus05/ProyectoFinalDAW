@@ -36,4 +36,12 @@ class Servicio extends Model{
     {
         return $this->belongsToMany(Cita::class, 'cita_servicio', 'id_servicio', 'id_cita');
     }
+
+    /**
+     * Accessor para duracion_minutos (alias de tiempo_estimado)
+     */
+    public function getDuracionMinutosAttribute()
+    {
+        return $this->tiempo_estimado;
+    }
 }

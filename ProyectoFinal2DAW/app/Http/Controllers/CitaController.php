@@ -200,12 +200,53 @@ class CitaController extends Controller{
                 ->withErrors(['fecha_hora' => 'Este empleado ya tiene una cita muy cerca de la hora seleccionada. Debe mantener un margen de 15 minutos.']);
         }
 
-        // Guardar la cita
+        // Guardar la cita o citas
         $servicios = $data['servicios'];
         unset($data['servicios']);
-
-        $cita = Cita::create($data);
-        $cita->servicios()->attach($servicios);
+        
+        // Obtener servicios seleccionados con sus categorías y duraciones
+        $serviciosSeleccionados = Servicio::whereIn('id', $servicios)->get();
+        
+        // Determinar si hay servicios de peluquería
+        $hayPeluqueria = $serviciosSeleccionados->where('categoria', 'peluqueria')->count() > 0;
+        $hayMultiplesServicios = $serviciosSeleccionados->count() > 1;
+        
+        // Si hay múltiples servicios de peluquería, crear citas independientes
+        if ($hayPeluqueria && $hayMultiplesServicios) {
+            // Usar timestamp como ID de grupo único
+            $grupoCitaId = now()->timestamp;
+            $horaActual = Carbon::parse($data['fecha_hora']);
+            $orden = 1;
+            
+            foreach ($serviciosSeleccionados as $servicio) {
+                // Crear cita individual para cada servicio
+                $citaIndividual = Cita::create([
+                    'fecha_hora' => $horaActual->format('Y-m-d H:i:s'),
+                    'estado' => $data['estado'],
+                    'notas_adicionales' => $data['notas_adicionales'],
+                    'id_cliente' => $data['id_cliente'],
+                    'id_empleado' => $data['id_empleado'],
+                    'grupo_cita_id' => $grupoCitaId,
+                    'orden_servicio' => $orden,
+                ]);
+                
+                // Asociar solo este servicio a esta cita
+                $citaIndividual->servicios()->attach($servicio->id);
+                
+                // Avanzar hora para la siguiente cita
+                $horaActual->addMinutes($servicio->duracion_minutos);
+                $orden++;
+            }
+            
+            // Cargar la primera cita para enviar email
+            $cita = Cita::where('grupo_cita_id', $grupoCitaId)
+                ->where('orden_servicio', 1)
+                ->first();
+        } else {
+            // Crear una sola cita (estética o peluquería con un solo servicio)
+            $cita = Cita::create($data);
+            $cita->servicios()->attach($servicios);
+        }
 
         // Enviar email de confirmación
         try {

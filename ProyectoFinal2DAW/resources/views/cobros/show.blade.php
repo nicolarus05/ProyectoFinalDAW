@@ -12,19 +12,70 @@
         <div class="space-y-4">
             <div class="flex justify-between border-b pb-2">
                 <span class="font-semibold">Cliente:</span>
-                <span>{{ $cobro->cita->cliente->user->nombre ?? '-' }}</span>
+                <span>
+                    @php
+                        $nombreCliente = '-';
+                        if ($cobro->cita && $cobro->cita->cliente && $cobro->cita->cliente->user) {
+                            $nombreCliente = $cobro->cita->cliente->user->nombre . ' ' . $cobro->cita->cliente->user->apellidos;
+                        } elseif ($cobro->cliente && $cobro->cliente->user) {
+                            $nombreCliente = $cobro->cliente->user->nombre . ' ' . $cobro->cliente->user->apellidos;
+                        } elseif ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                            $primeraCita = $cobro->citasAgrupadas->first();
+                            if ($primeraCita && $primeraCita->cliente && $primeraCita->cliente->user) {
+                                $nombreCliente = $primeraCita->cliente->user->nombre . ' ' . $primeraCita->cliente->user->apellidos;
+                            }
+                        }
+                    @endphp
+                    {{ $nombreCliente }}
+                </span>
             </div>
             <div class="flex justify-between border-b pb-2">
                 <span class="font-semibold">Empleado:</span>
-                <span>{{ $cobro->cita->empleado->user->nombre ?? '-' }}</span>
+                <span>
+                    @php
+                        $nombreEmpleado = '-';
+                        if ($cobro->cita && $cobro->cita->empleado && $cobro->cita->empleado->user) {
+                            $nombreEmpleado = $cobro->cita->empleado->user->nombre . ' ' . $cobro->cita->empleado->user->apellidos;
+                        } elseif ($cobro->empleado && $cobro->empleado->user) {
+                            $nombreEmpleado = $cobro->empleado->user->nombre . ' ' . $cobro->empleado->user->apellidos;
+                        } elseif ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                            $primeraCita = $cobro->citasAgrupadas->first();
+                            if ($primeraCita && $primeraCita->empleado && $primeraCita->empleado->user) {
+                                $nombreEmpleado = $primeraCita->empleado->user->nombre . ' ' . $primeraCita->empleado->user->apellidos;
+                            }
+                        }
+                    @endphp
+                    {{ $nombreEmpleado }}
+                </span>
             </div>
             <div class="flex justify-between border-b pb-2">
                 <span class="font-semibold">Servicio:</span>
                 <span>
                     @php
-                        $servicios = $cobro->cita->servicios->pluck('nombre')->implode(', ') ?? ($cobro->cita->servicio->nombre ?? '-');
+                        $serviciosNombres = [];
+                        
+                        // Servicios de cita individual
+                        if ($cobro->cita && $cobro->cita->servicios) {
+                            $serviciosNombres = array_merge($serviciosNombres, $cobro->cita->servicios->pluck('nombre')->toArray());
+                        }
+                        
+                        // Servicios de citas agrupadas
+                        if ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                            foreach ($cobro->citasAgrupadas as $citaGrupo) {
+                                if ($citaGrupo->servicios) {
+                                    $serviciosNombres = array_merge($serviciosNombres, $citaGrupo->servicios->pluck('nombre')->toArray());
+                                }
+                            }
+                        }
+                        
+                        // Servicios directos (sin cita)
+                        if ($cobro->servicios && $cobro->servicios->count() > 0) {
+                            $serviciosNombres = array_merge($serviciosNombres, $cobro->servicios->pluck('nombre')->toArray());
+                        }
+                        
+                        $servicios = !empty($serviciosNombres) ? implode(', ', $serviciosNombres) : '-';
                     @endphp
-                    {{ $servicios ?: '-' }}
+                    {{ $servicios }}
                 </span>
             </div>
             <div class="flex justify-between border-b pb-2">

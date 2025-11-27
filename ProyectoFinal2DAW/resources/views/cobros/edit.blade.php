@@ -55,11 +55,41 @@
             <div class="mb-4 flex flex-col md:flex-row md:space-x-4">
             <div class="flex-1 mb-2 md:mb-0">
                 <label for="cliente" class="block font-semibold mb-1">Cliente:</label>
-                <input type="text" id="cliente" name="cliente" value="{{ $cobro->cita->cliente->user->nombre ?? '-' }}" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" readonly>
+                @php
+                    $nombreCliente = '-';
+                    if ($cobro->cita && $cobro->cita->cliente && $cobro->cita->cliente->user) {
+                        $nombreCliente = $cobro->cita->cliente->user->nombre;
+                    } elseif ($cobro->cliente && $cobro->cliente->user) {
+                        $nombreCliente = $cobro->cliente->user->nombre;
+                    } elseif ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                        $primeraCita = $cobro->citasAgrupadas->first();
+                        if ($primeraCita && $primeraCita->cliente && $primeraCita->cliente->user) {
+                            $nombreCliente = $primeraCita->cliente->user->nombre;
+                        }
+                    }
+                @endphp
+                <input type="text" id="cliente" name="cliente" value="{{ $nombreCliente }}" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" readonly>
             </div>
             <div class="flex-1">
                 <label for="servicio" class="block font-semibold mb-1">Servicio:</label>
-                <input type="text" id="servicio" name="servicio" value="{{ $cobro->cita->servicios->pluck('nombre')->implode(', ') ?: '-' }}" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" readonly>
+                @php
+                    $serviciosNombres = [];
+                    if ($cobro->cita && $cobro->cita->servicios) {
+                        $serviciosNombres = array_merge($serviciosNombres, $cobro->cita->servicios->pluck('nombre')->toArray());
+                    }
+                    if ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                        foreach ($cobro->citasAgrupadas as $citaGrupo) {
+                            if ($citaGrupo->servicios) {
+                                $serviciosNombres = array_merge($serviciosNombres, $citaGrupo->servicios->pluck('nombre')->toArray());
+                            }
+                        }
+                    }
+                    if ($cobro->servicios && $cobro->servicios->count() > 0) {
+                        $serviciosNombres = array_merge($serviciosNombres, $cobro->servicios->pluck('nombre')->toArray());
+                    }
+                    $serviciosEdit = !empty($serviciosNombres) ? implode(', ', $serviciosNombres) : '-';
+                @endphp
+                <input type="text" id="servicio" name="servicio" value="{{ $serviciosEdit }}" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" readonly>
             </div>
             </div>
 

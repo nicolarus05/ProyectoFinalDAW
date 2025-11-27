@@ -23,6 +23,8 @@ class RegistroCobroController extends Controller{
             'cita.cliente.user',
             'cita.empleado.user',
             'cita.servicios',
+            'citasAgrupadas.servicios',
+            'servicios',
             'cliente.user',
             'empleado.user',
             'productos'
@@ -152,54 +154,72 @@ class RegistroCobroController extends Controller{
         }
 
         // --- VERIFICAR Y APLICAR BONOS ---
-        $cita = !empty($data['id_cita']) ? Cita::with(['servicios', 'cliente'])->find($data['id_cita']) : null;
         $serviciosAplicados = [];
         $descuentoBonos = 0; // Total descontado por bonos
         
-        if ($cita && $cita->cliente) {
-            // Obtener bonos activos del cliente
-            $bonosActivos = BonoCliente::with('servicios')
-                ->where('cliente_id', $cita->cliente->id)
-                ->where('estado', 'activo')
-                ->where('fecha_expiracion', '>=', Carbon::now())
+        // Determinar las citas a procesar (puede ser una sola o múltiples agrupadas)
+        $citasAProcesar = collect();
+        
+        if (!empty($data['id_cita'])) {
+            // Caso 1: Una sola cita
+            $cita = Cita::with(['servicios', 'cliente'])->find($data['id_cita']);
+            if ($cita) {
+                $citasAProcesar->push($cita);
+            }
+        } elseif (!empty($data['citas_ids']) && is_array($data['citas_ids'])) {
+            // Caso 2: Múltiples citas agrupadas
+            $citasAProcesar = Cita::with(['servicios', 'cliente'])
+                ->whereIn('id', $data['citas_ids'])
                 ->get();
+        }
+        
+        // Procesar bonos para cada cita
+        foreach ($citasAProcesar as $cita) {
+            if ($cita && $cita->cliente) {
+                // Obtener bonos activos del cliente
+                $bonosActivos = BonoCliente::with('servicios')
+                    ->where('cliente_id', $cita->cliente->id)
+                    ->where('estado', 'activo')
+                    ->where('fecha_expiracion', '>=', Carbon::now())
+                    ->get();
 
-            // Iterar sobre los servicios de la cita
-            foreach ($cita->servicios as $servicioCita) {
-                // Buscar si hay un bono que incluya este servicio
-                foreach ($bonosActivos as $bono) {
-                    $servicioBono = $bono->servicios()
-                        ->where('servicio_id', $servicioCita->id)
-                        ->wherePivot('cantidad_usada', '<', DB::raw('cantidad_total'))
-                        ->first();
+                // Iterar sobre los servicios de la cita
+                foreach ($cita->servicios as $servicioCita) {
+                    // Buscar si hay un bono que incluya este servicio
+                    foreach ($bonosActivos as $bono) {
+                        $servicioBono = $bono->servicios()
+                            ->where('servicio_id', $servicioCita->id)
+                            ->wherePivot('cantidad_usada', '<', DB::raw('cantidad_total'))
+                            ->first();
 
-                    if ($servicioBono) {
-                        // Hay disponibilidad en el bono, deducir 1
-                        $cantidadUsada = $servicioBono->pivot->cantidad_usada + 1;
-                        
-                        $bono->servicios()->updateExistingPivot($servicioCita->id, [
-                            'cantidad_usada' => $cantidadUsada
-                        ]);
+                        if ($servicioBono) {
+                            // Hay disponibilidad en el bono, deducir 1
+                            $cantidadUsada = $servicioBono->pivot->cantidad_usada + 1;
+                            
+                            $bono->servicios()->updateExistingPivot($servicioCita->id, [
+                                'cantidad_usada' => $cantidadUsada
+                            ]);
 
-                        $serviciosAplicados[] = $servicioCita->nombre;
-                        
-                        // Acumular el descuento del servicio cubierto por el bono
-                        $descuentoBonos += $servicioCita->precio;
+                            $serviciosAplicados[] = $servicioCita->nombre;
+                            
+                            // Acumular el descuento del servicio cubierto por el bono
+                            $descuentoBonos += $servicioCita->precio;
 
-                        // Registrar el uso detallado del bono
-                        BonoUsoDetalle::create([
-                            'bono_cliente_id' => $bono->id,
-                            'cita_id' => $cita->id,
-                            'servicio_id' => $servicioCita->id,
-                            'cantidad_usada' => 1
-                        ]);
+                            // Registrar el uso detallado del bono
+                            BonoUsoDetalle::create([
+                                'bono_cliente_id' => $bono->id,
+                                'cita_id' => $cita->id,
+                                'servicio_id' => $servicioCita->id,
+                                'cantidad_usada' => 1
+                            ]);
 
-                        // Verificar si el bono está completamente usado
-                        if ($bono->estaCompletamenteUsado()) {
-                            $bono->update(['estado' => 'usado']);
+                            // Verificar si el bono está completamente usado
+                            if ($bono->estaCompletamenteUsado()) {
+                                $bono->update(['estado' => 'usado']);
+                            }
+
+                            break; // Ya se aplicó un bono para este servicio, pasar al siguiente
                         }
-
-                        break; // Ya se aplicó un bono para este servicio, pasar al siguiente
                     }
                 }
             }
@@ -248,6 +268,11 @@ class RegistroCobroController extends Controller{
             'id_empleado' => $data['id_empleado'] ?? null,
             'deuda' => $deuda,
         ]);
+
+        // --- Vincular citas agrupadas si existen ---
+        if (!empty($data['citas_ids']) && is_array($data['citas_ids'])) {
+            $cobro->citasAgrupadas()->attach($data['citas_ids']);
+        }
 
         // --- Si hay deuda, registrarla en el sistema de deudas ---
         if ($deuda > 0 && $clienteId) {
@@ -308,6 +333,21 @@ class RegistroCobroController extends Controller{
                                 'id' => $servicio->id,
                                 'cita_id' => $cita->id
                             ];
+                        }
+                    }
+                }
+                
+                // Caso 1b: Cobro de múltiples citas agrupadas
+                if (!empty($data['citas_ids']) && is_array($data['citas_ids'])) {
+                    $citasAgrupadas = Cita::with('servicios')->whereIn('id', $data['citas_ids'])->get();
+                    foreach ($citasAgrupadas as $citaGrupo) {
+                        if ($citaGrupo->servicios) {
+                            foreach ($citaGrupo->servicios as $servicio) {
+                                $serviciosParaDescontar[] = [
+                                    'id' => $servicio->id,
+                                    'cita_id' => $citaGrupo->id
+                                ];
+                            }
                         }
                     }
                 }
@@ -505,6 +545,7 @@ class RegistroCobroController extends Controller{
      * Display the specified resource.
      */
     public function show(RegistroCobro $cobro){
+        $cobro->load(['cita.servicios', 'citasAgrupadas.servicios', 'servicios', 'cliente.user', 'empleado.user', 'productos']);
         return view('cobros.show', compact('cobro'));
     }
 
@@ -512,6 +553,8 @@ class RegistroCobroController extends Controller{
      * Show the form for editing the specified resource.
      */
     public function edit(RegistroCobro $cobro){
+        $cobro->load(['cita.servicios', 'citasAgrupadas.servicios', 'servicios', 'cliente.user', 'empleado.user', 'productos']);
+        
         $citas = Cita::whereDoesntHave('cobro')
             ->orWhere('id', $cobro->id_cita)
             ->with('cliente.user', 'servicios')

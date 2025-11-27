@@ -30,9 +30,20 @@ class RegistroCobro extends Model {
         'deuda',
     ];
 
-    // Relación directa con cita
+    // Relación directa con cita (para cobros de una sola cita)
     public function cita() {
         return $this->belongsTo(Cita::class, 'id_cita');
+    }
+
+    // Relación con múltiples citas (para cobros agrupados)
+    public function citasAgrupadas()
+    {
+        return $this->belongsToMany(
+            Cita::class,
+            'registro_cobro_citas',
+            'registro_cobro_id',
+            'cita_id'
+        )->withTimestamps();
     }
 
     // Relación directa con cliente (si existe id_cliente en tabla)
