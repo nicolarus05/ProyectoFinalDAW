@@ -242,8 +242,47 @@
             <input type="hidden" name="descuento_porcentaje" id="descuento_porcentaje" value="0">
             <input type="hidden" name="descuento_euro" id="descuento_euro" value="0">
 
+            <!-- Bonos -->
+            <div class="bg-yellow-50 p-4 rounded">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-lg font-semibold">💳 Bonos</h2>
+                    <button type="button" id="btn-add-bono" class="bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700 text-sm">
+                        + Añadir bono
+                    </button>
+                </div>
+                <table class="w-full text-sm" id="bonos-table">
+                    <thead class="bg-yellow-100">
+                        <tr>
+                            <th class="p-2 text-left">Bono</th>
+                            <th class="p-2 text-left">Servicios incluidos</th>
+                            <th class="p-2 text-right">Precio</th>
+                            <th class="p-2 text-center">Validez</th>
+                            <th class="p-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="bonos-tbody">
+                        <!-- Bono añadido dinámicamente -->
+                    </tbody>
+                    <tfoot>
+                        <tr class="border-t-2 border-yellow-300">
+                            <td colspan="2" class="p-2 text-right font-semibold">Total bono:</td>
+                            <td id="bonos-total" class="p-2 text-right font-semibold">€0.00</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+                
+                <!-- Mensaje de descuento automático -->
+                <div id="descuento-aplicado" class="mt-3 p-2 bg-green-100 border border-green-300 rounded hidden">
+                    <p class="text-green-700 font-semibold text-sm">
+                        ✅ Se descontarán €<span id="descuento-amount">0.00</span> de esta cita porque incluye servicios del bono
+                    </p>
+                    <p class="text-xs text-green-600 mt-1">Los servicios se marcarán como usados automáticamente</p>
+                </div>
+            </div>
+
             <!-- Resumen y pago -->
-            <div class="bg-green-50 border-2 border-green-600 p-4 rounded">
+            <div class="bg-green-50 border-2 border-green-600 p-4 rounded mt-4">
                 <h2 class="text-lg font-semibold mb-3">Resumen y Pago</h2>
                 
                 <div class="space-y-2 mb-4">
@@ -319,9 +358,10 @@
                 </div>
             </div>
 
-            <!-- Campos ocultos para productos y servicios -->
+            <!-- Campos ocultos para productos, servicios y bono -->
             <input type="hidden" name="productos_data" id="productos_data" value="[]">
             <input type="hidden" name="servicios_data" id="servicios_data" value="[]">
+            <input type="hidden" name="bono_plantilla_id" id="bono_plantilla_id" value="">
 
             <div class="flex justify-end gap-3">
                 <a href="{{ route('cobros.index') }}" class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">
@@ -412,9 +452,168 @@
 let serviciosSeleccionados = [];
 let productosSeleccionados = [];
 let csrfToken;
+let bonoSeleccionado = null;
+let descuentoPorBono = 0;
 
 document.addEventListener('DOMContentLoaded', function() {
 csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+// Bonos disponibles
+const bonosDisponibles = @json($bonosPlantilla);
+
+// Modal para seleccionar bono
+window.mostrarModalBonos = function() {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.innerHTML = `
+        <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">Seleccionar Bono</h3>
+                <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+            </div>
+            
+            <!-- Barra de búsqueda -->
+            <div class="mb-4">
+                <input type="text" 
+                       id="buscar-bono" 
+                       placeholder="🔍 Buscar bono por nombre o servicio..." 
+                       class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                       oninput="filtrarBonos()">
+            </div>
+            
+            <div id="bonos-lista" class="space-y-3">
+                ${bonosDisponibles.map(bono => `
+                    <div class="bono-item border rounded p-3 hover:bg-yellow-50 cursor-pointer transition" 
+                         data-nombre="${bono.nombre.toLowerCase()}"
+                         data-descripcion="${(bono.descripcion || '').toLowerCase()}"
+                         data-servicios="${bono.servicios.map(s => s.nombre.toLowerCase()).join(' ')}"
+                         onclick="seleccionarBono(${bono.id})">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <h4 class="font-semibold text-lg">${bono.nombre}</h4>
+                                <p class="text-sm text-gray-600 mb-2">${bono.descripcion || ''}</p>
+                                <div class="text-sm">
+                                    <strong>Servicios incluidos:</strong>
+                                    <ul class="list-disc ml-5 mt-1">
+                                        ${bono.servicios.map(s => `<li>${s.nombre} (${s.pivot.cantidad}x)</li>`).join('')}
+                                    </ul>
+                                </div>
+                                <p class="text-sm mt-2"><strong>Validez:</strong> ${bono.duracion_dias} días</p>
+                            </div>
+                            <div class="ml-4 text-right">
+                                <p class="text-2xl font-bold text-yellow-600">€${parseFloat(bono.precio).toFixed(2)}</p>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+window.filtrarBonos = function() {
+    const busqueda = document.getElementById('buscar-bono').value.toLowerCase().trim();
+    const items = document.querySelectorAll('.bono-item');
+    
+    items.forEach(item => {
+        const nombre = item.dataset.nombre;
+        const descripcion = item.dataset.descripcion;
+        const servicios = item.dataset.servicios;
+        
+        const coincide = nombre.includes(busqueda) || 
+                        descripcion.includes(busqueda) || 
+                        servicios.includes(busqueda);
+        
+        item.style.display = coincide ? 'block' : 'none';
+    });
+}
+
+window.seleccionarBono = function(bonoId) {
+    // Verificar si ya hay un bono seleccionado
+    if (bonoSeleccionado) {
+        alert('Ya hay un bono añadido. Elimínalo primero si deseas añadir otro.');
+        document.querySelector('.fixed').remove();
+        return;
+    }
+    
+    const bono = bonosDisponibles.find(b => b.id === bonoId);
+    if (!bono) return;
+    
+    bonoSeleccionado = {
+        id: bono.id,
+        nombre: bono.nombre,
+        precio: parseFloat(bono.precio),
+        duracion: bono.duracion_dias,
+        servicios: bono.servicios.map(s => s.id)
+    };
+    
+    // Actualizar campo oculto
+    document.getElementById('bono_plantilla_id').value = bono.id;
+    
+    // Crear fila en la tabla
+    const tbody = document.getElementById('bonos-tbody');
+    const serviciosTexto = bono.servicios.map(s => `${s.nombre} (${s.pivot.cantidad}x)`).join(', ');
+    
+    const row = document.createElement('tr');
+    row.innerHTML = `
+        <td class="p-2 font-semibold">${bono.nombre}</td>
+        <td class="p-2 text-sm">${serviciosTexto}</td>
+        <td class="p-2 text-right">€${parseFloat(bono.precio).toFixed(2)}</td>
+        <td class="p-2 text-center text-sm">${bono.duracion_dias} días</td>
+        <td class="p-2 text-center">
+            <button type="button" onclick="eliminarBono()" class="text-red-600 hover:text-red-800 font-bold">✕</button>
+        </td>
+    `;
+    tbody.innerHTML = '';
+    tbody.appendChild(row);
+    
+    // Actualizar total
+    document.getElementById('bonos-total').textContent = `€${parseFloat(bono.precio).toFixed(2)}`;
+    
+    // Calcular descuento automático
+    calcularDescuentoBono();
+    
+    // Cerrar modal
+    document.querySelector('.fixed').remove();
+    
+    calcularTotales();
+}
+
+window.eliminarBono = function() {
+    bonoSeleccionado = null;
+    descuentoPorBono = 0;
+    document.getElementById('bono_plantilla_id').value = '';
+    document.getElementById('bonos-tbody').innerHTML = '';
+    document.getElementById('bonos-total').textContent = '€0.00';
+    document.getElementById('descuento-aplicado').classList.add('hidden');
+    calcularTotales();
+}
+
+window.calcularDescuentoBono = function() {
+    if (!bonoSeleccionado) return;
+    
+    // Calcular si hay servicios de la cita en el bono
+    let serviciosCoincidentes = serviciosSeleccionados.filter(s => 
+        bonoSeleccionado.servicios.includes(s.id)
+    );
+    
+    descuentoPorBono = serviciosCoincidentes.reduce((sum, s) => sum + s.precio, 0);
+    
+    // Mostrar o ocultar descuento aplicado
+    const descuentoDiv = document.getElementById('descuento-aplicado');
+    if (descuentoPorBono > 0) {
+        descuentoDiv.classList.remove('hidden');
+        document.getElementById('descuento-amount').textContent = descuentoPorBono.toFixed(2);
+    } else {
+        descuentoDiv.classList.add('hidden');
+    }
+}
+
+// Botón añadir bono
+document.getElementById('btn-add-bono').addEventListener('click', function() {
+    mostrarModalBonos();
+});
 
 // Actualizar deuda del cliente
 window.actualizarDeudaCliente = function() {
@@ -514,12 +713,14 @@ window.addService = function(id, nombre, precio) {
     serviciosSeleccionados.push({ id, nombre, precio, empleado_id: empleadoId });
     renderServicios();
     closeModalServices();
+    calcularDescuentoBono();
     calcularTotales();
 }
 
 window.removeService = function(id) {
     serviciosSeleccionados = serviciosSeleccionados.filter(s => s.id !== id);
     renderServicios();
+    calcularDescuentoBono();
     calcularTotales();
 }
 
@@ -705,8 +906,11 @@ window.calcularTotales = function() {
     const totalProductos = productosSeleccionados.reduce((sum, p) => sum + (parseFloat(p.precio) * parseInt(p.cantidad)), 0);
     document.getElementById('products-total').textContent = `€${totalProductos.toFixed(2)}`;
 
-    // Subtotal
-    const subtotal = totalServicios + totalProductos;
+    // Subtotal (incluir precio del bono si está seleccionado)
+    let subtotal = totalServicios + totalProductos;
+    if (bonoSeleccionado) {
+        subtotal += bonoSeleccionado.precio;
+    }
     document.getElementById('subtotal').textContent = `€${subtotal.toFixed(2)}`;
     document.getElementById('coste').value = subtotal.toFixed(2);
 
@@ -722,8 +926,15 @@ window.calcularTotales = function() {
 
     document.getElementById('descuentos-total').textContent = `-€${totalDescuentos.toFixed(2)}`;
 
-    // Total final
-    const totalFinal = Math.max(0, (totalServicios - descuentoServicios) + (totalProductos - descuentoProductos));
+    // Total final (restar descuento por servicios incluidos en el bono)
+    let totalFinal = Math.max(0, (totalServicios - descuentoServicios) + (totalProductos - descuentoProductos));
+    
+    // Si hay bono, sumar su precio y restar servicios coincidentes
+    if (bonoSeleccionado) {
+        totalFinal += bonoSeleccionado.precio;
+        totalFinal -= descuentoPorBono;
+    }
+    
     document.getElementById('total-final').textContent = `€${totalFinal.toFixed(2)}`;
     document.getElementById('total_final_input').value = totalFinal.toFixed(2);
 

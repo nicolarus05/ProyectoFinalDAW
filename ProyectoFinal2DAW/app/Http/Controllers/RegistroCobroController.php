@@ -55,6 +55,9 @@ class RegistroCobroController extends Controller{
         $clientes = Cliente::with(['user', 'deuda'])->get();
         $empleados = \App\Models\Empleado::with('user')->get();
         $servicios = \App\Models\Servicio::where('activo', true)->get();
+        $bonosPlantilla = \App\Models\BonoPlantilla::with('servicios')
+            ->where('activo', true)
+            ->get();
         
         $cita = null;
         $citas = collect(); // Colección vacía por defecto
@@ -70,7 +73,7 @@ class RegistroCobroController extends Controller{
                 ->get();
         }
         
-        return view('cobros.create-direct', compact('clientes', 'empleados', 'servicios', 'cita', 'citas'));
+        return view('cobros.create-direct', compact('clientes', 'empleados', 'servicios', 'cita', 'citas', 'bonosPlantilla'));
     }
 
     /**
@@ -99,6 +102,7 @@ class RegistroCobroController extends Controller{
             'pago_tarjeta' => 'nullable|numeric|min:0',
             'productos_data' => 'nullable|json',
             'servicios_data' => 'nullable|json',
+            'bono_plantilla_id' => 'nullable|exists:bonos_plantilla,id',
         ]);
 
         // Validar que al menos tenga una cita, múltiples citas O un cliente
@@ -253,6 +257,106 @@ class RegistroCobroController extends Controller{
                 $deudaCliente = $cliente->obtenerDeuda();
                 $nota = "Cobro #" . $cobro->id . ($data['id_cita'] ? " - Cita #" . $data['id_cita'] : " - Venta directa");
                 $deudaCliente->registrarCargo($deuda, $nota, null, $cobro->id);
+            }
+        }
+
+        // --- PROCESAR VENTA DE BONO ---
+        if (!empty($data['bono_plantilla_id']) && $clienteId) {
+            $bonoPlantilla = \App\Models\BonoPlantilla::with('servicios')->find($data['bono_plantilla_id']);
+            
+            if ($bonoPlantilla) {
+                // Crear el bono del cliente
+                $bonoCliente = \App\Models\BonoCliente::create([
+                    'cliente_id' => $clienteId,
+                    'bono_plantilla_id' => $bonoPlantilla->id,
+                    'fecha_compra' => Carbon::now(),
+                    'fecha_expiracion' => Carbon::now()->addDays($bonoPlantilla->duracion_dias),
+                    'estado' => 'activo',
+                    'metodo_pago' => $data['metodo_pago'],
+                    'precio_pagado' => $bonoPlantilla->precio,
+                    'dinero_cliente' => 0,
+                    'cambio' => 0,
+                    'id_empleado' => $data['id_empleado'] ?? null,
+                ]);
+
+                // Copiar servicios de la plantilla al bono del cliente
+                foreach ($bonoPlantilla->servicios as $servicio) {
+                    $bonoCliente->servicios()->attach($servicio->id, [
+                        'cantidad_total' => $servicio->pivot->cantidad,
+                        'cantidad_usada' => 0,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+
+                // Vincular el bono al cobro mediante la tabla pivot
+                $cobro->bonosVendidos()->attach($bonoCliente->id, [
+                    'precio' => $bonoPlantilla->precio,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                // Descontar servicios coincidentes del bono
+                $serviciosParaDescontar = [];
+                
+                // Caso 1: Cobro de cita existente
+                if (!empty($data['id_cita'])) {
+                    $cita = Cita::with('servicios')->find($data['id_cita']);
+                    if ($cita && $cita->servicios) {
+                        foreach ($cita->servicios as $servicio) {
+                            $serviciosParaDescontar[] = [
+                                'id' => $servicio->id,
+                                'cita_id' => $cita->id
+                            ];
+                        }
+                    }
+                }
+                
+                // Caso 2: Cobro directo con servicios_data
+                if ($request->has('servicios_data') && !empty($data['servicios_data'])) {
+                    $serviciosData = json_decode($data['servicios_data'], true);
+                    if (is_array($serviciosData)) {
+                        foreach ($serviciosData as $s) {
+                            $serviciosParaDescontar[] = [
+                                'id' => (int) $s['id'],
+                                'cita_id' => $data['id_cita'] ?? null
+                            ];
+                        }
+                    }
+                }
+                
+                // Procesar descuento de servicios
+                foreach ($serviciosParaDescontar as $servicioData) {
+                    $servicioId = $servicioData['id'];
+                    $citaId = $servicioData['cita_id'];
+                    
+                    // Verificar si el bono incluye este servicio
+                    $servicioBono = $bonoCliente->servicios()
+                        ->where('servicio_id', $servicioId)
+                        ->first();
+
+                    if ($servicioBono && $servicioBono->pivot->cantidad_usada < $servicioBono->pivot->cantidad_total) {
+                        // Descontar 1 del servicio
+                        $cantidadUsada = $servicioBono->pivot->cantidad_usada + 1;
+                        
+                        $bonoCliente->servicios()->updateExistingPivot($servicioId, [
+                            'cantidad_usada' => $cantidadUsada
+                        ]);
+
+                        // Registrar el uso detallado del bono
+                        \App\Models\BonoUsoDetalle::create([
+                            'bono_cliente_id' => $bonoCliente->id,
+                            'cita_id' => $citaId,
+                            'servicio_id' => $servicioId,
+                            'cantidad_usada' => 1
+                        ]);
+                    }
+                }
+
+                // Verificar si el bono está completamente usado
+                if ($bonoCliente->estaCompletamenteUsado()) {
+                    $bonoCliente->update(['estado' => 'usado']);
+                }
             }
         }
 

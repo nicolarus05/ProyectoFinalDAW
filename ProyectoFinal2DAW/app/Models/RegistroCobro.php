@@ -70,4 +70,17 @@ class RegistroCobro extends Model {
         ->withPivot(['empleado_id', 'precio'])
         ->withTimestamps();
     }
+
+    // Relación con bonos vendidos en este cobro
+    public function bonosVendidos()
+    {
+        return $this->belongsToMany(
+            BonoCliente::class,
+            'registro_cobro_bonos',
+            'registro_cobro_id',
+            'bono_cliente_id'
+        )
+        ->withPivot('precio')
+        ->withTimestamps();
+    }
 }
