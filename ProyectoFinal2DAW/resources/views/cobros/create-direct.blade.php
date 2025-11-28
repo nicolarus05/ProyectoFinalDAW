@@ -465,15 +465,20 @@ const bonosDisponibles = @json($bonosPlantilla);
 window.mostrarModalBonos = function() {
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.onclick = function(e) {
+        if (e.target === modal) modal.remove();
+    };
+    
     modal.innerHTML = `
-        <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-4">
+        <div class="bg-white rounded-lg w-full mx-4 max-w-2xl flex flex-col" style="max-height: 90vh;" onclick="event.stopPropagation()">
+            <!-- Header fijo -->
+            <div class="flex justify-between items-center p-6 border-b">
                 <h3 class="text-xl font-bold">Seleccionar Bono</h3>
                 <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
             </div>
             
-            <!-- Barra de búsqueda -->
-            <div class="mb-4">
+            <!-- Barra de búsqueda fija -->
+            <div class="p-4 border-b">
                 <input type="text" 
                        id="buscar-bono" 
                        placeholder="🔍 Buscar bono por nombre o servicio..." 
@@ -481,31 +486,34 @@ window.mostrarModalBonos = function() {
                        oninput="filtrarBonos()">
             </div>
             
-            <div id="bonos-lista" class="space-y-3">
-                ${bonosDisponibles.map(bono => `
-                    <div class="bono-item border rounded p-3 hover:bg-yellow-50 cursor-pointer transition" 
-                         data-nombre="${bono.nombre.toLowerCase()}"
-                         data-descripcion="${(bono.descripcion || '').toLowerCase()}"
-                         data-servicios="${bono.servicios.map(s => s.nombre.toLowerCase()).join(' ')}"
-                         onclick="seleccionarBono(${bono.id})">
-                        <div class="flex justify-between items-start">
-                            <div class="flex-1">
-                                <h4 class="font-semibold text-lg">${bono.nombre}</h4>
-                                <p class="text-sm text-gray-600 mb-2">${bono.descripcion || ''}</p>
-                                <div class="text-sm">
-                                    <strong>Servicios incluidos:</strong>
-                                    <ul class="list-disc ml-5 mt-1">
-                                        ${bono.servicios.map(s => `<li>${s.nombre} (${s.pivot.cantidad}x)</li>`).join('')}
-                                    </ul>
+            <!-- Contenido con scroll -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <div id="bonos-lista" class="space-y-3">
+                    ${bonosDisponibles.map(bono => `
+                        <div class="bono-item border rounded p-3 hover:bg-yellow-50 cursor-pointer transition" 
+                             data-nombre="${bono.nombre.toLowerCase()}"
+                             data-descripcion="${(bono.descripcion || '').toLowerCase()}"
+                             data-servicios="${bono.servicios.map(s => s.nombre.toLowerCase()).join(' ')}"
+                             onclick="seleccionarBono(${bono.id})">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                    <h4 class="font-semibold text-lg">${bono.nombre}</h4>
+                                    <p class="text-sm text-gray-600 mb-2">${bono.descripcion || ''}</p>
+                                    <div class="text-sm">
+                                        <strong>Servicios incluidos:</strong>
+                                        <ul class="list-disc ml-5 mt-1">
+                                            ${bono.servicios.map(s => `<li>${s.nombre} (${s.pivot.cantidad}x)</li>`).join('')}
+                                        </ul>
+                                    </div>
+                                    <p class="text-sm mt-2"><strong>Validez:</strong> ${bono.duracion_dias} días</p>
                                 </div>
-                                <p class="text-sm mt-2"><strong>Validez:</strong> ${bono.duracion_dias} días</p>
-                            </div>
-                            <div class="ml-4 text-right">
-                                <p class="text-2xl font-bold text-yellow-600">€${parseFloat(bono.precio).toFixed(2)}</p>
+                                <div class="ml-4 text-right">
+                                    <p class="text-2xl font-bold text-yellow-600">€${parseFloat(bono.precio).toFixed(2)}</p>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `).join('')}
+                    `).join('')}
+                </div>
             </div>
         </div>
     `;
