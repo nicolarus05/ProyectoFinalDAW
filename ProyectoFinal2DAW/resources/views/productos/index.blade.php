@@ -33,6 +33,14 @@
             </div>
         @endif
 
+        <!-- Barra de búsqueda -->
+        <div class="mb-4">
+            <input type="text" 
+                   id="buscar-producto" 
+                   placeholder="🔍 Buscar por nombre, categoría o descripción..."
+                   class="w-full border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
         <div class="overflow-x-auto">
             <table class="w-full table-auto text-sm">
                 <thead class="bg-gray-50">
@@ -86,5 +94,45 @@
             @endif
         </div>
     </div>
+
+    <script>
+        const inputBuscar = document.getElementById('buscar-producto');
+        const tbody = document.querySelector('tbody');
+        const filas = Array.from(tbody.querySelectorAll('tr'));
+        
+        inputBuscar.addEventListener('input', function() {
+            const busqueda = this.value.toLowerCase().trim();
+            let visibles = 0;
+            
+            filas.forEach(fila => {
+                // Excluir fila de "No hay productos"
+                if (fila.querySelector('td[colspan]')) return;
+                
+                const nombre = fila.children[0].textContent.toLowerCase();
+                const categoria = fila.children[1].textContent.toLowerCase();
+                const descripcion = fila.children[2].textContent.toLowerCase();
+                
+                const coincide = nombre.includes(busqueda) || 
+                                categoria.includes(busqueda) || 
+                                descripcion.includes(busqueda);
+                
+                fila.style.display = coincide ? '' : 'none';
+                if (coincide) visibles++;
+            });
+            
+            // Mostrar mensaje si no hay resultados
+            let mensajeNoResultados = tbody.querySelector('.no-resultados');
+            if (visibles === 0 && busqueda !== '') {
+                if (!mensajeNoResultados) {
+                    mensajeNoResultados = document.createElement('tr');
+                    mensajeNoResultados.className = 'no-resultados';
+                    mensajeNoResultados.innerHTML = '<td colspan="8" class="px-4 py-6 text-center text-gray-600">No se encontraron productos que coincidan con la búsqueda.</td>';
+                    tbody.appendChild(mensajeNoResultados);
+                }
+            } else if (mensajeNoResultados) {
+                mensajeNoResultados.remove();
+            }
+        });
+    </script>
 </body>
 </html>

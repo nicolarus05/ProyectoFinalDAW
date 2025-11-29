@@ -582,8 +582,11 @@ window.seleccionarBono = function(bonoId) {
     // Calcular descuento automático
     calcularDescuentoBono();
     
-    // Cerrar modal
-    document.querySelector('.fixed').remove();
+    // Cerrar modal (buscar el modal específico)
+    const modal = document.querySelector('.fixed.inset-0.bg-black.bg-opacity-50');
+    if (modal) {
+        modal.remove();
+    }
     
     calcularTotales();
 }

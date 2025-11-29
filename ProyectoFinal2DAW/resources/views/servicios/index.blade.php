@@ -17,6 +17,14 @@
                class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Nuevo Servicio</a>
         </div>
 
+        <!-- Barra de búsqueda -->
+        <div class="mb-4">
+            <input type="text" 
+                   id="buscar-servicio" 
+                   placeholder="🔍 Buscar por nombre o categoría..."
+                   class="w-full border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
         <table class="w-full border border-gray-300 rounded">
             <thead>
                 <tr class="bg-gray-200 text-left">
@@ -57,5 +65,42 @@
             </tbody>
         </table>
     </div>
+
+    <script>
+        const inputBuscar = document.getElementById('buscar-servicio');
+        const tbody = document.querySelector('tbody');
+        const filas = Array.from(tbody.querySelectorAll('tr'));
+        
+        inputBuscar.addEventListener('input', function() {
+            const busqueda = this.value.toLowerCase().trim();
+            let visibles = 0;
+            
+            filas.forEach(fila => {
+                // Excluir fila de "No hay servicios"
+                if (fila.querySelector('td[colspan]')) return;
+                
+                const nombre = fila.children[0].textContent.toLowerCase();
+                const categoria = fila.children[3].textContent.toLowerCase();
+                
+                const coincide = nombre.includes(busqueda) || categoria.includes(busqueda);
+                
+                fila.style.display = coincide ? '' : 'none';
+                if (coincide) visibles++;
+            });
+            
+            // Mostrar mensaje si no hay resultados
+            let mensajeNoResultados = tbody.querySelector('.no-resultados');
+            if (visibles === 0 && busqueda !== '') {
+                if (!mensajeNoResultados) {
+                    mensajeNoResultados = document.createElement('tr');
+                    mensajeNoResultados.className = 'no-resultados';
+                    mensajeNoResultados.innerHTML = '<td colspan="6" class="px-3 py-2 text-center text-gray-500">No se encontraron servicios que coincidan con la búsqueda.</td>';
+                    tbody.appendChild(mensajeNoResultados);
+                }
+            } else if (mensajeNoResultados) {
+                mensajeNoResultados.remove();
+            }
+        });
+    </script>
 </body>
 </html>
