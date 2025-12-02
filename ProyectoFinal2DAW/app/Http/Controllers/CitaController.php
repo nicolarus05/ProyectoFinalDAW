@@ -184,24 +184,56 @@ class CitaController extends Controller{
                 ->withErrors(['id_empleado' => 'El empleado no está disponible en la fecha y hora seleccionadas.']);
         }
 
-        // Verificar si hay otra cita muy cercana (margen de 15 minutos)
+        // Calcular la duración total de la nueva cita
+        $servicios = $data['servicios'];
+        $serviciosSeleccionados = Servicio::whereIn('id', $servicios)->get();
+        $duracionTotalNuevaCita = $serviciosSeleccionados->sum('duracion');
+        $finNuevaCita = $fechaHora->copy()->addMinutes($duracionTotalNuevaCita);
+
+        // Verificar solapamiento real con otras citas del empleado
         // Solo verificar citas pendientes, no las completadas ni canceladas
-        $fechaInicioMargen = $fechaHora->copy()->subMinutes(15);
-        $fechaFinMargen = $fechaHora->copy()->addMinutes(15);
-
-        $existeCitaCercana = Cita::where('id_empleado', $data['id_empleado'])
+        $citasCercanas = Cita::where('id_empleado', $data['id_empleado'])
             ->whereIn('estado', ['pendiente', 'confirmada'])
-            ->whereBetween('fecha_hora', [$fechaInicioMargen, $fechaFinMargen])
-            ->exists();
+            ->whereDate('fecha_hora', $fechaHora->format('Y-m-d'))
+            ->get();
 
-        if ($existeCitaCercana) {
-            return redirect()->back()
-                ->withInput()
-                ->withErrors(['fecha_hora' => 'Este empleado ya tiene una cita muy cerca de la hora seleccionada. Debe mantener un margen de 15 minutos.']);
+        foreach ($citasCercanas as $citaExistente) {
+            $inicioExistente = Carbon::parse($citaExistente->fecha_hora);
+            $finExistente = $inicioExistente->copy()->addMinutes($citaExistente->duracion_minutos);
+            
+            // Verificar solapamiento: hay conflicto si alguno de estos es verdadero:
+            // 1. La nueva cita empieza durante una cita existente
+            // 2. La nueva cita termina durante una cita existente  
+            // 3. La nueva cita engloba completamente una cita existente
+            
+            $nuevaEmpiezaDuranteExistente = $fechaHora->greaterThanOrEqualTo($inicioExistente) && $fechaHora->lessThan($finExistente);
+            $nuevaTerminaDuranteExistente = $finNuevaCita->greaterThan($inicioExistente) && $finNuevaCita->lessThanOrEqualTo($finExistente);
+            $nuevaEnglobaExistente = $fechaHora->lessThanOrEqualTo($inicioExistente) && $finNuevaCita->greaterThanOrEqualTo($finExistente);
+            
+            if ($nuevaEmpiezaDuranteExistente || $nuevaTerminaDuranteExistente || $nuevaEnglobaExistente) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['fecha_hora' => 'Este horario se solapa con otra cita que va de ' . $inicioExistente->format('H:i') . ' a ' . $finExistente->format('H:i') . '. Por favor, seleccione otro horario.']);
+            }
+            
+            // Verificar margen de 5 minutos antes y después
+            $finExistenteConMargen = $finExistente->copy()->addMinutes(5);
+            $inicioExistenteConMargen = $inicioExistente->copy()->subMinutes(5);
+            
+            if ($fechaHora->greaterThanOrEqualTo($finExistente) && $fechaHora->lessThan($finExistenteConMargen)) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['fecha_hora' => 'Debe haber al menos 5 minutos de margen. La cita anterior termina a las ' . $finExistente->format('H:i') . '.']);
+            }
+            
+            if ($finNuevaCita->greaterThan($inicioExistenteConMargen) && $finNuevaCita->lessThanOrEqualTo($inicioExistente)) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['fecha_hora' => 'Debe haber al menos 5 minutos de margen. Hay otra cita que empieza a las ' . $inicioExistente->format('H:i') . '.']);
+            }
         }
 
         // Guardar la cita o citas
-        $servicios = $data['servicios'];
         unset($data['servicios']);
         
         // Obtener servicios seleccionados con sus categorías y duraciones

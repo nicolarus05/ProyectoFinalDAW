@@ -337,8 +337,8 @@
 
                                     @if($cita->estado !== 'completada' && $cita->estado !== 'cancelada')
                                         @php
-                                            // Mostrar botones solo si NO es parte de grupo, O si es el último del grupo
-                                            $mostrarBotones = !$esParteDeGrupo || $esUltimoDelGrupo;
+                                            // Mostrar botones en todos los bloques de la cita
+                                            $mostrarBotones = true;
                                         @endphp
                                         
                                         @if($mostrarBotones)

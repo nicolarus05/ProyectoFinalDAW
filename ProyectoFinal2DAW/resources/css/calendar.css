@@ -417,7 +417,7 @@ body {
     display: flex;
     flex-direction: column;
     color: #1F2937;
-    min-height: 35px;
+    min-height: 28px;
 }
 
 /* Bloques de servicios individuales */
