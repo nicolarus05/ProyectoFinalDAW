@@ -18,7 +18,11 @@ class RegistroCobroController extends Controller{
     /**
      * Display a listing of the resource.
      */
-    public function index(){
+    public function index(Request $request){
+        // Obtener fecha del request o usar la fecha actual
+        $fecha = $request->input('fecha', now()->format('Y-m-d'));
+        $fechaCarbon = \Carbon\Carbon::parse($fecha);
+        
         $cobros = RegistroCobro::with([
             'cita.cliente.user',
             'cita.empleado.user',
@@ -28,8 +32,12 @@ class RegistroCobroController extends Controller{
             'cliente.user',
             'empleado.user',
             'productos'
-        ])->get();
-        return view('cobros.index', compact('cobros'));
+        ])
+        ->whereDate('created_at', $fecha)
+        ->orderBy('created_at', 'desc')
+        ->get();
+        
+        return view('cobros.index', compact('cobros', 'fecha', 'fechaCarbon'));
     }
 
     /**

@@ -12,6 +12,49 @@
             <a href="{{ route('citas.index') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">← Volver a las citas</a>
         </div>
 
+        <!-- Navegación por fecha -->
+        <div class="mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <div class="flex items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <a href="{{ route('cobros.index', ['fecha' => \Carbon\Carbon::parse($fecha)->subDay()->format('Y-m-d')]) }}" 
+                       class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">
+                        ◀ Día Anterior
+                    </a>
+                    
+                    <div class="flex items-center gap-2">
+                        <label for="fecha-selector" class="font-semibold text-gray-700">📅 Fecha:</label>
+                        <input type="date" 
+                               id="fecha-selector" 
+                               value="{{ $fecha }}" 
+                               max="{{ now()->format('Y-m-d') }}"
+                               onchange="window.location.href='{{ route('cobros.index') }}?fecha=' + this.value"
+                               class="border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <a href="{{ route('cobros.index', ['fecha' => now()->format('Y-m-d')]) }}" 
+                       class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+                        Hoy
+                    </a>
+                    
+                    @if($fecha < now()->format('Y-m-d'))
+                    <a href="{{ route('cobros.index', ['fecha' => \Carbon\Carbon::parse($fecha)->addDay()->format('Y-m-d')]) }}" 
+                       class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">
+                        Día Siguiente ▶
+                    </a>
+                    @endif
+                </div>
+                
+                <div class="text-right">
+                    <div class="text-lg font-bold text-gray-800">
+                        {{ $fechaCarbon->locale('es')->isoFormat('dddd, D [de] MMMM [de] YYYY') }}
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        Total de cobros: <span class="font-bold text-green-600">{{ $cobros->count() }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="mb-4 flex gap-3">
             <a href="{{ route('cobros.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
                 Cobrar Cita
@@ -142,10 +185,28 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="12" class="text-center py-4 text-gray-500">No hay cobros registrados.</td>
+                            <td colspan="12" class="text-center py-4 text-gray-500">No hay cobros registrados para esta fecha.</td>
                         </tr>
                     @endforelse
                 </tbody>
+                
+                @if($cobros->count() > 0)
+                <tfoot class="bg-gray-100 font-bold border-t-2 border-gray-400">
+                    <tr>
+                        <td colspan="7" class="p-3 text-right border">TOTALES DEL DÍA:</td>
+                        <td class="p-3 border text-center text-green-700 text-lg">
+                            {{ number_format($cobros->sum('total_final'), 2) }} €
+                        </td>
+                        <td colspan="4" class="p-3 border text-sm">
+                            <div class="flex gap-4 justify-center">
+                                <span class="text-green-700">💵 Efectivo: €{{ number_format($cobros->where('metodo_pago', 'efectivo')->sum('total_final') + $cobros->where('metodo_pago', 'mixto')->sum('pago_efectivo'), 2) }}</span>
+                                <span class="text-blue-700">💳 Tarjeta: €{{ number_format($cobros->where('metodo_pago', 'tarjeta')->sum('total_final') + $cobros->where('metodo_pago', 'mixto')->sum('pago_tarjeta'), 2) }}</span>
+                                <span class="text-purple-700">🎫 Bonos: €{{ number_format($cobros->where('metodo_pago', 'bono')->sum('total_final'), 2) }}</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tfoot>
+                @endif
             </table>
         </div>
     </div>
