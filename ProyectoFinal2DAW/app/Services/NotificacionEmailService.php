@@ -27,7 +27,8 @@ class NotificacionEmailService
 
             $email = $cita->cliente->user->email;
             
-            Mail::to($email)->send(new CitaConfirmada($cita));
+            // Pasar solo el ID de la cita para evitar problemas de serialización
+            Mail::to($email)->send(new CitaConfirmada($cita->id));
             
             Log::info("Email de confirmación enviado exitosamente", [
                 'cita_id' => $cita->id,

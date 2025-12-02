@@ -15,14 +15,15 @@ class CitaConfirmada extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels, TenantAware;
 
+    public $citaId;
     public $cita;
 
     /**
      * Create a new message instance.
      */
-    public function __construct(Cita $cita)
+    public function __construct($citaId)
     {
-        $this->cita = $cita;
+        $this->citaId = $citaId;
         
         // Inicializar el trait TenantAware
         if (method_exists($this, 'initializeTenantFromTrait')) {
@@ -33,6 +34,18 @@ class CitaConfirmada extends Mailable implements ShouldQueue
                 $this->tenantId = tenant('id');
             }
         }
+    }
+    
+    /**
+     * Construir el mensaje cuando se procesa
+     */
+    public function build()
+    {
+        // Cargar la cita con sus relaciones cuando se procesa el job
+        $this->cita = Cita::with(['cliente.user', 'servicios', 'empleado.user'])
+            ->findOrFail($this->citaId);
+            
+        return $this;
     }
 
     /**
