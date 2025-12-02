@@ -17,6 +17,8 @@ class RegistroEntradaSalida extends Model{
         'fecha',
         'hora_entrada',
         'hora_salida',
+        'salida_fuera_horario',
+        'minutos_extra',
     ];
 
     protected $casts = [

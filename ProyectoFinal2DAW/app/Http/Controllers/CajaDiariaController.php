@@ -53,7 +53,19 @@ class CajaDiariaController extends Controller{
             ->get();
 
         // Detalle de servicios: cliente, servicios (de la cita), empleado, metodo_pago, dinero_pagado, deuda
-        $detalleServicios = RegistroCobro::with(['cliente.user', 'empleado.user', 'cita.servicios', 'cita.empleado.user', 'cita.cliente.user', 'productos'])
+        $detalleServicios = RegistroCobro::with([
+            'cliente.user', 
+            'empleado.user', 
+            'cita.servicios', 
+            'cita.empleado.user', 
+            'cita.cliente.user',
+            'cita',
+            'citasAgrupadas.servicios',
+            'citasAgrupadas.empleado.user',
+            'citasAgrupadas.cliente.user',
+            'servicios',
+            'productos'
+        ])
             ->whereDate('created_at', $fecha)
             ->orderBy('created_at', 'desc')
             ->get();
@@ -77,8 +89,51 @@ class CajaDiariaController extends Controller{
         foreach($detalleServicios as $cobro) {
             $metodoPago = $cobro->metodo_pago;
             
+            // Servicios de cita individual
             if ($cobro->cita && $cobro->cita->servicios) {
                 foreach($cobro->cita->servicios as $servicio) {
+                    $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
+                    
+                    if ($servicio->categoria === 'peluqueria') {
+                        $totalPeluqueria += $precioServicio;
+                        if ($metodoPago === 'efectivo') $totalPeluqueriaEfectivo += $precioServicio;
+                        elseif ($metodoPago === 'tarjeta') $totalPeluqueriaTarjeta += $precioServicio;
+                        elseif ($metodoPago === 'bono') $totalPeluqueriaBono += $precioServicio;
+                    } elseif ($servicio->categoria === 'estetica') {
+                        $totalEstetica += $precioServicio;
+                        if ($metodoPago === 'efectivo') $totalEsteticaEfectivo += $precioServicio;
+                        elseif ($metodoPago === 'tarjeta') $totalEsteticaTarjeta += $precioServicio;
+                        elseif ($metodoPago === 'bono') $totalEsteticaBono += $precioServicio;
+                    }
+                }
+            }
+            
+            // Servicios de citas agrupadas
+            if ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                foreach($cobro->citasAgrupadas as $citaGrupo) {
+                    if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
+                        foreach($citaGrupo->servicios as $servicio) {
+                            $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
+                            
+                            if ($servicio->categoria === 'peluqueria') {
+                                $totalPeluqueria += $precioServicio;
+                                if ($metodoPago === 'efectivo') $totalPeluqueriaEfectivo += $precioServicio;
+                                elseif ($metodoPago === 'tarjeta') $totalPeluqueriaTarjeta += $precioServicio;
+                                elseif ($metodoPago === 'bono') $totalPeluqueriaBono += $precioServicio;
+                            } elseif ($servicio->categoria === 'estetica') {
+                                $totalEstetica += $precioServicio;
+                                if ($metodoPago === 'efectivo') $totalEsteticaEfectivo += $precioServicio;
+                                elseif ($metodoPago === 'tarjeta') $totalEsteticaTarjeta += $precioServicio;
+                                elseif ($metodoPago === 'bono') $totalEsteticaBono += $precioServicio;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Servicios directos (sin cita)
+            if ($cobro->servicios && $cobro->servicios->count() > 0) {
+                foreach($cobro->servicios as $servicio) {
                     $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
                     
                     if ($servicio->categoria === 'peluqueria') {

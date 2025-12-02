@@ -68,6 +68,7 @@
             <table class="min-w-full border border-gray-300 text-sm rounded-lg overflow-hidden">
                 <thead class="bg-gray-200 text-gray-700">
                     <tr>
+                        <th class="p-2 border">Hora</th>
                         <th class="p-2 border">Cliente</th>
                         <th class="p-2 border">Empleado</th>
                         <th class="p-2 border">Servicio</th>
@@ -85,6 +86,26 @@
                 <tbody>
                     @forelse ($cobros as $cobro)
                         <tr class="text-center border-t hover:bg-gray-50">
+                            <!-- Hora de la cita -->
+                            <td class="p-2 border font-semibold text-gray-700">
+                                @php
+                                    $horaCita = null;
+                                    
+                                    // Intentar obtener la hora de la cita principal
+                                    if ($cobro->cita && $cobro->cita->fecha_hora) {
+                                        $horaCita = \Carbon\Carbon::parse($cobro->cita->fecha_hora)->format('H:i');
+                                    }
+                                    // Si no, intentar de citas agrupadas
+                                    elseif ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                                        $primeraCita = $cobro->citasAgrupadas->first();
+                                        if ($primeraCita && $primeraCita->fecha_hora) {
+                                            $horaCita = \Carbon\Carbon::parse($primeraCita->fecha_hora)->format('H:i');
+                                        }
+                                    }
+                                @endphp
+                                {{ $horaCita ?? '-' }}
+                            </td>
+                            
                             <td class="p-2 border">
                                 @if($cobro->cita && $cobro->cita->cliente && $cobro->cita->cliente->user)
                                     {{ $cobro->cita->cliente->user->nombre }}
@@ -185,7 +206,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="12" class="text-center py-4 text-gray-500">No hay cobros registrados para esta fecha.</td>
+                            <td colspan="13" class="text-center py-4 text-gray-500">No hay cobros registrados para esta fecha.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -193,7 +214,7 @@
                 @if($cobros->count() > 0)
                 <tfoot class="bg-gray-100 font-bold border-t-2 border-gray-400">
                     <tr>
-                        <td colspan="7" class="p-3 text-right border">TOTALES DEL DÍA:</td>
+                        <td colspan="8" class="p-3 text-right border">TOTALES DEL DÍA:</td>
                         <td class="p-3 border text-center text-green-700 text-lg">
                             {{ number_format($cobros->sum('total_final'), 2) }} €
                         </td>

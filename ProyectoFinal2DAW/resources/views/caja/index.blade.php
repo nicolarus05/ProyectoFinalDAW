@@ -49,8 +49,39 @@
                     @php
                         $serviciosPeluqueria = [];
                         foreach($detalleServicios as $cobro) {
+                            // Servicios de cita individual
                             if ($cobro->cita && $cobro->cita->servicios) {
                                 foreach($cobro->cita->servicios as $servicio) {
+                                    if ($servicio->categoria === 'peluqueria') {
+                                        $precio = $servicio->pivot->precio ?? $servicio->precio;
+                                        $serviciosPeluqueria[] = [
+                                            'nombre' => $servicio->nombre,
+                                            'precio' => $precio
+                                        ];
+                                    }
+                                }
+                            }
+                            
+                            // Servicios de citas agrupadas
+                            if ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                                foreach($cobro->citasAgrupadas as $citaGrupo) {
+                                    if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
+                                        foreach($citaGrupo->servicios as $servicio) {
+                                            if ($servicio->categoria === 'peluqueria') {
+                                                $precio = $servicio->pivot->precio ?? $servicio->precio;
+                                                $serviciosPeluqueria[] = [
+                                                    'nombre' => $servicio->nombre,
+                                                    'precio' => $precio
+                                                ];
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Servicios directos (sin cita)
+                            if ($cobro->servicios && $cobro->servicios->count() > 0) {
+                                foreach($cobro->servicios as $servicio) {
                                     if ($servicio->categoria === 'peluqueria') {
                                         $precio = $servicio->pivot->precio ?? $servicio->precio;
                                         $serviciosPeluqueria[] = [
@@ -130,8 +161,39 @@
                     @php
                         $serviciosEstetica = [];
                         foreach($detalleServicios as $cobro) {
+                            // Servicios de cita individual
                             if ($cobro->cita && $cobro->cita->servicios) {
                                 foreach($cobro->cita->servicios as $servicio) {
+                                    if ($servicio->categoria === 'estetica') {
+                                        $precio = $servicio->pivot->precio ?? $servicio->precio;
+                                        $serviciosEstetica[] = [
+                                            'nombre' => $servicio->nombre,
+                                            'precio' => $precio
+                                        ];
+                                    }
+                                }
+                            }
+                            
+                            // Servicios de citas agrupadas
+                            if ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                                foreach($cobro->citasAgrupadas as $citaGrupo) {
+                                    if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
+                                        foreach($citaGrupo->servicios as $servicio) {
+                                            if ($servicio->categoria === 'estetica') {
+                                                $precio = $servicio->pivot->precio ?? $servicio->precio;
+                                                $serviciosEstetica[] = [
+                                                    'nombre' => $servicio->nombre,
+                                                    'precio' => $precio
+                                                ];
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Servicios directos (sin cita)
+                            if ($cobro->servicios && $cobro->servicios->count() > 0) {
+                                foreach($cobro->servicios as $servicio) {
                                     if ($servicio->categoria === 'estetica') {
                                         $precio = $servicio->pivot->precio ?? $servicio->precio;
                                         $serviciosEstetica[] = [
@@ -213,7 +275,24 @@
                         <tbody>
                             @foreach($detalleServicios as $item)
                                 <tr>
-                                    <td class="font-semibold">{{ optional($item->cita)->fecha_hora ? \Carbon\Carbon::parse($item->cita->fecha_hora)->format('H:i') : '-' }}</td>
+                                    <td class="font-semibold">
+                                        @php
+                                            $horaCita = null;
+                                            
+                                            // Intentar obtener la hora de la cita principal
+                                            if ($item->cita && $item->cita->fecha_hora) {
+                                                $horaCita = \Carbon\Carbon::parse($item->cita->fecha_hora)->format('H:i');
+                                            }
+                                            // Si no, intentar de citas agrupadas
+                                            elseif ($item->citasAgrupadas && $item->citasAgrupadas->count() > 0) {
+                                                $primeraCita = $item->citasAgrupadas->first();
+                                                if ($primeraCita && $primeraCita->fecha_hora) {
+                                                    $horaCita = \Carbon\Carbon::parse($primeraCita->fecha_hora)->format('H:i');
+                                                }
+                                            }
+                                        @endphp
+                                        {{ $horaCita ?? '-' }}
+                                    </td>
                                     <td>
                                         @if($item->cliente && $item->cliente->user)
                                             {{ $item->cliente->user->nombre }} {{ $item->cliente->user->apellidos }}
@@ -224,20 +303,62 @@
                                         @endif
                                     </td>
                                     <td>
-                                        @if($item->cita && $item->cita->servicios)
-                                            @foreach($item->cita->servicios as $servicio)
-                                                @if($servicio->categoria === 'peluqueria')
-                                                    <span class="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs mr-1 mb-1">💇 {{ $servicio->nombre }}</span>
-                                                @elseif($servicio->categoria === 'estetica')
-                                                    <span class="inline-block px-2 py-1 bg-pink-100 text-pink-700 rounded text-xs mr-1 mb-1">💅 {{ $servicio->nombre }}</span>
-                                                @endif
-                                            @endforeach
-                                        @endif
-                                        @if($item->productos && $item->productos->count() > 0)
-                                            @foreach($item->productos as $producto)
-                                                <span class="inline-block px-2 py-1 bg-green-100 text-green-700 rounded text-xs mr-1 mb-1">🛍️ {{ $producto->nombre }} (x{{ $producto->pivot->cantidad }})</span>
-                                            @endforeach
-                                        @endif
+                                        @php
+                                            $serviciosMostrados = false;
+                                            
+                                            // Servicios de cita individual
+                                            if ($item->cita && $item->cita->servicios && $item->cita->servicios->count() > 0) {
+                                                foreach($item->cita->servicios as $servicio) {
+                                                    if($servicio->categoria === 'peluqueria') {
+                                                        echo '<span class="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs mr-1 mb-1">💇 ' . $servicio->nombre . '</span>';
+                                                    } elseif($servicio->categoria === 'estetica') {
+                                                        echo '<span class="inline-block px-2 py-1 bg-pink-100 text-pink-700 rounded text-xs mr-1 mb-1">💅 ' . $servicio->nombre . '</span>';
+                                                    }
+                                                    $serviciosMostrados = true;
+                                                }
+                                            }
+                                            
+                                            // Servicios de citas agrupadas
+                                            if ($item->citasAgrupadas && $item->citasAgrupadas->count() > 0) {
+                                                foreach($item->citasAgrupadas as $citaGrupo) {
+                                                    if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
+                                                        foreach($citaGrupo->servicios as $servicio) {
+                                                            if($servicio->categoria === 'peluqueria') {
+                                                                echo '<span class="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs mr-1 mb-1">💇 ' . $servicio->nombre . '</span>';
+                                                            } elseif($servicio->categoria === 'estetica') {
+                                                                echo '<span class="inline-block px-2 py-1 bg-pink-100 text-pink-700 rounded text-xs mr-1 mb-1">💅 ' . $servicio->nombre . '</span>';
+                                                            }
+                                                            $serviciosMostrados = true;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            
+                                            // Servicios directos (sin cita)
+                                            if ($item->servicios && $item->servicios->count() > 0) {
+                                                foreach($item->servicios as $servicio) {
+                                                    if($servicio->categoria === 'peluqueria') {
+                                                        echo '<span class="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs mr-1 mb-1">💇 ' . $servicio->nombre . '</span>';
+                                                    } elseif($servicio->categoria === 'estetica') {
+                                                        echo '<span class="inline-block px-2 py-1 bg-pink-100 text-pink-700 rounded text-xs mr-1 mb-1">💅 ' . $servicio->nombre . '</span>';
+                                                    }
+                                                    $serviciosMostrados = true;
+                                                }
+                                            }
+                                            
+                                            // Productos
+                                            if ($item->productos && $item->productos->count() > 0) {
+                                                foreach($item->productos as $producto) {
+                                                    echo '<span class="inline-block px-2 py-1 bg-green-100 text-green-700 rounded text-xs mr-1 mb-1">🛍️ ' . $producto->nombre . ' (x' . $producto->pivot->cantidad . ')</span>';
+                                                    $serviciosMostrados = true;
+                                                }
+                                            }
+                                            
+                                            // Si no hay nada, mostrar guion
+                                            if (!$serviciosMostrados) {
+                                                echo '<span class="text-gray-400">-</span>';
+                                            }
+                                        @endphp
                                     </td>
                                     <td>
                                         @if($item->empleado && $item->empleado->user)

@@ -187,6 +187,7 @@ class RegistroEntradaSalidaController extends Controller{
 
         $empleadoId = $user->empleado->id;
         $hoy = Carbon::today();
+        $horaActual = Carbon::now();
 
         // Buscar el registro activo más reciente (entrada sin salida)
         $registro = RegistroEntradaSalida::registroActivoActual($empleadoId);
@@ -195,15 +196,54 @@ class RegistroEntradaSalidaController extends Controller{
             return back()->with('error', 'No tienes ninguna entrada activa para fichar salida.');
         }
 
+        // Buscar el horario de trabajo para hoy
+        $horario = \App\Models\HorarioTrabajo::where('id_empleado', $empleadoId)
+            ->whereDate('fecha', $hoy)
+            ->first();
+            
+        $salidaFueraHorario = false;
+        $minutosExtra = 0;
+        $mensaje = '✓ Salida registrada correctamente a las ' . $horaActual->format('H:i');
+
+        if ($horario) {
+            // Calcular hora de salida programada
+            $horaSalidaProgramada = Carbon::parse($hoy->format('Y-m-d') . ' ' . $horario->hora_fin);
+            $margenMinutos = 5; // Margen de 5 minutos
+            $horaSalidaLimite = $horaSalidaProgramada->copy()->addMinutes($margenMinutos);
+            
+            // Verificar si salió tarde
+            if ($horaActual->greaterThan($horaSalidaLimite)) {
+                $salidaFueraHorario = true;
+                $minutosExtra = $horaActual->diffInMinutes($horaSalidaProgramada);
+                $mensaje .= ' ⚠️ Saliste ' . $minutosExtra . ' minutos tarde (horario: ' . $horaSalidaProgramada->format('H:i') . ')';
+                
+                // Enviar email de notificación al admin
+                try {
+                    \Mail::to('ngh2605@gmail.com')->send(new \App\Mail\SalidaTardia($registro->id));
+                    \Log::info('Email de salida tardía enviado', [
+                        'empleado_id' => $empleadoId,
+                        'minutos_extra' => $minutosExtra
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::error('Error al enviar email de salida tardía', [
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+        }
+
         // Actualizar con la hora de salida
-        $horaSalida = Carbon::now()->format('H:i:s');
+        $horaSalida = $horaActual->format('H:i:s');
         $registro->update([
             'hora_salida' => $horaSalida,
+            'salida_fuera_horario' => $salidaFueraHorario,
+            'minutos_extra' => $minutosExtra,
         ]);
 
         $horasTrabajadas = $registro->calcularHorasTrabajadas();
+        $mensaje .= '. Has trabajado ' . $horasTrabajadas['formatted'];
         
-        return back()->with('success', '✓ Salida registrada correctamente a las ' . Carbon::now()->format('H:i') . '. Has trabajado ' . $horasTrabajadas['formatted']);
+        return back()->with($salidaFueraHorario ? 'warning' : 'success', $mensaje);
     }
 
     /**

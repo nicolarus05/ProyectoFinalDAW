@@ -122,9 +122,12 @@
                                 $horas = $registro->calcularHorasTrabajadas();
                                 $estaEnJornada = $registro->estaEnJornada();
                             @endphp
-                            <tr class="hover:bg-gray-50">
+                            <tr class="hover:bg-gray-50 {{ $registro->salida_fuera_horario ? 'bg-yellow-50' : '' }}">
                                 <td class="p-3">
                                     <span class="font-semibold">{{ $registro->empleado->user->nombre ?? 'N/A' }} {{ $registro->empleado->user->apellidos ?? '' }}</span>
+                                    @if($registro->salida_fuera_horario)
+                                        <span class="ml-2 text-orange-600 text-xs">⚠️</span>
+                                    @endif
                                 </td>
                                 <td class="p-3">{{ $registro->fecha->format('d/m/Y') }}</td>
                                 <td class="p-3 text-center">
@@ -136,7 +139,14 @@
                                 </td>
                                 <td class="p-3 text-center">
                                     @if($registro->hora_salida)
-                                        <span class="font-semibold text-red-600">{{ \Carbon\Carbon::parse($registro->hora_salida)->format('H:i') }}</span>
+                                        <span class="font-semibold {{ $registro->salida_fuera_horario ? 'text-orange-600' : 'text-red-600' }}">
+                                            {{ \Carbon\Carbon::parse($registro->hora_salida)->format('H:i') }}
+                                        </span>
+                                        @if($registro->salida_fuera_horario)
+                                            <div class="text-xs text-orange-600 mt-1">
+                                                +{{ $registro->minutos_extra }} min
+                                            </div>
+                                        @endif
                                     @else
                                         <span class="text-gray-400">-</span>
                                     @endif
@@ -154,7 +164,11 @@
                                     @if($estaEnJornada)
                                         <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-semibold">🟢 Activo</span>
                                     @elseif($registro->hora_salida)
-                                        <span class="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-semibold">✅ Completo</span>
+                                        @if($registro->salida_fuera_horario)
+                                            <span class="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-semibold">⚠️ Tarde</span>
+                                        @else
+                                            <span class="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-semibold">✅ Completo</span>
+                                        @endif
                                     @else
                                         <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-semibold">⚠️ Incompleto</span>
                                     @endif
