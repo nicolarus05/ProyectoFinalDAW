@@ -82,15 +82,11 @@ class RegistroEntradaSalidaController extends Controller{
         $hoy = Carbon::today();
         $horaActual = Carbon::now();
 
-        // Verificar si ya tiene un registro hoy
-        $registroExistente = RegistroEntradaSalida::registroDelDia($empleadoId, $hoy);
+        // Verificar si ya tiene una entrada activa (sin salida)
+        $registroActivo = RegistroEntradaSalida::registroActivoActual($empleadoId);
 
-        if ($registroExistente) {
-            if ($registroExistente->estaEnJornada()) {
-                return back()->with('error', 'Ya has registrado tu entrada hoy a las ' . $registroExistente->hora_entrada);
-            } else {
-                return back()->with('error', 'Ya has completado tu jornada de hoy.');
-            }
+        if ($registroActivo) {
+            return back()->with('error', 'Ya tienes una entrada activa desde las ' . $registroActivo->hora_entrada . '. Debes fichar salida antes de registrar una nueva entrada.');
         }
 
         // Buscar el horario de trabajo para hoy
@@ -192,15 +188,11 @@ class RegistroEntradaSalidaController extends Controller{
         $empleadoId = $user->empleado->id;
         $hoy = Carbon::today();
 
-        // Buscar el registro de hoy
-        $registro = RegistroEntradaSalida::registroDelDia($empleadoId, $hoy);
+        // Buscar el registro activo más reciente (entrada sin salida)
+        $registro = RegistroEntradaSalida::registroActivoActual($empleadoId);
 
         if (!$registro) {
-            return back()->with('error', 'No has registrado tu entrada hoy.');
-        }
-
-        if (!$registro->estaEnJornada()) {
-            return back()->with('error', 'Ya has registrado tu salida hoy.');
+            return back()->with('error', 'No tienes ninguna entrada activa para fichar salida.');
         }
 
         // Actualizar con la hora de salida

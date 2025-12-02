@@ -3,21 +3,24 @@
     use Carbon\Carbon;
     
     $empleado = Auth::user()->empleado;
-    $registroHoy = null;
+    $registroActivo = null;
     $estado = 'sin_fichar';
     $horasActuales = null;
+    $registrosHoy = [];
     
     if ($empleado) {
-        $registroHoy = RegistroEntradaSalida::registroDelDia($empleado->id);
+        // Buscar si hay un registro activo (entrada sin salida)
+        $registroActivo = RegistroEntradaSalida::registroActivoActual($empleado->id);
         
-        if ($registroHoy) {
-            if ($registroHoy->estaEnJornada()) {
-                $estado = 'trabajando';
-                $horasActuales = $registroHoy->calcularHorasActuales();
-            } else {
-                $estado = 'jornada_completa';
-                $horasActuales = $registroHoy->calcularHorasTrabajadas();
-            }
+        // Obtener todos los registros del día para mostrar el historial
+        $registrosHoy = RegistroEntradaSalida::where('id_empleado', $empleado->id)
+            ->whereDate('fecha', Carbon::today())
+            ->orderBy('hora_entrada', 'asc')
+            ->get();
+        
+        if ($registroActivo) {
+            $estado = 'trabajando';
+            $horasActuales = $registroActivo->calcularHorasActuales();
         }
     }
 @endphp
@@ -56,33 +59,46 @@
                     <div class="flex items-center mb-4">
                         <span class="text-4xl mr-3">⚪</span>
                         <div>
-                            <p class="text-lg font-semibold text-gray-700">No has fichado hoy</p>
+                            <p class="text-lg font-semibold text-gray-700">
+                                @if($registrosHoy->count() > 0)
+                                    Fuera de jornada
+                                @else
+                                    No has fichado hoy
+                                @endif
+                            </p>
                             <p class="text-sm text-gray-600">{{ Carbon::now()->format('H:i') }}</p>
                         </div>
                     </div>
+                    
+                    @if($registrosHoy->count() > 0)
+                        <div class="bg-white rounded p-3 mt-3">
+                            <p class="text-sm text-gray-600 mb-2">Resumen del día:</p>
+                            @php
+                                $totalMinutos = 0;
+                                foreach($registrosHoy as $reg) {
+                                    $horas = $reg->calcularHorasTrabajadas();
+                                    if ($horas) {
+                                        $totalMinutos += $horas['total_minutos'];
+                                    }
+                                }
+                            @endphp
+                            <p class="text-lg font-bold text-blue-600">
+                                {{ sprintf('%dh %02dmin', floor($totalMinutos / 60), $totalMinutos % 60) }}
+                            </p>
+                            <p class="text-xs text-gray-500 mt-1">{{ $registrosHoy->count() }} registro(s)</p>
+                        </div>
+                    @endif
                 @elseif($estado === 'trabajando')
                     <div class="flex items-center mb-4">
                         <span class="text-4xl mr-3 animate-pulse">🟢</span>
                         <div>
                             <p class="text-lg font-semibold text-green-700">Trabajando</p>
-                            <p class="text-sm text-gray-600">Desde las {{ Carbon::parse($registroHoy->hora_entrada)->format('H:i') }}</p>
+                            <p class="text-sm text-gray-600">Desde las {{ Carbon::parse($registroActivo->hora_entrada)->format('H:i') }}</p>
                         </div>
                     </div>
                     <div class="bg-white rounded p-3 mt-3">
                         <p class="text-sm text-gray-600">Tiempo trabajado:</p>
                         <p class="text-2xl font-bold text-blue-600" id="horas-actuales">{{ $horasActuales['formatted'] }}</p>
-                    </div>
-                @else
-                    <div class="flex items-center mb-4">
-                        <span class="text-4xl mr-3">✅</span>
-                        <div>
-                            <p class="text-lg font-semibold text-gray-700">Jornada completada</p>
-                            <p class="text-sm text-gray-600">{{ Carbon::parse($registroHoy->hora_entrada)->format('H:i') }} - {{ Carbon::parse($registroHoy->hora_salida)->format('H:i') }}</p>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded p-3 mt-3">
-                        <p class="text-sm text-gray-600">Horas trabajadas:</p>
-                        <p class="text-2xl font-bold text-green-600">{{ $horasActuales['formatted'] }}</p>
                     </div>
                 @endif
             </div>
@@ -108,11 +124,6 @@
                                 <span>Registrar Salida</span>
                             </button>
                         </form>
-                    @else
-                        <div class="text-center py-8 text-gray-600">
-                            <p class="mb-2">✓ Jornada finalizada</p>
-                            <p class="text-sm">Nos vemos mañana!</p>
-                        </div>
                     @endif
 
                     <a href="{{ route('asistencia.mi-historial') }}" class="block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 text-center">
@@ -134,7 +145,7 @@
 <script>
     // Actualizar horas trabajadas cada minuto
     setInterval(function() {
-        const entrada = new Date('{{ $registroHoy->fecha }} {{ $registroHoy->hora_entrada }}');
+        const entrada = new Date('{{ $registroActivo->fecha }} {{ $registroActivo->hora_entrada }}');
         const ahora = new Date();
         const diff = ahora - entrada;
         
@@ -144,6 +155,17 @@
         document.getElementById('horas-actuales').textContent = `${horas}h ${String(minutos).padStart(2, '0')}min`;
     }, 60000); // Actualizar cada minuto
 
+    // Actualizar reloj cada segundo
+    setInterval(function() {
+        const ahora = new Date();
+        const horas = String(ahora.getHours()).padStart(2, '0');
+        const minutos = String(ahora.getMinutes()).padStart(2, '0');
+        const segundos = String(ahora.getSeconds()).padStart(2, '0');
+        document.getElementById('reloj-actual').textContent = `${horas}:${minutos}:${segundos}`;
+    }, 1000);
+</script>
+@else
+<script>
     // Actualizar reloj cada segundo
     setInterval(function() {
         const ahora = new Date();

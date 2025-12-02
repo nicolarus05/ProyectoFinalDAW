@@ -84,20 +84,38 @@ class RegistroEntradaSalida extends Model{
     }
 
     /**
-     * Obtener el registro del día de un empleado
+     * Obtener el último registro del día de un empleado
      */
     public static function registroDelDia($empleadoId, $fecha = null){
         $fecha = $fecha ?? Carbon::today();
         return self::where('id_empleado', $empleadoId)
             ->whereDate('fecha', $fecha)
+            ->orderBy('hora_entrada', 'desc')
             ->first();
     }
 
     /**
-     * Verificar si un empleado ya tiene un registro activo hoy
+     * Verificar si un empleado ya tiene un registro activo hoy (entrada sin salida)
      */
     public static function tieneRegistroActivoHoy($empleadoId){
-        $registro = self::registroDelDia($empleadoId);
-        return $registro && $registro->estaEnJornada();
+        $registro = self::where('id_empleado', $empleadoId)
+            ->whereDate('fecha', Carbon::today())
+            ->whereNotNull('hora_entrada')
+            ->whereNull('hora_salida')
+            ->orderBy('hora_entrada', 'desc')
+            ->first();
+        return $registro ? true : false;
+    }
+    
+    /**
+     * Obtener el registro activo actual (entrada sin salida) de un empleado
+     */
+    public static function registroActivoActual($empleadoId){
+        return self::where('id_empleado', $empleadoId)
+            ->whereDate('fecha', Carbon::today())
+            ->whereNotNull('hora_entrada')
+            ->whereNull('hora_salida')
+            ->orderBy('hora_entrada', 'desc')
+            ->first();
     }
 }
