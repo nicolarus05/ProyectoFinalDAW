@@ -13,6 +13,12 @@
             <a href="{{ route('citas.index') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">← Volver</a>
         </div>
 
+        @if(session('success'))
+            <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4 rounded-md">
+                <p class="font-semibold">{{ session('success') }}</p>
+            </div>
+        @endif
+
         <div class="space-y-4 text-gray-800 text-base">
             <p><strong class="font-semibold">Cliente:</strong> {{ $cita->cliente->user->nombre }} {{ $cita->cliente->user->apellidos }}</p>
             
@@ -43,7 +49,60 @@
 
             <p><strong class="font-semibold">Fecha y Hora:</strong> {{ $cita->fecha_hora }}</p>
             <p><strong class="font-semibold">Estado:</strong> {{ ucfirst($cita->estado) }}</p>
+
+            <!-- Sección de Notas de la Cita - EDITABLE -->
+            <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-md shadow-sm">
+                <form action="{{ route('citas.actualizarNotas', $cita->id) }}" method="POST" class="space-y-3">
+                    @csrf
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="font-semibold text-blue-800 flex items-center">
+                            <span class="text-xl mr-2">📋</span>
+                            <span>Notas de la Cita:</span>
+                        </p>
+                        <button type="submit" 
+                                class="bg-blue-600 text-white px-4 py-1.5 rounded hover:bg-blue-700 transition-colors text-sm font-semibold">
+                            ➕ Añadir Nota
+                        </button>
+                    </div>
+                    
+                    @if($errors->any())
+                        <div class="bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
+                            @foreach($errors->all() as $error)
+                                <p>{{ $error }}</p>
+                            @endforeach
+                        </div>
+                    @endif
+                    
+                    {{-- Mostrar notas existentes del cliente --}}
+                    @if($cita->cliente && $cita->cliente->notas_adicionales)
+                        <div class="mb-3 p-3 bg-gray-50 border border-gray-300 rounded-md">
+                            <p class="text-xs font-semibold text-gray-700 mb-2">Notas existentes del cliente:</p>
+                            <div class="text-sm text-gray-800 whitespace-pre-line max-h-40 overflow-y-auto">
+                                {{ $cita->cliente->notas_adicionales }}
+                            </div>
+                        </div>
+                    @endif
+                    
+                    <textarea name="notas_adicionales" 
+                              rows="4" 
+                              maxlength="1000"
+                              placeholder="Escribe aquí una nueva nota sobre el cliente (se añadirá a las notas existentes)"
+                              class="w-full border border-blue-300 rounded-md p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700 resize-none"
+                    >{{ old('notas_adicionales') }}</textarea>
+                    
+                    <p class="text-xs text-blue-600 text-right">
+                        <span id="contador-notas">0</span>/1000 caracteres
+                    </p>
+                </form>
+            </div>
         </div>
+
+        <script>
+            // Contador de caracteres para las notas
+            document.querySelector('textarea[name="notas_adicionales"]').addEventListener('input', function() {
+                document.getElementById('contador-notas').textContent = this.value.length;
+            });
+        </script>
 
         <div class="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
             @php

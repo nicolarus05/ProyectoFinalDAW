@@ -309,8 +309,17 @@ class CitaController extends Controller{
      * Display the specified resource.
      */
     public function show(Cita $cita){
+        // Refrescar el modelo desde la base de datos
+        $cita->refresh();
+        
         // Cargar las relaciones necesarias
         $cita->load(['cliente.user', 'empleado.user', 'servicios']);
+        
+        \Log::info('Mostrando cita', [
+            'cita_id' => $cita->id,
+            'notas_en_show' => $cita->notas_adicionales,
+        ]);
+        
         return view('citas.show', compact('cita'));
     }
 
@@ -622,5 +631,53 @@ class CitaController extends Controller{
             'cita' => $cita->load(['cliente.user', 'empleado.user', 'servicios']),
             'nueva_duracion' => $cita->duracion_minutos
         ]);
+    }
+
+    /**
+     * Actualizar notas del cliente desde la vista de la cita
+     */
+    public function actualizarNotas(Request $request, Cita $cita){
+        $request->validate([
+            'notas_adicionales' => 'nullable|string|max:1000',
+        ]);
+
+        if (!$cita->cliente) {
+            return redirect()->route('citas.show', $cita->id)
+                ->with('error', 'Esta cita no tiene un cliente asociado.');
+        }
+
+        // Solo añadir si hay contenido nuevo
+        if (!empty($request->notas_adicionales)) {
+            $notasAnteriores = $cita->cliente->notas_adicionales ?? '';
+            
+            // Añadir separador si ya hay notas previas
+            if (!empty($notasAnteriores)) {
+                $nuevasNotas = $notasAnteriores . "\n---\n" . $request->notas_adicionales;
+            } else {
+                $nuevasNotas = $request->notas_adicionales;
+            }
+            
+            \Log::info('Añadiendo notas al cliente desde cita', [
+                'cita_id' => $cita->id,
+                'cliente_id' => $cita->cliente->id,
+                'notas_anteriores_length' => strlen($notasAnteriores),
+                'notas_nuevas' => $request->notas_adicionales,
+            ]);
+
+            $cita->cliente->notas_adicionales = $nuevasNotas;
+            $saved = $cita->cliente->save();
+
+            \Log::info('Notas del cliente guardadas', [
+                'cliente_id' => $cita->cliente->id,
+                'saved' => $saved,
+                'notas_finales_length' => strlen($nuevasNotas),
+            ]);
+
+            return redirect()->route('citas.show', $cita->id)
+                ->with('success', 'Notas añadidas al cliente correctamente.');
+        }
+
+        return redirect()->route('citas.show', $cita->id)
+            ->with('info', 'No se añadieron notas porque el campo estaba vacío.');
     }
 }
