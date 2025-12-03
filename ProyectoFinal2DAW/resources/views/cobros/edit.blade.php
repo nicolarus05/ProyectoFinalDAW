@@ -74,19 +74,29 @@
                 <label for="servicio" class="block font-semibold mb-1">Servicio:</label>
                 @php
                     $serviciosNombres = [];
-                    if ($cobro->cita && $cobro->cita->servicios) {
-                        $serviciosNombres = array_merge($serviciosNombres, $cobro->cita->servicios->pluck('nombre')->toArray());
+                    $yaContados = false;
+                    
+                    // PRIORIDAD 1: Servicios de cita individual
+                    if ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
+                        $serviciosNombres = $cobro->cita->servicios->pluck('nombre')->toArray();
+                        $yaContados = true;
                     }
-                    if ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                    
+                    // PRIORIDAD 2: Servicios de citas agrupadas (solo si no tiene cita individual)
+                    if (!$yaContados && $cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
                         foreach ($cobro->citasAgrupadas as $citaGrupo) {
                             if ($citaGrupo->servicios) {
                                 $serviciosNombres = array_merge($serviciosNombres, $citaGrupo->servicios->pluck('nombre')->toArray());
                             }
                         }
+                        $yaContados = true;
                     }
-                    if ($cobro->servicios && $cobro->servicios->count() > 0) {
-                        $serviciosNombres = array_merge($serviciosNombres, $cobro->servicios->pluck('nombre')->toArray());
+                    
+                    // PRIORIDAD 3: Servicios directos (solo si no tiene citas)
+                    if (!$yaContados && $cobro->servicios && $cobro->servicios->count() > 0) {
+                        $serviciosNombres = $cobro->servicios->pluck('nombre')->toArray();
                     }
+                    
                     $serviciosEdit = !empty($serviciosNombres) ? implode(', ', $serviciosNombres) : '-';
                 @endphp
                 <input type="text" id="servicio" name="servicio" value="{{ $serviciosEdit }}" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" readonly>

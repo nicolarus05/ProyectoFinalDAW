@@ -48,57 +48,132 @@
                     <h4 class="font-semibold text-blue-600 text-sm mb-2">Servicios:</h4>
                     @php
                         $serviciosPeluqueria = [];
+                        $serviciosPeluqueriaBono = [];
+                        
                         foreach($detalleServicios as $cobro) {
-                            // Servicios de cita individual
-                            if ($cobro->cita && $cobro->cita->servicios) {
+                            $yaContados = false;
+                            $esBono = $cobro->metodo_pago === 'bono';
+                            
+                            // PRIORIDAD 1: Servicios de cita individual
+                            if ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
                                 foreach($cobro->cita->servicios as $servicio) {
                                     if ($servicio->categoria === 'peluqueria') {
                                         $precio = $servicio->pivot->precio ?? $servicio->precio;
-                                        $serviciosPeluqueria[] = [
-                                            'nombre' => $servicio->nombre,
-                                            'precio' => $precio
-                                        ];
+                                        $nombre = $servicio->nombre;
+                                        
+                                        if ($esBono) {
+                                            // Servicios con bono: usar clave con _bono
+                                            $clave = $nombre . '_bono';
+                                            if (!isset($serviciosPeluqueriaBono[$clave])) {
+                                                $serviciosPeluqueriaBono[$clave] = [
+                                                    'nombre' => $nombre,
+                                                    'cantidad' => 0
+                                                ];
+                                            }
+                                            $serviciosPeluqueriaBono[$clave]['cantidad']++;
+                                        } else {
+                                            // Servicios normales
+                                            $clave = $nombre . '_' . $precio;
+                                            if (!isset($serviciosPeluqueria[$clave])) {
+                                                $serviciosPeluqueria[$clave] = [
+                                                    'nombre' => $nombre,
+                                                    'precio_unitario' => $precio,
+                                                    'cantidad' => 0,
+                                                    'precio_total' => 0
+                                                ];
+                                            }
+                                            $serviciosPeluqueria[$clave]['cantidad']++;
+                                            $serviciosPeluqueria[$clave]['precio_total'] += $precio;
+                                        }
                                     }
                                 }
+                                $yaContados = true;
                             }
                             
-                            // Servicios de citas agrupadas
-                            if ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                            // PRIORIDAD 2: Servicios de citas agrupadas (solo si no tiene cita individual)
+                            if (!$yaContados && $cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
                                 foreach($cobro->citasAgrupadas as $citaGrupo) {
                                     if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
                                         foreach($citaGrupo->servicios as $servicio) {
                                             if ($servicio->categoria === 'peluqueria') {
                                                 $precio = $servicio->pivot->precio ?? $servicio->precio;
-                                                $serviciosPeluqueria[] = [
-                                                    'nombre' => $servicio->nombre,
-                                                    'precio' => $precio
-                                                ];
+                                                $nombre = $servicio->nombre;
+                                                
+                                                if ($esBono) {
+                                                    $clave = $nombre . '_bono';
+                                                    if (!isset($serviciosPeluqueriaBono[$clave])) {
+                                                        $serviciosPeluqueriaBono[$clave] = [
+                                                            'nombre' => $nombre,
+                                                            'cantidad' => 0
+                                                        ];
+                                                    }
+                                                    $serviciosPeluqueriaBono[$clave]['cantidad']++;
+                                                } else {
+                                                    $clave = $nombre . '_' . $precio;
+                                                    if (!isset($serviciosPeluqueria[$clave])) {
+                                                        $serviciosPeluqueria[$clave] = [
+                                                            'nombre' => $nombre,
+                                                            'precio_unitario' => $precio,
+                                                            'cantidad' => 0,
+                                                            'precio_total' => 0
+                                                        ];
+                                                    }
+                                                    $serviciosPeluqueria[$clave]['cantidad']++;
+                                                    $serviciosPeluqueria[$clave]['precio_total'] += $precio;
+                                                }
                                             }
                                         }
                                     }
                                 }
+                                $yaContados = true;
                             }
                             
-                            // Servicios directos (sin cita)
-                            if ($cobro->servicios && $cobro->servicios->count() > 0) {
+                            // PRIORIDAD 3: Servicios directos (solo si no tiene citas)
+                            if (!$yaContados && $cobro->servicios && $cobro->servicios->count() > 0) {
                                 foreach($cobro->servicios as $servicio) {
                                     if ($servicio->categoria === 'peluqueria') {
                                         $precio = $servicio->pivot->precio ?? $servicio->precio;
-                                        $serviciosPeluqueria[] = [
-                                            'nombre' => $servicio->nombre,
-                                            'precio' => $precio
-                                        ];
+                                        $nombre = $servicio->nombre;
+                                        
+                                        if ($esBono) {
+                                            $clave = $nombre . '_bono';
+                                            if (!isset($serviciosPeluqueriaBono[$clave])) {
+                                                $serviciosPeluqueriaBono[$clave] = [
+                                                    'nombre' => $nombre,
+                                                    'cantidad' => 0
+                                                ];
+                                            }
+                                            $serviciosPeluqueriaBono[$clave]['cantidad']++;
+                                        } else {
+                                            $clave = $nombre . '_' . $precio;
+                                            if (!isset($serviciosPeluqueria[$clave])) {
+                                                $serviciosPeluqueria[$clave] = [
+                                                    'nombre' => $nombre,
+                                                    'precio_unitario' => $precio,
+                                                    'cantidad' => 0,
+                                                    'precio_total' => 0
+                                                ];
+                                            }
+                                            $serviciosPeluqueria[$clave]['cantidad']++;
+                                            $serviciosPeluqueria[$clave]['precio_total'] += $precio;
+                                        }
                                     }
                                 }
                             }
                         }
                     @endphp
-                    @if(count($serviciosPeluqueria) > 0)
+                    @if(count($serviciosPeluqueria) > 0 || count($serviciosPeluqueriaBono) > 0)
                         <div class="space-y-1 text-sm">
-                            @foreach($serviciosPeluqueria as $s)
+                            @foreach($serviciosPeluqueria as $datos)
                                 <div class="flex justify-between text-gray-700">
-                                    <span>• {{ $s['nombre'] }}</span>
-                                    <span>€{{ number_format($s['precio'], 2) }}</span>
+                                    <span>• {{ $datos['nombre'] }} @if($datos['cantidad'] > 1)<span class="text-blue-600 font-semibold">(x{{ $datos['cantidad'] }})</span>@endif</span>
+                                    <span>€{{ number_format($datos['precio_total'], 2) }}</span>
+                                </div>
+                            @endforeach
+                            @foreach($serviciosPeluqueriaBono as $datos)
+                                <div class="flex justify-between text-gray-700">
+                                    <span>• {{ $datos['nombre'] }} @if($datos['cantidad'] > 1)<span class="text-purple-600 font-semibold">(x{{ $datos['cantidad'] }})</span>@endif <span class="text-purple-600 text-xs italic">(Bono)</span></span>
+                                    <span class="text-purple-600">€0.00</span>
                                 </div>
                             @endforeach
                         </div>
@@ -118,11 +193,16 @@
                                     if ($producto->categoria === 'peluqueria') {
                                         $cantidad = $producto->pivot->cantidad ?? 1;
                                         $subtotal = $producto->pivot->subtotal ?? 0;
-                                        $productosPeluqueria[] = [
-                                            'nombre' => $producto->nombre,
-                                            'cantidad' => $cantidad,
-                                            'subtotal' => $subtotal
-                                        ];
+                                        $nombre = $producto->nombre;
+                                        
+                                        if (!isset($productosPeluqueria[$nombre])) {
+                                            $productosPeluqueria[$nombre] = [
+                                                'cantidad' => 0,
+                                                'precio_total' => 0
+                                            ];
+                                        }
+                                        $productosPeluqueria[$nombre]['cantidad'] += $cantidad;
+                                        $productosPeluqueria[$nombre]['precio_total'] += $subtotal;
                                     }
                                 }
                             }
@@ -130,10 +210,10 @@
                     @endphp
                     @if(count($productosPeluqueria) > 0)
                         <div class="space-y-1 text-sm">
-                            @foreach($productosPeluqueria as $p)
+                            @foreach($productosPeluqueria as $nombre => $datos)
                                 <div class="flex justify-between text-gray-700">
-                                    <span>• {{ $p['nombre'] }} (x{{ $p['cantidad'] }})</span>
-                                    <span>€{{ number_format($p['subtotal'], 2) }}</span>
+                                    <span>• {{ $nombre }} <span class="text-blue-600 font-semibold">(x{{ $datos['cantidad'] }})</span></span>
+                                    <span>€{{ number_format($datos['precio_total'], 2) }}</span>
                                 </div>
                             @endforeach
                         </div>
@@ -160,57 +240,130 @@
                     <h4 class="font-semibold text-pink-600 text-sm mb-2">Servicios:</h4>
                     @php
                         $serviciosEstetica = [];
+                        $serviciosEsteticaBono = [];
+                        
                         foreach($detalleServicios as $cobro) {
-                            // Servicios de cita individual
-                            if ($cobro->cita && $cobro->cita->servicios) {
+                            $yaContados = false;
+                            $esBono = $cobro->metodo_pago === 'bono';
+                            
+                            // PRIORIDAD 1: Servicios de cita individual
+                            if ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
                                 foreach($cobro->cita->servicios as $servicio) {
                                     if ($servicio->categoria === 'estetica') {
                                         $precio = $servicio->pivot->precio ?? $servicio->precio;
-                                        $serviciosEstetica[] = [
-                                            'nombre' => $servicio->nombre,
-                                            'precio' => $precio
-                                        ];
+                                        $nombre = $servicio->nombre;
+                                        
+                                        if ($esBono) {
+                                            $clave = $nombre . '_bono';
+                                            if (!isset($serviciosEsteticaBono[$clave])) {
+                                                $serviciosEsteticaBono[$clave] = [
+                                                    'nombre' => $nombre,
+                                                    'cantidad' => 0
+                                                ];
+                                            }
+                                            $serviciosEsteticaBono[$clave]['cantidad']++;
+                                        } else {
+                                            $clave = $nombre . '_' . $precio;
+                                            if (!isset($serviciosEstetica[$clave])) {
+                                                $serviciosEstetica[$clave] = [
+                                                    'nombre' => $nombre,
+                                                    'precio_unitario' => $precio,
+                                                    'cantidad' => 0,
+                                                    'precio_total' => 0
+                                                ];
+                                            }
+                                            $serviciosEstetica[$clave]['cantidad']++;
+                                            $serviciosEstetica[$clave]['precio_total'] += $precio;
+                                        }
                                     }
                                 }
+                                $yaContados = true;
                             }
                             
-                            // Servicios de citas agrupadas
-                            if ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                            // PRIORIDAD 2: Servicios de citas agrupadas (solo si no tiene cita individual)
+                            if (!$yaContados && $cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
                                 foreach($cobro->citasAgrupadas as $citaGrupo) {
                                     if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
                                         foreach($citaGrupo->servicios as $servicio) {
                                             if ($servicio->categoria === 'estetica') {
                                                 $precio = $servicio->pivot->precio ?? $servicio->precio;
-                                                $serviciosEstetica[] = [
-                                                    'nombre' => $servicio->nombre,
-                                                    'precio' => $precio
-                                                ];
+                                                $nombre = $servicio->nombre;
+                                                
+                                                if ($esBono) {
+                                                    $clave = $nombre . '_bono';
+                                                    if (!isset($serviciosEsteticaBono[$clave])) {
+                                                        $serviciosEsteticaBono[$clave] = [
+                                                            'nombre' => $nombre,
+                                                            'cantidad' => 0
+                                                        ];
+                                                    }
+                                                    $serviciosEsteticaBono[$clave]['cantidad']++;
+                                                } else {
+                                                    $clave = $nombre . '_' . $precio;
+                                                    if (!isset($serviciosEstetica[$clave])) {
+                                                        $serviciosEstetica[$clave] = [
+                                                            'nombre' => $nombre,
+                                                            'precio_unitario' => $precio,
+                                                            'cantidad' => 0,
+                                                            'precio_total' => 0
+                                                        ];
+                                                    }
+                                                    $serviciosEstetica[$clave]['cantidad']++;
+                                                    $serviciosEstetica[$clave]['precio_total'] += $precio;
+                                                }
                                             }
                                         }
                                     }
                                 }
+                                $yaContados = true;
                             }
                             
-                            // Servicios directos (sin cita)
-                            if ($cobro->servicios && $cobro->servicios->count() > 0) {
+                            // PRIORIDAD 3: Servicios directos (solo si no tiene citas)
+                            if (!$yaContados && $cobro->servicios && $cobro->servicios->count() > 0) {
                                 foreach($cobro->servicios as $servicio) {
                                     if ($servicio->categoria === 'estetica') {
                                         $precio = $servicio->pivot->precio ?? $servicio->precio;
-                                        $serviciosEstetica[] = [
-                                            'nombre' => $servicio->nombre,
-                                            'precio' => $precio
-                                        ];
+                                        $nombre = $servicio->nombre;
+                                        
+                                        if ($esBono) {
+                                            $clave = $nombre . '_bono';
+                                            if (!isset($serviciosEsteticaBono[$clave])) {
+                                                $serviciosEsteticaBono[$clave] = [
+                                                    'nombre' => $nombre,
+                                                    'cantidad' => 0
+                                                ];
+                                            }
+                                            $serviciosEsteticaBono[$clave]['cantidad']++;
+                                        } else {
+                                            $clave = $nombre . '_' . $precio;
+                                            if (!isset($serviciosEstetica[$clave])) {
+                                                $serviciosEstetica[$clave] = [
+                                                    'nombre' => $nombre,
+                                                    'precio_unitario' => $precio,
+                                                    'cantidad' => 0,
+                                                    'precio_total' => 0
+                                                ];
+                                            }
+                                            $serviciosEstetica[$clave]['cantidad']++;
+                                            $serviciosEstetica[$clave]['precio_total'] += $precio;
+                                        }
                                     }
                                 }
                             }
                         }
                     @endphp
-                    @if(count($serviciosEstetica) > 0)
+                    @if(count($serviciosEstetica) > 0 || count($serviciosEsteticaBono) > 0)
                         <div class="space-y-1 text-sm">
-                            @foreach($serviciosEstetica as $s)
+                            @foreach($serviciosEstetica as $datos)
                                 <div class="flex justify-between text-gray-700">
-                                    <span>• {{ $s['nombre'] }}</span>
-                                    <span>€{{ number_format($s['precio'], 2) }}</span>
+                                    <span>• {{ $datos['nombre'] }} @if($datos['cantidad'] > 1)<span class="text-pink-600 font-semibold">(x{{ $datos['cantidad'] }})</span>@endif</span>
+                                    <span>€{{ number_format($datos['precio_total'], 2) }}</span>
+                                </div>
+                            @endforeach
+                            @foreach($serviciosEsteticaBono as $datos)
+                                <div class="flex justify-between text-gray-700">
+                                    <span>• {{ $datos['nombre'] }} @if($datos['cantidad'] > 1)<span class="text-purple-600 font-semibold">(x{{ $datos['cantidad'] }})</span>@endif <span class="text-purple-600 text-xs italic">(Bono)</span></span>
+                                    <span class="text-purple-600">€0.00</span>
                                 </div>
                             @endforeach
                         </div>
@@ -230,11 +383,16 @@
                                     if ($producto->categoria === 'estetica') {
                                         $cantidad = $producto->pivot->cantidad ?? 1;
                                         $subtotal = $producto->pivot->subtotal ?? 0;
-                                        $productosEstetica[] = [
-                                            'nombre' => $producto->nombre,
-                                            'cantidad' => $cantidad,
-                                            'subtotal' => $subtotal
-                                        ];
+                                        $nombre = $producto->nombre;
+                                        
+                                        if (!isset($productosEstetica[$nombre])) {
+                                            $productosEstetica[$nombre] = [
+                                                'cantidad' => 0,
+                                                'precio_total' => 0
+                                            ];
+                                        }
+                                        $productosEstetica[$nombre]['cantidad'] += $cantidad;
+                                        $productosEstetica[$nombre]['precio_total'] += $subtotal;
                                     }
                                 }
                             }
@@ -242,10 +400,10 @@
                     @endphp
                     @if(count($productosEstetica) > 0)
                         <div class="space-y-1 text-sm">
-                            @foreach($productosEstetica as $p)
+                            @foreach($productosEstetica as $nombre => $datos)
                                 <div class="flex justify-between text-gray-700">
-                                    <span>• {{ $p['nombre'] }} (x{{ $p['cantidad'] }})</span>
-                                    <span>€{{ number_format($p['subtotal'], 2) }}</span>
+                                    <span>• {{ $nombre }} <span class="text-pink-600 font-semibold">(x{{ $datos['cantidad'] }})</span></span>
+                                    <span>€{{ number_format($datos['precio_total'], 2) }}</span>
                                 </div>
                             @endforeach
                         </div>
@@ -305,8 +463,9 @@
                                     <td>
                                         @php
                                             $serviciosMostrados = false;
+                                            $yaContados = false;
                                             
-                                            // Servicios de cita individual
+                                            // PRIORIDAD 1: Servicios de cita individual
                                             if ($item->cita && $item->cita->servicios && $item->cita->servicios->count() > 0) {
                                                 foreach($item->cita->servicios as $servicio) {
                                                     if($servicio->categoria === 'peluqueria') {
@@ -316,10 +475,11 @@
                                                     }
                                                     $serviciosMostrados = true;
                                                 }
+                                                $yaContados = true;
                                             }
                                             
-                                            // Servicios de citas agrupadas
-                                            if ($item->citasAgrupadas && $item->citasAgrupadas->count() > 0) {
+                                            // PRIORIDAD 2: Servicios de citas agrupadas (solo si no tiene cita individual)
+                                            if (!$yaContados && $item->citasAgrupadas && $item->citasAgrupadas->count() > 0) {
                                                 foreach($item->citasAgrupadas as $citaGrupo) {
                                                     if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
                                                         foreach($citaGrupo->servicios as $servicio) {
@@ -332,10 +492,11 @@
                                                         }
                                                     }
                                                 }
+                                                $yaContados = true;
                                             }
                                             
-                                            // Servicios directos (sin cita)
-                                            if ($item->servicios && $item->servicios->count() > 0) {
+                                            // PRIORIDAD 3: Servicios directos (solo si no tiene citas)
+                                            if (!$yaContados && $item->servicios && $item->servicios->count() > 0) {
                                                 foreach($item->servicios as $servicio) {
                                                     if($servicio->categoria === 'peluqueria') {
                                                         echo '<span class="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs mr-1 mb-1">💇 ' . $servicio->nombre . '</span>';

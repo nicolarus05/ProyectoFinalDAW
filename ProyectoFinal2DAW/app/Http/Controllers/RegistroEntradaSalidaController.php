@@ -50,9 +50,19 @@ class RegistroEntradaSalidaController extends Controller{
         $totalHorasHoy = 0;
         
         foreach ($registrosHoy as $registro) {
-            $horas = $registro->calcularHorasTrabajadas();
-            if ($horas) {
-                $totalHorasHoy += $horas['total_minutos'];
+            // Si tiene hora de salida, calcular horas trabajadas completas
+            if ($registro->hora_salida) {
+                $horas = $registro->calcularHorasTrabajadas();
+                if ($horas) {
+                    $totalHorasHoy += $horas['total_minutos'];
+                }
+            } 
+            // Si aún está trabajando, calcular horas actuales
+            else if ($registro->hora_entrada) {
+                $horasActuales = $registro->calcularHorasActuales();
+                if ($horasActuales) {
+                    $totalHorasHoy += $horasActuales['total_minutos'];
+                }
             }
         }
 

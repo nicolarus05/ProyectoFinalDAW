@@ -17,14 +17,28 @@ class CajaDiariaController extends Controller{
         $totalEfectivo = RegistroCobro::whereDate('created_at', $fecha)
             ->where('metodo_pago', 'efectivo')
             ->sum('total_final');
+        
+        // Para pagos mixtos, sumar el pago en efectivo
+        $totalEfectivoMixto = RegistroCobro::whereDate('created_at', $fecha)
+            ->where('metodo_pago', 'mixto')
+            ->sum('pago_efectivo');
+        
+        $totalEfectivo += $totalEfectivoMixto;
 
         $totalTarjeta  = RegistroCobro::whereDate('created_at', $fecha)
             ->where('metodo_pago', 'tarjeta')
-            ->sum('dinero_cliente');
+            ->sum('total_final');
+        
+        // Para pagos mixtos, sumar el pago con tarjeta
+        $totalTarjetaMixto = RegistroCobro::whereDate('created_at', $fecha)
+            ->where('metodo_pago', 'mixto')
+            ->sum('pago_tarjeta');
+        
+        $totalTarjeta += $totalTarjetaMixto;
 
         $totalBono  = RegistroCobro::whereDate('created_at', $fecha)
             ->where('metodo_pago', 'bono')
-            ->sum('dinero_cliente');
+            ->sum('coste'); // Para bonos, el coste es el valor real del servicio
 
         // Bonos vendidos ese día
         $totalBonosEfectivo = BonoCliente::whereDate('fecha_compra', $fecha)
@@ -88,64 +102,106 @@ class CajaDiariaController extends Controller{
 
         foreach($detalleServicios as $cobro) {
             $metodoPago = $cobro->metodo_pago;
+            $yaContados = false; // Flag para evitar duplicación
             
-            // Servicios de cita individual
-            if ($cobro->cita && $cobro->cita->servicios) {
+            // PRIORIDAD 1: Servicios de cita individual
+            if ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
                 foreach($cobro->cita->servicios as $servicio) {
                     $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
                     
-                    if ($servicio->categoria === 'peluqueria') {
-                        $totalPeluqueria += $precioServicio;
-                        if ($metodoPago === 'efectivo') $totalPeluqueriaEfectivo += $precioServicio;
-                        elseif ($metodoPago === 'tarjeta') $totalPeluqueriaTarjeta += $precioServicio;
-                        elseif ($metodoPago === 'bono') $totalPeluqueriaBono += $precioServicio;
-                    } elseif ($servicio->categoria === 'estetica') {
-                        $totalEstetica += $precioServicio;
-                        if ($metodoPago === 'efectivo') $totalEsteticaEfectivo += $precioServicio;
-                        elseif ($metodoPago === 'tarjeta') $totalEsteticaTarjeta += $precioServicio;
-                        elseif ($metodoPago === 'bono') $totalEsteticaBono += $precioServicio;
+                    // Calcular precio real considerando descuentos
+                    $proporcion = $cobro->coste > 0 ? ($precioServicio / $cobro->coste) : 0;
+                    $precioRealServicio = $cobro->total_final * $proporcion;
+                    
+                    // Solo sumar si NO es pago con bono (los bonos no generan ingreso ese día)
+                    if ($metodoPago !== 'bono') {
+                        if ($servicio->categoria === 'peluqueria') {
+                            $totalPeluqueria += $precioRealServicio;
+                            if ($metodoPago === 'efectivo') $totalPeluqueriaEfectivo += $precioRealServicio;
+                            elseif ($metodoPago === 'tarjeta') $totalPeluqueriaTarjeta += $precioRealServicio;
+                            elseif ($metodoPago === 'mixto') {
+                                $totalPeluqueriaEfectivo += $cobro->pago_efectivo * $proporcion;
+                                $totalPeluqueriaTarjeta += $cobro->pago_tarjeta * $proporcion;
+                            }
+                        } elseif ($servicio->categoria === 'estetica') {
+                            $totalEstetica += $precioRealServicio;
+                            if ($metodoPago === 'efectivo') $totalEsteticaEfectivo += $precioRealServicio;
+                            elseif ($metodoPago === 'tarjeta') $totalEsteticaTarjeta += $precioRealServicio;
+                            elseif ($metodoPago === 'mixto') {
+                                $totalEsteticaEfectivo += $cobro->pago_efectivo * $proporcion;
+                                $totalEsteticaTarjeta += $cobro->pago_tarjeta * $proporcion;
+                            }
+                        }
                     }
                 }
+                $yaContados = true;
             }
             
-            // Servicios de citas agrupadas
-            if ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+            // PRIORIDAD 2: Servicios de citas agrupadas (solo si no tiene cita individual)
+            if (!$yaContados && $cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
                 foreach($cobro->citasAgrupadas as $citaGrupo) {
                     if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
                         foreach($citaGrupo->servicios as $servicio) {
                             $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
                             
-                            if ($servicio->categoria === 'peluqueria') {
-                                $totalPeluqueria += $precioServicio;
-                                if ($metodoPago === 'efectivo') $totalPeluqueriaEfectivo += $precioServicio;
-                                elseif ($metodoPago === 'tarjeta') $totalPeluqueriaTarjeta += $precioServicio;
-                                elseif ($metodoPago === 'bono') $totalPeluqueriaBono += $precioServicio;
-                            } elseif ($servicio->categoria === 'estetica') {
-                                $totalEstetica += $precioServicio;
-                                if ($metodoPago === 'efectivo') $totalEsteticaEfectivo += $precioServicio;
-                                elseif ($metodoPago === 'tarjeta') $totalEsteticaTarjeta += $precioServicio;
-                                elseif ($metodoPago === 'bono') $totalEsteticaBono += $precioServicio;
+                            // Calcular precio real considerando descuentos
+                            $proporcion = $cobro->coste > 0 ? ($precioServicio / $cobro->coste) : 0;
+                            $precioRealServicio = $cobro->total_final * $proporcion;
+                            
+                            // Solo sumar si NO es pago con bono
+                            if ($metodoPago !== 'bono') {
+                                if ($servicio->categoria === 'peluqueria') {
+                                    $totalPeluqueria += $precioRealServicio;
+                                    if ($metodoPago === 'efectivo') $totalPeluqueriaEfectivo += $precioRealServicio;
+                                    elseif ($metodoPago === 'tarjeta') $totalPeluqueriaTarjeta += $precioRealServicio;
+                                    elseif ($metodoPago === 'mixto') {
+                                        $totalPeluqueriaEfectivo += $cobro->pago_efectivo * $proporcion;
+                                        $totalPeluqueriaTarjeta += $cobro->pago_tarjeta * $proporcion;
+                                    }
+                                } elseif ($servicio->categoria === 'estetica') {
+                                    $totalEstetica += $precioRealServicio;
+                                    if ($metodoPago === 'efectivo') $totalEsteticaEfectivo += $precioRealServicio;
+                                    elseif ($metodoPago === 'tarjeta') $totalEsteticaTarjeta += $precioRealServicio;
+                                    elseif ($metodoPago === 'mixto') {
+                                        $totalEsteticaEfectivo += $cobro->pago_efectivo * $proporcion;
+                                        $totalEsteticaTarjeta += $cobro->pago_tarjeta * $proporcion;
+                                    }
+                                }
                             }
                         }
                     }
                 }
+                $yaContados = true;
             }
             
-            // Servicios directos (sin cita)
-            if ($cobro->servicios && $cobro->servicios->count() > 0) {
+            // PRIORIDAD 3: Servicios directos (solo si no tiene citas)
+            if (!$yaContados && $cobro->servicios && $cobro->servicios->count() > 0) {
                 foreach($cobro->servicios as $servicio) {
                     $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
                     
-                    if ($servicio->categoria === 'peluqueria') {
-                        $totalPeluqueria += $precioServicio;
-                        if ($metodoPago === 'efectivo') $totalPeluqueriaEfectivo += $precioServicio;
-                        elseif ($metodoPago === 'tarjeta') $totalPeluqueriaTarjeta += $precioServicio;
-                        elseif ($metodoPago === 'bono') $totalPeluqueriaBono += $precioServicio;
-                    } elseif ($servicio->categoria === 'estetica') {
-                        $totalEstetica += $precioServicio;
-                        if ($metodoPago === 'efectivo') $totalEsteticaEfectivo += $precioServicio;
-                        elseif ($metodoPago === 'tarjeta') $totalEsteticaTarjeta += $precioServicio;
-                        elseif ($metodoPago === 'bono') $totalEsteticaBono += $precioServicio;
+                    // Calcular precio real considerando descuentos
+                    $proporcion = $cobro->coste > 0 ? ($precioServicio / $cobro->coste) : 0;
+                    $precioRealServicio = $cobro->total_final * $proporcion;
+                    
+                    // Solo sumar si NO es pago con bono
+                    if ($metodoPago !== 'bono') {
+                        if ($servicio->categoria === 'peluqueria') {
+                            $totalPeluqueria += $precioRealServicio;
+                            if ($metodoPago === 'efectivo') $totalPeluqueriaEfectivo += $precioRealServicio;
+                            elseif ($metodoPago === 'tarjeta') $totalPeluqueriaTarjeta += $precioRealServicio;
+                            elseif ($metodoPago === 'mixto') {
+                                $totalPeluqueriaEfectivo += $cobro->pago_efectivo * $proporcion;
+                                $totalPeluqueriaTarjeta += $cobro->pago_tarjeta * $proporcion;
+                            }
+                        } elseif ($servicio->categoria === 'estetica') {
+                            $totalEstetica += $precioRealServicio;
+                            if ($metodoPago === 'efectivo') $totalEsteticaEfectivo += $precioRealServicio;
+                            elseif ($metodoPago === 'tarjeta') $totalEsteticaTarjeta += $precioRealServicio;
+                            elseif ($metodoPago === 'mixto') {
+                                $totalEsteticaEfectivo += $cobro->pago_efectivo * $proporcion;
+                                $totalEsteticaTarjeta += $cobro->pago_tarjeta * $proporcion;
+                            }
+                        }
                     }
                 }
             }
@@ -155,16 +211,29 @@ class CajaDiariaController extends Controller{
                 foreach($cobro->productos as $producto) {
                     $subtotal = $producto->pivot->subtotal ?? 0;
                     
-                    if ($producto->categoria === 'peluqueria') {
-                        $totalPeluqueria += $subtotal;
-                        if ($metodoPago === 'efectivo') $totalPeluqueriaEfectivo += $subtotal;
-                        elseif ($metodoPago === 'tarjeta') $totalPeluqueriaTarjeta += $subtotal;
-                        elseif ($metodoPago === 'bono') $totalPeluqueriaBono += $subtotal;
-                    } elseif ($producto->categoria === 'estetica') {
-                        $totalEstetica += $subtotal;
-                        if ($metodoPago === 'efectivo') $totalEsteticaEfectivo += $subtotal;
-                        elseif ($metodoPago === 'tarjeta') $totalEsteticaTarjeta += $subtotal;
-                        elseif ($metodoPago === 'bono') $totalEsteticaBono += $subtotal;
+                    // Calcular precio real considerando descuentos
+                    $proporcion = $cobro->coste > 0 ? ($subtotal / $cobro->coste) : 0;
+                    $subtotalReal = $cobro->total_final * $proporcion;
+                    
+                    // Solo sumar si NO es pago con bono
+                    if ($metodoPago !== 'bono') {
+                        if ($producto->categoria === 'peluqueria') {
+                            $totalPeluqueria += $subtotalReal;
+                            if ($metodoPago === 'efectivo') $totalPeluqueriaEfectivo += $subtotalReal;
+                            elseif ($metodoPago === 'tarjeta') $totalPeluqueriaTarjeta += $subtotalReal;
+                            elseif ($metodoPago === 'mixto') {
+                                $totalPeluqueriaEfectivo += $cobro->pago_efectivo * $proporcion;
+                                $totalPeluqueriaTarjeta += $cobro->pago_tarjeta * $proporcion;
+                            }
+                        } elseif ($producto->categoria === 'estetica') {
+                            $totalEstetica += $subtotalReal;
+                            if ($metodoPago === 'efectivo') $totalEsteticaEfectivo += $subtotalReal;
+                            elseif ($metodoPago === 'tarjeta') $totalEsteticaTarjeta += $subtotalReal;
+                            elseif ($metodoPago === 'mixto') {
+                                $totalEsteticaEfectivo += $cobro->pago_efectivo * $proporcion;
+                                $totalEsteticaTarjeta += $cobro->pago_tarjeta * $proporcion;
+                            }
+                        }
                     }
                 }
             }

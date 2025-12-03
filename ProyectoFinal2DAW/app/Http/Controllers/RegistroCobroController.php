@@ -288,7 +288,7 @@ class RegistroCobroController extends Controller{
             
             if ($cliente) {
                 $deudaCliente = $cliente->obtenerDeuda();
-                $nota = "Cobro #" . $cobro->id . ($data['id_cita'] ? " - Cita #" . $data['id_cita'] : " - Venta directa");
+                $nota = "Cobro #" . $cobro->id . (isset($data['id_cita']) && $data['id_cita'] ? " - Cita #" . $data['id_cita'] : " - Venta directa");
                 $deudaCliente->registrarCargo($deuda, $nota, null, $cobro->id);
             }
         }

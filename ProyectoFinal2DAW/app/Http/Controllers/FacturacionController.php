@@ -22,67 +22,103 @@ class FacturacionController extends Controller
         $fechaInicio = Carbon::create($anio, $mes, 1)->startOfMonth();
         $fechaFin = Carbon::create($anio, $mes, 1)->endOfMonth();
         
-        // SERVICIOS - Obtener cobros de citas completadas
-        // Peluquería
-        $serviciosPeluqueria = RegistroCobro::whereHas('cita', function($query) use ($fechaInicio, $fechaFin) {
-            $query->whereBetween('fecha_hora', [$fechaInicio, $fechaFin])
-                  ->where('estado', 'completada')
-                  ->whereHas('servicios', function($q) {
-                      $q->where('categoria', 'peluqueria');
-                  });
-        })
-        ->whereNotNull('id_cita')
-        ->get()
-        ->sum(function($cobro) {
-            // Obtener solo el total de servicios de peluquería de esta cita
-            $totalServicios = $cobro->cita->servicios()
-                ->where('categoria', 'peluqueria')
-                ->sum('precio');
+        // Obtener todos los cobros del mes (por fecha de cobro, no fecha de cita)
+        $cobros = RegistroCobro::with(['cita.servicios', 'citasAgrupadas.servicios', 'servicios', 'productos'])
+            ->whereBetween('created_at', [$fechaInicio, $fechaFin])
+            ->get();
+        
+        // Inicializar contadores
+        $serviciosPeluqueria = 0;
+        $serviciosEstetica = 0;
+        $productosPeluqueria = 0;
+        $productosEstetica = 0;
+        
+        // Procesar cada cobro con sistema de prioridades
+        foreach($cobros as $cobro) {
+            $yaContados = false;
             
-            // Calcular la proporción de este cobro que corresponde a servicios de peluquería
-            $totalServiciosCita = $cobro->cita->servicios->sum('precio');
-            if ($totalServiciosCita > 0) {
-                return ($totalServicios / $totalServiciosCita) * $cobro->total_final;
+            // PRIORIDAD 1: Servicios de cita individual
+            if ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
+                foreach($cobro->cita->servicios as $servicio) {
+                    $precio = $servicio->pivot->precio ?? $servicio->precio;
+                    
+                    // Calcular precio real aplicando descuentos proporcionalmente
+                    $proporcion = $cobro->coste > 0 ? ($precio / $cobro->coste) : 0;
+                    $precioReal = $cobro->total_final * $proporcion;
+                    
+                    // Solo sumar si NO es pago con bono
+                    if ($cobro->metodo_pago !== 'bono') {
+                        if ($servicio->categoria === 'peluqueria') {
+                            $serviciosPeluqueria += $precioReal;
+                        } elseif ($servicio->categoria === 'estetica') {
+                            $serviciosEstetica += $precioReal;
+                        }
+                    }
+                }
+                $yaContados = true;
             }
-            return 0;
-        });
-        
-        // Estética
-        $serviciosEstetica = RegistroCobro::whereHas('cita', function($query) use ($fechaInicio, $fechaFin) {
-            $query->whereBetween('fecha_hora', [$fechaInicio, $fechaFin])
-                  ->where('estado', 'completada')
-                  ->whereHas('servicios', function($q) {
-                      $q->where('categoria', 'estetica');
-                  });
-        })
-        ->whereNotNull('id_cita')
-        ->get()
-        ->sum(function($cobro) {
-            $totalServicios = $cobro->cita->servicios()
-                ->where('categoria', 'estetica')
-                ->sum('precio');
             
-            $totalServiciosCita = $cobro->cita->servicios->sum('precio');
-            if ($totalServiciosCita > 0) {
-                return ($totalServicios / $totalServiciosCita) * $cobro->total_final;
+            // PRIORIDAD 2: Servicios de citas agrupadas (solo si no tiene cita individual)
+            if (!$yaContados && $cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                foreach($cobro->citasAgrupadas as $citaGrupo) {
+                    if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
+                        foreach($citaGrupo->servicios as $servicio) {
+                            $precio = $servicio->pivot->precio ?? $servicio->precio;
+                            
+                            $proporcion = $cobro->coste > 0 ? ($precio / $cobro->coste) : 0;
+                            $precioReal = $cobro->total_final * $proporcion;
+                            
+                            if ($cobro->metodo_pago !== 'bono') {
+                                if ($servicio->categoria === 'peluqueria') {
+                                    $serviciosPeluqueria += $precioReal;
+                                } elseif ($servicio->categoria === 'estetica') {
+                                    $serviciosEstetica += $precioReal;
+                                }
+                            }
+                        }
+                    }
+                }
+                $yaContados = true;
             }
-            return 0;
-        });
-        
-        // PRODUCTOS - Desde la tabla pivot registro_cobro_productos
-        $productosPeluqueria = DB::table('registro_cobro_productos')
-            ->join('productos', 'registro_cobro_productos.id_producto', '=', 'productos.id')
-            ->join('registro_cobros', 'registro_cobro_productos.id_registro_cobro', '=', 'registro_cobros.id')
-            ->whereBetween('registro_cobros.created_at', [$fechaInicio, $fechaFin])
-            ->where('productos.categoria', 'peluqueria')
-            ->sum('registro_cobro_productos.subtotal');
-        
-        $productosEstetica = DB::table('registro_cobro_productos')
-            ->join('productos', 'registro_cobro_productos.id_producto', '=', 'productos.id')
-            ->join('registro_cobros', 'registro_cobro_productos.id_registro_cobro', '=', 'registro_cobros.id')
-            ->whereBetween('registro_cobros.created_at', [$fechaInicio, $fechaFin])
-            ->where('productos.categoria', 'estetica')
-            ->sum('registro_cobro_productos.subtotal');
+            
+            // PRIORIDAD 3: Servicios directos (solo si no tiene citas)
+            if (!$yaContados && $cobro->servicios && $cobro->servicios->count() > 0) {
+                foreach($cobro->servicios as $servicio) {
+                    $precio = $servicio->pivot->precio ?? $servicio->precio;
+                    
+                    $proporcion = $cobro->coste > 0 ? ($precio / $cobro->coste) : 0;
+                    $precioReal = $cobro->total_final * $proporcion;
+                    
+                    if ($cobro->metodo_pago !== 'bono') {
+                        if ($servicio->categoria === 'peluqueria') {
+                            $serviciosPeluqueria += $precioReal;
+                        } elseif ($servicio->categoria === 'estetica') {
+                            $serviciosEstetica += $precioReal;
+                        }
+                    }
+                }
+            }
+            
+            // PRODUCTOS
+            if ($cobro->productos) {
+                foreach($cobro->productos as $producto) {
+                    $subtotal = $producto->pivot->subtotal ?? 0;
+                    
+                    // Calcular precio real aplicando descuentos proporcionalmente
+                    $proporcion = $cobro->coste > 0 ? ($subtotal / $cobro->coste) : 0;
+                    $subtotalReal = $cobro->total_final * $proporcion;
+                    
+                    // Solo sumar si NO es pago con bono
+                    if ($cobro->metodo_pago !== 'bono') {
+                        if ($producto->categoria === 'peluqueria') {
+                            $productosPeluqueria += $subtotalReal;
+                        } elseif ($producto->categoria === 'estetica') {
+                            $productosEstetica += $subtotalReal;
+                        }
+                    }
+                }
+            }
+        }
         
         // BONOS - Desde bonos_clientes
         $bonosVendidos = DB::table('bonos_clientes')
