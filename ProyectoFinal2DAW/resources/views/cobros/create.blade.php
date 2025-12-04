@@ -9,7 +9,7 @@
 </head>
 <body class="bg-gray-100 p-8">
     <div id="cobros-app" 
-         data-productos-url="{{ route('productos.available') }}"
+         data-productos-url="/productos/available"
          data-pago-deuda-url="/deudas/cliente/:id/pago"
          data-cita-preseleccionada="{{ isset($citaSeleccionada) && $citaSeleccionada ? 'true' : 'false' }}"
          class="max-w-3xl mx-auto bg-white p-6 rounded shadow">

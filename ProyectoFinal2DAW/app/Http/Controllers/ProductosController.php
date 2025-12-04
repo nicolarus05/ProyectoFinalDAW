@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Productos;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
@@ -147,11 +148,17 @@ class ProductosController extends Controller{
     public function available()
     {
         try {
+            // Log para debugging
+            $user = Auth::user();
+            logger()->info('ProductosController@available - Usuario: ' . ($user ? $user->email : 'NO AUTH') . ' | Rol: ' . ($user ? $user->rol : 'N/A'));
+            
             $productos = Productos::where('activo', true)
                 ->select('id', 'nombre', 'precio_venta', 'stock')
                 ->orderBy('nombre')
                 ->get();
 
+            logger()->info('ProductosController@available - Productos encontrados: ' . $productos->count());
+            
             return response()->json($productos);
         } catch (\Exception $e) {
             logger()->error('Error cargando productos: ' . $e->getMessage());

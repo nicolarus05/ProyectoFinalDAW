@@ -55,7 +55,15 @@ Route::middleware([
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
         Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-        Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+        Route::put('/perfil/update', [ProfileController::class, 'update'])->name('perfil.update');
+    });
+
+    // ============================================================================
+    // PRODUCTOS DISPONIBLES - Debe estar ANTES del Route::resource('productos')
+    // Accesible por admin y empleado
+    // ============================================================================
+    Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
+        Route::get('productos/available', [ProductosController::class, 'available'])->name('productos.available');
     });
 
     // ============================================================================
@@ -69,8 +77,8 @@ Route::middleware([
 
         Route::resource('servicios', ServicioController::class)->names('servicios');
         
-        // Ruta personalizada ANTES del resource para evitar conflicto
-        Route::get('productos/available', [ProductosController::class, 'available'])->name('productos.available');
+        // Productos - solo admin puede gestionar (CRUD)
+        // NOTA: productos/available está definida en el grupo admin,empleado más abajo
         Route::resource('productos', ProductosController::class)->names('productos');
 
         // Horarios (solo admin)

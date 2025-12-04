@@ -62,12 +62,26 @@ class ClienteController extends Controller{
         ]);
         
         // Crear cliente
-        Cliente::create([
+        $cliente = Cliente::create([
             'id_user' => $user->id,
             'direccion' => $request->input('direccion'),
             'notas_adicionales' => $request->input('notas_adicionales'),
             'fecha_registro' => $fechaRegistro,
         ]);
+
+        // Si la petición espera JSON (desde el modal), devolver JSON
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Cliente creado exitosamente',
+                'cliente' => [
+                    'id' => $cliente->id,
+                    'nombre' => $user->nombre,
+                    'apellidos' => $user->apellidos,
+                    'email' => $user->email,
+                ]
+            ]);
+        }
 
         return redirect()->route('clientes.index')->with('success', 'El Cliente ha sido creado con éxito.');
     }

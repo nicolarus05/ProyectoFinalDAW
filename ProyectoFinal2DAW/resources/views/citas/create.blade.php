@@ -63,7 +63,7 @@
             </div>
         @endif
 
-        <form id="cita-form" action="{{ route('citas.store') }}" method="POST">
+        <form id="cita-form" action="{{ route('citas.store') }}" method="POST" novalidate>
             @csrf
             
             <!-- PASO 1: Seleccionar Servicios -->
@@ -257,6 +257,13 @@
                                                 </div>
                                             </div>
                                         @endforeach
+                                    </div>
+                                    
+                                    <!-- Botón Crear Cliente -->
+                                    <div class="mt-3">
+                                        <button type="button" id="btn-crear-cliente-modal" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition shadow-md">
+                                            ➕ Crear Nuevo Cliente
+                                        </button>
                                     </div>
                                     
                                     <!-- Cliente seleccionado -->
@@ -474,6 +481,257 @@
 
         </form>
     </div>
+
+    <!-- Modal Crear Cliente -->
+    <div id="modal-crear-cliente" class="fixed inset-0 bg-black bg-opacity-50 items-center justify-center z-50" style="display: none;">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+                <h2 class="text-2xl font-bold text-gray-900">➕ Crear Nuevo Cliente</h2>
+                <button type="button" id="btn-cerrar-modal-cliente" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <form id="form-crear-cliente" class="p-6">
+                <div id="error-crear-cliente" class="hidden bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+                    <div class="flex">
+                        <div class="ml-3">
+                            <p class="text-sm text-red-700"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Nombre <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" name="nombre" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Apellidos <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" name="apellidos" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Teléfono
+                        </label>
+                        <input type="text" name="telefono" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Email <span class="text-red-500">*</span>
+                        </label>
+                        <input type="email" name="email" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Género <span class="text-red-500">*</span>
+                        </label>
+                        <select name="genero" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none">
+                            <option value="">Seleccionar...</option>
+                            <option value="masculino">Masculino</option>
+                            <option value="femenino">Femenino</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Edad <span class="text-red-500">*</span>
+                        </label>
+                        <input type="number" name="edad" required min="0" max="120" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none">
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Dirección <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" name="direccion" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none">
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Contraseña <span class="text-red-500">*</span>
+                        </label>
+                        <input type="password" name="password" required minlength="8" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none">
+                        <p class="text-xs text-gray-500 mt-1">Mínimo 8 caracteres</p>
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Notas Adicionales
+                        </label>
+                        <textarea name="notas_adicionales" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none"></textarea>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" id="btn-cancelar-cliente" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-6 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition">
+                        Guardar Cliente
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Asegurar que fecha_hora se actualice antes de enviar el formulario
+        document.addEventListener('DOMContentLoaded', function() {
+            const citaForm = document.getElementById('cita-form');
+            
+            if (citaForm) {
+                citaForm.addEventListener('submit', function(e) {
+                    const fechaCita = document.getElementById('fecha_cita').value;
+                    const horaCita = document.getElementById('hora_cita').value;
+                    
+                    console.log('Antes de enviar - Fecha input:', fechaCita);
+                    console.log('Antes de enviar - Hora input:', horaCita);
+                    
+                    if (fechaCita && horaCita) {
+                        const fechaHoraCombined = `${fechaCita} ${horaCita}:00`;
+                        document.getElementById('fecha_hora_combined').value = fechaHoraCombined;
+                        console.log('Fecha/hora combinada antes de enviar:', fechaHoraCombined);
+                    } else {
+                        console.error('Fecha u hora vacía!', {fechaCita, horaCita});
+                    }
+                });
+            }
+        });
+
+        // Esperar a que el DOM esté completamente cargado
+        window.addEventListener('load', function() {
+            // Modal crear cliente
+            const modalCrearCliente = document.getElementById('modal-crear-cliente');
+            const btnAbrirModal = document.getElementById('btn-crear-cliente-modal');
+            
+            // Solo ejecutar si el botón existe (solo para admin/empleado)
+            if (!btnAbrirModal) {
+                console.log('Botón crear cliente no disponible (usuario es cliente)');
+                return;
+            }
+            
+            const btnCerrarModal = document.getElementById('btn-cerrar-modal-cliente');
+            const btnCancelarCliente = document.getElementById('btn-cancelar-cliente');
+            const formCrearCliente = document.getElementById('form-crear-cliente');
+            const errorDiv = document.getElementById('error-crear-cliente');
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+            console.log('Inicializando modal crear cliente...');
+
+            // Abrir modal
+            btnAbrirModal.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Abriendo modal crear cliente');
+                modalCrearCliente.style.display = 'flex';
+                errorDiv.classList.add('hidden');
+                formCrearCliente.reset();
+            });
+
+            // Cerrar modal
+            function cerrarModal() {
+                modalCrearCliente.style.display = 'none';
+            }
+            
+            btnCerrarModal.addEventListener('click', cerrarModal);
+            btnCancelarCliente.addEventListener('click', cerrarModal);
+
+        // Cerrar al hacer clic fuera del modal
+        modalCrearCliente.addEventListener('click', (e) => {
+            if (e.target === modalCrearCliente) {
+                cerrarModal();
+            }
+        });
+
+        // Enviar formulario
+        formCrearCliente.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(formCrearCliente);
+            const submitBtn = formCrearCliente.querySelector('button[type="submit"]');
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Guardando...';
+            errorDiv.classList.add('hidden');
+
+            try {
+                const response = await fetch('{{ route("clientes.store") }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Error al crear el cliente');
+                }
+
+                // Cliente creado exitosamente
+                const nuevoCliente = data.cliente;
+                
+                // Añadir cliente al select oculto
+                const selectCliente = document.getElementById('id_cliente');
+                const option = document.createElement('option');
+                option.value = nuevoCliente.id;
+                option.setAttribute('data-nombre', (nuevoCliente.nombre + ' ' + nuevoCliente.apellidos).toLowerCase());
+                option.setAttribute('data-email', (nuevoCliente.email || '').toLowerCase());
+                option.textContent = nuevoCliente.nombre + ' ' + nuevoCliente.apellidos;
+                selectCliente.appendChild(option);
+                selectCliente.value = nuevoCliente.id;
+
+                // Añadir cliente a la lista visual
+                const clientesList = document.getElementById('clientes-list');
+                const divCliente = document.createElement('div');
+                divCliente.className = 'cliente-item p-3 border-b border-gray-200 hover:bg-blue-50 cursor-pointer transition';
+                divCliente.setAttribute('data-cliente-id', nuevoCliente.id);
+                divCliente.setAttribute('data-nombre', (nuevoCliente.nombre + ' ' + nuevoCliente.apellidos).toLowerCase());
+                divCliente.setAttribute('data-email', (nuevoCliente.email || '').toLowerCase());
+                divCliente.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold">
+                            ${nuevoCliente.nombre.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <p class="font-semibold text-gray-900">${nuevoCliente.nombre} ${nuevoCliente.apellidos}</p>
+                            <p class="text-sm text-gray-600">${nuevoCliente.email || 'Sin email'}</p>
+                        </div>
+                    </div>
+                `;
+                clientesList.insertBefore(divCliente, clientesList.firstChild);
+
+                // Seleccionar automáticamente el nuevo cliente
+                divCliente.click();
+
+                // Cerrar modal
+                cerrarModal();
+                formCrearCliente.reset();
+
+            } catch (error) {
+                errorDiv.classList.remove('hidden');
+                errorDiv.querySelector('p').textContent = error.message;
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Guardar Cliente';
+            }
+        });
+        }); // Fin window.load
+    </script>
 
 </body>
 </html>
