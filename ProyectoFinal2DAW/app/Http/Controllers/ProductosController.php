@@ -146,11 +146,16 @@ class ProductosController extends Controller{
      */
     public function available()
     {
-        $productos = Productos::where('activo', true)
-            ->select('id', 'nombre', 'precio_venta', 'stock')
-            ->orderBy('nombre')
-            ->get();
+        try {
+            $productos = Productos::where('activo', true)
+                ->select('id', 'nombre', 'precio_venta', 'stock')
+                ->orderBy('nombre')
+                ->get();
 
-        return response()->json($productos);
+            return response()->json($productos);
+        } catch (\Exception $e) {
+            logger()->error('Error cargando productos: ' . $e->getMessage());
+            return response()->json(['error' => 'Error al cargar productos: ' . $e->getMessage()], 500);
+        }
     }
 }

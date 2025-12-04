@@ -75,13 +75,22 @@ class RegistroEntradaSalida extends Model{
         $entrada = Carbon::parse($fechaStr . ' ' . $this->hora_entrada);
         $ahora = Carbon::now();
         
-        $diff = $entrada->diff($ahora);
+        // Calcular diferencia total en minutos (desde entrada hasta ahora)
+        $totalMinutos = $entrada->diffInMinutes($ahora, false);
+        
+        // Si es negativo, significa que la entrada es en el futuro (error de datos)
+        if ($totalMinutos < 0) {
+            $totalMinutos = 0;
+        }
+        
+        $horas = floor($totalMinutos / 60);
+        $minutos = $totalMinutos % 60;
         
         return [
-            'horas' => $diff->h,
-            'minutos' => $diff->i,
-            'total_minutos' => ($diff->h * 60) + $diff->i,
-            'formatted' => sprintf('%dh %02dmin', $diff->h, $diff->i)
+            'horas' => $horas,
+            'minutos' => $minutos,
+            'total_minutos' => $totalMinutos,
+            'formatted' => sprintf('%dh %02dmin', $horas, $minutos)
         ];
     }
 

@@ -102,17 +102,26 @@ class ClienteController extends Controller{
             'direccion' => 'required|string|max:255',
             'notas_adicionales' => 'nullable|string|max:255',
             'fecha_registro' => 'required|date',
+            'password' => 'nullable|string|min:8',
         ]);
 
-        // Actualizar el user relacionado
-        $cliente->user->update([
+        // Preparar datos para actualizar el user
+        $userData = [
             'nombre' => $request->input('nombre'),
             'apellidos' => $request->input('apellidos'),
             'telefono' => $request->input('telefono'),
             'email' => $request->input('email'),
             'genero' => $request->input('genero'),
             'edad' => $request->input('edad'),
-        ]);
+        ];
+
+        // Si se proporciona contraseña, agregarla
+        if ($request->filled('password')) {
+            $userData['password'] = bcrypt($request->input('password'));
+        }
+
+        // Actualizar el user relacionado
+        $cliente->user->update($userData);
 
         // Actualizar los datos del cliente
         $cliente->update([

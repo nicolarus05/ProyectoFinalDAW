@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Productos extends Model{
     
+    protected $table = 'productos';
+    
     protected $fillable = [
         'nombre',
         'categoria',
@@ -14,5 +16,12 @@ class Productos extends Model{
         'precio_coste',
         'stock',
         'activo',
+    ];
+    
+    protected $casts = [
+        'precio_venta' => 'decimal:2',
+        'precio_coste' => 'decimal:2',
+        'stock' => 'integer',
+        'activo' => 'boolean',
     ];
 }

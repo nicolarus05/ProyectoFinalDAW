@@ -37,13 +37,26 @@ document.addEventListener('DOMContentLoaded', function() {
     async function loadProductos(){
       loadingHint.classList.remove('hidden');
       productosTbody.innerHTML = '<tr><td colspan="5" class="py-4">Cargando...</td></tr>';
+      
+      console.log('URL productos:', productosAvailableUrl);
+      
       try {
         const resp = await fetch(productosAvailableUrl, {
           headers: { 'Accept':'application/json','X-CSRF-TOKEN': csrfToken },
           credentials: 'same-origin'
         });
-        if (!resp.ok) throw new Error('Error cargando productos');
+        
+        console.log('Respuesta status:', resp.status);
+        
+        if (!resp.ok) {
+          const errorText = await resp.text();
+          console.error('Error respuesta:', errorText);
+          throw new Error(`Error ${resp.status}: ${errorText.substring(0, 100)}`);
+        }
+        
         const productos = await resp.json();
+        console.log('Productos cargados:', productos);
+        
         productosLoaded = true;
         productosTbody.innerHTML = '';
         if (productos.length === 0) {
@@ -71,8 +84,9 @@ document.addEventListener('DOMContentLoaded', function() {
           productosTbody.appendChild(tr);
         });
       } catch (err) {
-        productosTbody.innerHTML = '<tr><td colspan="5" class="py-4 text-red-600">Error cargando productos.</td></tr>';
-        console.error(err);
+        const errorMsg = err.message || 'Error desconocido';
+        productosTbody.innerHTML = `<tr><td colspan="5" class="py-4 text-red-600">Error: ${escapeHtml(errorMsg)}</td></tr>`;
+        console.error('Error completo:', err);
       } finally {
         loadingHint.classList.add('hidden');
       }

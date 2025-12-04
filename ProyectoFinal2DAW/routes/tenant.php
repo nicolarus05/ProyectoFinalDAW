@@ -68,8 +68,10 @@ Route::middleware([
         // Rutas adicionales para horarios de empleados
 
         Route::resource('servicios', ServicioController::class)->names('servicios');
-        Route::resource('productos', ProductosController::class)->names('productos');
+        
+        // Ruta personalizada ANTES del resource para evitar conflicto
         Route::get('productos/available', [ProductosController::class, 'available'])->name('productos.available');
+        Route::resource('productos', ProductosController::class)->names('productos');
 
         // Horarios (solo admin)
         Route::get('horarios/calendario', [HorarioTrabajoController::class, 'calendario'])->name('horarios.calendario');

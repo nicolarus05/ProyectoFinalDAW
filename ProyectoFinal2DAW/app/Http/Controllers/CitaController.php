@@ -201,35 +201,16 @@ class CitaController extends Controller{
             $inicioExistente = Carbon::parse($citaExistente->fecha_hora);
             $finExistente = $inicioExistente->copy()->addMinutes($citaExistente->duracion_minutos);
             
-            // Verificar solapamiento: hay conflicto si alguno de estos es verdadero:
-            // 1. La nueva cita empieza durante una cita existente
-            // 2. La nueva cita termina durante una cita existente  
-            // 3. La nueva cita engloba completamente una cita existente
+            // Verificar solapamiento: hay conflicto si:
+            // La nueva cita empieza ANTES de que termine la existente Y termina DESPUÉS de que empiece la existente
+            // Permitir que una cita empiece exactamente cuando termina otra (10:00 después de 09:00-10:00 está OK)
             
-            $nuevaEmpiezaDuranteExistente = $fechaHora->greaterThanOrEqualTo($inicioExistente) && $fechaHora->lessThan($finExistente);
-            $nuevaTerminaDuranteExistente = $finNuevaCita->greaterThan($inicioExistente) && $finNuevaCita->lessThanOrEqualTo($finExistente);
-            $nuevaEnglobaExistente = $fechaHora->lessThanOrEqualTo($inicioExistente) && $finNuevaCita->greaterThanOrEqualTo($finExistente);
+            $haySolapamiento = $fechaHora->lessThan($finExistente) && $finNuevaCita->greaterThan($inicioExistente);
             
-            if ($nuevaEmpiezaDuranteExistente || $nuevaTerminaDuranteExistente || $nuevaEnglobaExistente) {
+            if ($haySolapamiento) {
                 return redirect()->back()
                     ->withInput()
                     ->withErrors(['fecha_hora' => 'Este horario se solapa con otra cita que va de ' . $inicioExistente->format('H:i') . ' a ' . $finExistente->format('H:i') . '. Por favor, seleccione otro horario.']);
-            }
-            
-            // Verificar margen de 5 minutos antes y después
-            $finExistenteConMargen = $finExistente->copy()->addMinutes(5);
-            $inicioExistenteConMargen = $inicioExistente->copy()->subMinutes(5);
-            
-            if ($fechaHora->greaterThanOrEqualTo($finExistente) && $fechaHora->lessThan($finExistenteConMargen)) {
-                return redirect()->back()
-                    ->withInput()
-                    ->withErrors(['fecha_hora' => 'Debe haber al menos 5 minutos de margen. La cita anterior termina a las ' . $finExistente->format('H:i') . '.']);
-            }
-            
-            if ($finNuevaCita->greaterThan($inicioExistenteConMargen) && $finNuevaCita->lessThanOrEqualTo($inicioExistente)) {
-                return redirect()->back()
-                    ->withInput()
-                    ->withErrors(['fecha_hora' => 'Debe haber al menos 5 minutos de margen. Hay otra cita que empieza a las ' . $inicioExistente->format('H:i') . '.']);
             }
         }
 
