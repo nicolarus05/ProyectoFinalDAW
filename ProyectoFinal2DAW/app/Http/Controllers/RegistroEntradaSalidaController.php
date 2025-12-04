@@ -23,6 +23,7 @@ class RegistroEntradaSalidaController extends Controller{
         $empleadoId = $request->get('empleado_id');
 
         $query = RegistroEntradaSalida::with('empleado.user')
+            ->whereHas('empleado') // Solo registros con empleado válido
             ->orderBy('fecha', 'desc')
             ->orderBy('hora_entrada', 'desc');
 
@@ -40,6 +41,7 @@ class RegistroEntradaSalidaController extends Controller{
 
         // Obtener empleados actualmente trabajando
         $empleadosActivos = RegistroEntradaSalida::with('empleado.user')
+            ->whereHas('empleado') // Solo registros con empleado válido
             ->whereDate('fecha', Carbon::today())
             ->whereNotNull('hora_entrada')
             ->whereNull('hora_salida')
@@ -50,6 +52,11 @@ class RegistroEntradaSalidaController extends Controller{
         $totalHorasHoy = 0;
         
         foreach ($registrosHoy as $registro) {
+            // Validar que el registro tenga empleado asociado
+            if (!$registro->empleado) {
+                continue;
+            }
+            
             // Si tiene hora de salida, calcular horas trabajadas completas
             if ($registro->hora_salida) {
                 $horas = $registro->calcularHorasTrabajadas();
@@ -105,7 +112,7 @@ class RegistroEntradaSalidaController extends Controller{
             ->first();
 
         // Validar hora de entrada según horario
-        if ($horario) {
+        if ($horario && $horario->hora_inicio) {
             // Si existe un horario específico, validar contra ese horario
             $horaInicioPermitida = Carbon::parse($hoy->format('Y-m-d') . ' ' . $horario->hora_inicio);
             $margenAntes = 15; // 15 minutos antes está permitido
@@ -206,22 +213,27 @@ class RegistroEntradaSalidaController extends Controller{
             return back()->with('error', 'No tienes ninguna entrada activa para fichar salida.');
         }
 
-        // Buscar el horario de trabajo para hoy
+        // Buscar el horario de trabajo para hoy (tabla horario_trabajo)
         $horario = \App\Models\HorarioTrabajo::where('id_empleado', $empleadoId)
             ->whereDate('fecha', $hoy)
             ->first();
+        
+        $horarioFin = null;
+        if ($horario && $horario->hora_fin) {
+            $horarioFin = $horario->hora_fin;
+        }
             
         $salidaFueraHorario = false;
         $minutosExtra = 0;
         $mensaje = '✓ Salida registrada correctamente a las ' . $horaActual->format('H:i');
 
-        if ($horario) {
+        if ($horarioFin) {
             // Calcular hora de salida programada
-            $horaSalidaProgramada = Carbon::parse($hoy->format('Y-m-d') . ' ' . $horario->hora_fin);
-            $margenMinutos = 5; // Margen de 5 minutos
+            $horaSalidaProgramada = Carbon::parse($hoy->format('Y-m-d') . ' ' . $horarioFin);
+            $margenMinutos = 1; // Margen de 1 minuto (estricto)
             $horaSalidaLimite = $horaSalidaProgramada->copy()->addMinutes($margenMinutos);
             
-            // Verificar si salió tarde
+            // Verificar si salió tarde (más de 1 minuto después de la hora programada)
             if ($horaActual->greaterThan($horaSalidaLimite)) {
                 $salidaFueraHorario = true;
                 $minutosExtra = $horaActual->diffInMinutes($horaSalidaProgramada);
@@ -240,6 +252,9 @@ class RegistroEntradaSalidaController extends Controller{
                     ]);
                 }
             }
+        } else {
+            // No hay horario definido para hoy, solo registrar la salida sin validar
+            $mensaje .= ' (Sin horario definido para hoy)';
         }
 
         // Actualizar con la hora de salida

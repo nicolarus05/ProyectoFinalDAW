@@ -165,7 +165,7 @@
                                         <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-semibold">🟢 Activo</span>
                                     @elseif($registro->hora_salida)
                                         @if($registro->salida_fuera_horario)
-                                            <span class="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-semibold">⚠️ Tarde</span>
+                                            <span class="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-semibold">⚠️ Salida Tarde</span>
                                         @else
                                             <span class="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-semibold">✅ Completo</span>
                                         @endif
