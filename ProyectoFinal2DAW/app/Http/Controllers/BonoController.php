@@ -249,7 +249,12 @@ class BonoController extends Controller
     {
         $clientes = Cliente::with(['user', 'bonos' => function($query) {
             $query->where('estado', 'activo')
-                  ->with(['plantilla', 'usoDetalles.cita', 'usoDetalles.servicio'])
+                  ->with([
+                      'plantilla.servicios', 
+                      'usoDetalles.cita', 
+                      'usoDetalles.servicio',
+                      'empleado.user'
+                  ])
                   ->orderBy('fecha_compra', 'desc');
         }])
         ->whereHas('bonos', function($query) {

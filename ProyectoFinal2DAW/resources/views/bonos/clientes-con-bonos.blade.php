@@ -58,9 +58,11 @@
                                                 <h4 class="font-bold text-purple-700">
                                                     🎫 {{ $bono->plantilla->nombre }}
                                                 </h4>
-                                                <p class="text-sm text-gray-600 mt-1">
-                                                    {{ $bono->plantilla->descripcion }}
-                                                </p>
+                                                @if($bono->plantilla->descripcion)
+                                                    <p class="text-sm text-gray-600 mt-1">
+                                                        {{ $bono->plantilla->descripcion }}
+                                                    </p>
+                                                @endif
                                                 <div class="mt-2 grid grid-cols-2 gap-2 text-sm">
                                                     <div>
                                                         <span class="text-gray-600">Comprado:</span>
@@ -68,13 +70,13 @@
                                                     </div>
                                                     <div>
                                                         <span class="text-gray-600">Expira:</span>
-                                                        @if($bono->plantilla->duracion_dias)
+                                                        @if($bono->plantilla->duracion_dias && $bono->fecha_expiracion)
                                                             <span class="font-semibold">{{ \Carbon\Carbon::parse($bono->fecha_expiracion)->format('d/m/Y') }}</span>
                                                         @else
                                                             <span class="font-semibold text-purple-600">✨ Sin límite</span>
                                                         @endif
                                                     </div>
-                                                    @if($bono->empleado)
+                                                    @if($bono->empleado && $bono->empleado->user)
                                                     <div class="col-span-2">
                                                         <span class="text-gray-600">Vendido por:</span>
                                                         <span class="font-semibold">{{ $bono->empleado->user->nombre }} {{ $bono->empleado->user->apellidos }}</span>
@@ -91,6 +93,7 @@
                                         </div>
 
                                         <!-- Servicios incluidos -->
+                                        @if($bono->plantilla && $bono->plantilla->servicios && $bono->plantilla->servicios->count() > 0)
                                         <div class="mt-3 pt-3 border-t border-gray-200">
                                             <p class="text-sm font-semibold text-gray-700 mb-2">Servicios incluidos:</p>
                                             <div class="space-y-2">
@@ -125,10 +128,12 @@
                                                             <div class="ml-4 mt-2 space-y-1">
                                                                 <p class="text-xs font-semibold text-gray-600">Fechas de uso:</p>
                                                                 @foreach($usosServicio as $uso)
-                                                                    <div class="text-xs text-gray-700 flex items-center gap-1">
-                                                                        <span class="text-green-600">✓</span>
-                                                                        <span>{{ \Carbon\Carbon::parse($uso->cita->fecha_hora)->format('d/m/Y H:i') }}</span>
-                                                                    </div>
+                                                                    @if($uso->cita && $uso->cita->fecha_hora)
+                                                                        <div class="text-xs text-gray-700 flex items-center gap-1">
+                                                                            <span class="text-green-600">✓</span>
+                                                                            <span>{{ \Carbon\Carbon::parse($uso->cita->fecha_hora)->format('d/m/Y H:i') }}</span>
+                                                                        </div>
+                                                                    @endif
                                                                 @endforeach
                                                             </div>
                                                         @endif
@@ -136,6 +141,7 @@
                                                 @endforeach
                                             </div>
                                         </div>
+                                        @endif
                                     </div>
                                 @endforeach
                             </div>
