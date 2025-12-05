@@ -7,6 +7,13 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <style>
         .modal-backdrop { background: rgba(0,0,0,0.5); }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.2s ease-out;
+        }
     </style>
 </head>
 <body class="bg-gray-100 p-8">
@@ -446,6 +453,40 @@
             </div>
         </div>
     </div>
+
+<!-- Modal de Alertas de Bonos -->
+<div id="bono-alerta-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 animate-fade-in">
+        <div class="p-6">
+            <!-- Header -->
+            <div class="flex items-start justify-between mb-4">
+                <div class="flex items-center">
+                    <span id="alerta-icono" class="text-3xl mr-3">⚠️</span>
+                    <h3 id="alerta-titulo" class="text-xl font-bold text-gray-800">
+                        Alerta de Bono
+                    </h3>
+                </div>
+                <button type="button" id="close-alerta-modal" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Contenido -->
+            <div id="alerta-contenido" class="mb-6">
+                <!-- Se llenará dinámicamente -->
+            </div>
+
+            <!-- Botones -->
+            <div class="flex justify-center">
+                <button type="button" id="btn-entendido" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-semibold">
+                    Entendido
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
 // Variables globales (fuera del DOMContentLoaded para que las funciones window puedan acceder)
@@ -1057,6 +1098,101 @@ calcularTotales();
 // Actualizar deuda del cliente si está pre-seleccionado
 @if(isset($cita) || (isset($citas) && $citas->count() > 0))
     actualizarDeudaCliente();
+@endif
+
+// --- Funciones para el modal de alertas de bonos ---
+window.mostrarAlertaBono = function(datos) {
+    const modal = document.getElementById('bono-alerta-modal');
+    const icono = document.getElementById('alerta-icono');
+    const titulo = document.getElementById('alerta-titulo');
+    const contenido = document.getElementById('alerta-contenido');
+
+    if (!modal || !datos.alertas || datos.alertas.length === 0) {
+        return;
+    }
+
+    // Determinar el nivel de alerta más crítico
+    const tieneCritico = datos.alertas.some(a => a.tipo === 'critico');
+    
+    // Configurar icono y título según criticidad
+    if (tieneCritico) {
+        icono.textContent = '🔴';
+        titulo.textContent = '¡Atención! Bono Crítico';
+        titulo.className = 'text-xl font-bold text-red-600';
+    } else {
+        icono.textContent = '🟡';
+        titulo.textContent = 'Advertencia de Bono';
+        titulo.className = 'text-xl font-bold text-yellow-600';
+    }
+
+    // Construir contenido
+    let html = `
+        <div class="bg-gray-50 rounded p-4 mb-4">
+            <p class="font-semibold text-gray-800 mb-2">Bono: ${datos.nombreBono}</p>
+            <p class="text-sm text-gray-600">Cliente: ${datos.nombreCliente}</p>
+        </div>
+    `;
+
+    // Listar alertas
+    html += '<div class="space-y-2">';
+    datos.alertas.forEach(alerta => {
+        const bgColor = alerta.tipo === 'critico' ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200';
+        const textColor = alerta.tipo === 'critico' ? 'text-red-800' : 'text-yellow-800';
+        
+        html += `
+            <div class="border ${bgColor} ${textColor} rounded p-3 flex items-center">
+                <span class="text-2xl mr-3">${alerta.icono}</span>
+                <span>${alerta.mensaje}</span>
+            </div>
+        `;
+    });
+    html += '</div>';
+
+    contenido.innerHTML = html;
+    
+    // Mostrar modal
+    modal.classList.remove('hidden');
+};
+
+window.cerrarAlertaBono = function() {
+    const modal = document.getElementById('bono-alerta-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+};
+
+// Event listeners para el modal
+document.getElementById('close-alerta-modal')?.addEventListener('click', cerrarAlertaBono);
+document.getElementById('btn-entendido')?.addEventListener('click', cerrarAlertaBono);
+
+// --- Sistema de alertas de bonos ---
+@if(isset($bonosCliente) && $bonosCliente->isNotEmpty())
+    const bonosClienteData = @json($bonosCliente);
+    console.log('🎫 Bonos del cliente cargados:', bonosClienteData);
+    
+    // Verificar si algún bono tiene alertas
+    bonosClienteData.forEach(bono => {
+        console.log('Verificando bono:', bono.plantilla.nombre, 'Alertas:', bono.alertas);
+        if (bono.alertas && bono.alertas.length > 0) {
+            const cliente = @json(isset($cita) ? $cita->cliente : (isset($citas) && $citas->isNotEmpty() ? $citas->first()->cliente : null));
+            
+            const datosAlerta = {
+                nombreBono: bono.plantilla.nombre,
+                nombreCliente: cliente ? `${cliente.user.nombre} ${cliente.user.apellidos}` : 'Cliente',
+                alertas: bono.alertas
+            };
+            
+            console.log('🔔 Mostrando alerta para bono:', datosAlerta);
+            
+            // Mostrar alerta automáticamente al cargar la página
+            setTimeout(() => {
+                mostrarAlertaBono(datosAlerta);
+                console.log('✅ Modal de alerta mostrado');
+            }, 500);
+        }
+    });
+@else
+    console.log('ℹ️ No hay bonos del cliente o $bonosCliente no está definido');
 @endif
 
 }); // Fin DOMContentLoaded

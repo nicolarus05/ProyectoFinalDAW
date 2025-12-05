@@ -71,19 +71,48 @@ class RegistroCobroController extends Controller{
         
         $cita = null;
         $citas = collect(); // Colección vacía por defecto
+        $bonosCliente = collect(); // Bonos activos del cliente
         
         // Detectar si viene UNA cita o MÚLTIPLES citas
         if ($request->has('id_cita')) {
             // Flujo normal: una sola cita
             $cita = \App\Models\Cita::with(['cliente.user', 'empleado.user', 'servicios'])->find($request->id_cita);
+            
+            // Cargar bonos activos del cliente con información de alertas
+            if ($cita && $cita->cliente) {
+                $bonosCliente = \App\Models\BonoCliente::with(['plantilla.servicios', 'servicios' => function($query) {
+                    $query->withPivot('cantidad_total', 'cantidad_usada');
+                }])
+                    ->where('cliente_id', $cita->cliente->id)
+                    ->where('estado', 'activo')
+                    ->get()
+                    ->map(function($bono) {
+                        $bono->alertas = $bono->obtenerEstadoAlerta();
+                        return $bono;
+                    });
+            }
         } elseif ($request->has('citas_ids')) {
             // Flujo agrupado: múltiples citas del mismo cliente y día
             $citas = \App\Models\Cita::with(['cliente.user', 'empleado.user', 'servicios'])
                 ->whereIn('id', $request->citas_ids)
                 ->get();
+            
+            // Cargar bonos del cliente (asumiendo todas las citas son del mismo cliente)
+            if ($citas->isNotEmpty() && $citas->first()->cliente) {
+                $bonosCliente = \App\Models\BonoCliente::with(['plantilla.servicios', 'servicios' => function($query) {
+                    $query->withPivot('cantidad_total', 'cantidad_usada');
+                }])
+                    ->where('cliente_id', $citas->first()->cliente->id)
+                    ->where('estado', 'activo')
+                    ->get()
+                    ->map(function($bono) {
+                        $bono->alertas = $bono->obtenerEstadoAlerta();
+                        return $bono;
+                    });
+            }
         }
         
-        return view('cobros.create-direct', compact('clientes', 'empleados', 'servicios', 'cita', 'citas', 'bonosPlantilla'));
+        return view('cobros.create-direct', compact('clientes', 'empleados', 'servicios', 'cita', 'citas', 'bonosPlantilla', 'bonosCliente'));
     }
 
     /**
