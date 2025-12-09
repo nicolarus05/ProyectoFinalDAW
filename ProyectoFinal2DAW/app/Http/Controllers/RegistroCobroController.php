@@ -210,8 +210,13 @@ class RegistroCobroController extends Controller{
                 ->get();
         }
         
-        // Procesar bonos para cada cita
-        foreach ($citasAProcesar as $cita) {
+        // IMPORTANTE: Si se está vendiendo un bono nuevo, NO aplicar bonos automáticamente
+        // El bono nuevo se aplicará manualmente más adelante para evitar duplicación
+        $seVendeBono = !empty($data['bono_plantilla_id']);
+        
+        // Procesar bonos para cada cita (solo si NO se está vendiendo un bono nuevo)
+        if (!$seVendeBono) {
+            foreach ($citasAProcesar as $cita) {
             if ($cita && $cita->cliente) {
                 // Obtener bonos activos del cliente
                 $bonosActivos = BonoCliente::with('servicios')
@@ -259,6 +264,7 @@ class RegistroCobroController extends Controller{
                         }
                     }
                 }
+            }
             }
         }
 
@@ -375,7 +381,7 @@ class RegistroCobroController extends Controller{
                 }
                 
                 // Caso 1b: Cobro de múltiples citas agrupadas
-                if (!empty($data['citas_ids']) && is_array($data['citas_ids'])) {
+                elseif (!empty($data['citas_ids']) && is_array($data['citas_ids'])) {
                     $citasAgrupadas = Cita::with('servicios')->whereIn('id', $data['citas_ids'])->get();
                     foreach ($citasAgrupadas as $citaGrupo) {
                         if ($citaGrupo->servicios) {
@@ -389,14 +395,15 @@ class RegistroCobroController extends Controller{
                     }
                 }
                 
-                // Caso 2: Cobro directo con servicios_data
-                if ($request->has('servicios_data') && !empty($data['servicios_data'])) {
+                // Caso 2: Cobro directo SIN CITA con servicios_data
+                // SOLO si NO hay cita ni citas agrupadas (evita duplicación)
+                elseif ($request->has('servicios_data') && !empty($data['servicios_data'])) {
                     $serviciosData = json_decode($data['servicios_data'], true);
                     if (is_array($serviciosData)) {
                         foreach ($serviciosData as $s) {
                             $serviciosParaDescontar[] = [
                                 'id' => (int) $s['id'],
-                                'cita_id' => $data['id_cita'] ?? null
+                                'cita_id' => null // No hay cita asociada
                             ];
                         }
                     }

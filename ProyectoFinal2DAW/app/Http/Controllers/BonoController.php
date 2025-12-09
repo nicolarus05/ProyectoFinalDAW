@@ -243,14 +243,23 @@ class BonoController extends Controller
     }
 
     /**
-     * Listar todos los clientes que tienen bonos activos
+     * Listar todos los clientes que tienen bonos activos con servicios disponibles
      */
     public function clientesConBonos()
     {
         $clientes = Cliente::with(['user', 'bonos' => function($query) {
             $query->where('estado', 'activo')
+                  ->where(function($subQuery) {
+                      // Filtrar bonos que tengan al menos un servicio disponible
+                      $subQuery->whereHas('servicios', function($servicioQuery) {
+                          $servicioQuery->whereRaw('cantidad_usada < cantidad_total');
+                      });
+                  })
                   ->with([
                       'plantilla.servicios', 
+                      'servicios' => function($q) {
+                          $q->withPivot('cantidad_total', 'cantidad_usada');
+                      },
                       'usoDetalles.cita', 
                       'usoDetalles.servicio',
                       'empleado.user'
@@ -258,7 +267,10 @@ class BonoController extends Controller
                   ->orderBy('fecha_compra', 'desc');
         }])
         ->whereHas('bonos', function($query) {
-            $query->where('estado', 'activo');
+            $query->where('estado', 'activo')
+                  ->whereHas('servicios', function($servicioQuery) {
+                      $servicioQuery->whereRaw('cantidad_usada < cantidad_total');
+                  });
         })
         ->get();
 

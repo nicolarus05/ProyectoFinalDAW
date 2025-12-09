@@ -13,14 +13,14 @@ class HorarioTrabajo extends Model{
 
     // Constantes para horarios fijos
     // INVIERNO (Septiembre a Junio):
-    // Lunes a Viernes: 9:00 - 20:00
+    // Lunes a Viernes: 8:30 - 20:00
     // Sábado: 8:30 - 14:00
     
     // VERANO (Julio y Agosto):
     // Lunes, Martes, Jueves, Viernes, Sábado: 8:30 - 14:00
     // Miércoles: 8:30 - 19:00
     
-    const HORA_INICIO_INVIERNO_LV = '09:00';  // Lunes a Viernes invierno
+    const HORA_INICIO_INVIERNO_LV = '08:30';  // Lunes a Viernes invierno
     const HORA_FIN_INVIERNO_LV = '20:00';     // Lunes a Viernes invierno
     const HORA_INICIO_INVIERNO_SAB = '08:30'; // Sábado invierno
     const HORA_FIN_INVIERNO_SAB = '14:00';    // Sábado invierno
