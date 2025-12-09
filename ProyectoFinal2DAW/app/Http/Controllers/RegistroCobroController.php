@@ -214,57 +214,128 @@ class RegistroCobroController extends Controller{
         // El bono nuevo se aplicará manualmente más adelante para evitar duplicación
         $seVendeBono = !empty($data['bono_plantilla_id']);
         
-        // Procesar bonos para cada cita (solo si NO se está vendiendo un bono nuevo)
-        if (!$seVendeBono) {
-            foreach ($citasAProcesar as $cita) {
-            if ($cita && $cita->cliente) {
-                // Obtener bonos activos del cliente
-                $bonosActivos = BonoCliente::with('servicios')
-                    ->where('cliente_id', $cita->cliente->id)
-                    ->where('estado', 'activo')
-                    ->where('fecha_expiracion', '>=', Carbon::now())
-                    ->get();
+        // Obtener el cliente para cobros directos sin cita
+        $clienteId = $data['id_cliente'] ?? null;
+        if (!$clienteId && !empty($data['id_cita'])) {
+            $cita = Cita::find($data['id_cita']);
+            $clienteId = $cita ? $cita->id_cliente : null;
+        } elseif (!$clienteId && !empty($data['citas_ids']) && is_array($data['citas_ids'])) {
+            $primeraCita = Cita::find($data['citas_ids'][0]);
+            $clienteId = $primeraCita ? $primeraCita->id_cliente : null;
+        }
+        
+        // Procesar bonos (solo si NO se está vendiendo un bono nuevo)
+        if (!$seVendeBono && $clienteId) {
+            // CASO A: Cobro con citas
+            if ($citasAProcesar->isNotEmpty()) {
+                foreach ($citasAProcesar as $cita) {
+                    if ($cita && $cita->cliente) {
+                        // Obtener bonos activos del cliente
+                        $bonosActivos = BonoCliente::with('servicios')
+                            ->where('cliente_id', $cita->cliente->id)
+                            ->where('estado', 'activo')
+                            ->where('fecha_expiracion', '>=', Carbon::now())
+                            ->get();
 
-                // Iterar sobre los servicios de la cita
-                foreach ($cita->servicios as $servicioCita) {
-                    // Buscar si hay un bono que incluya este servicio
-                    foreach ($bonosActivos as $bono) {
-                        $servicioBono = $bono->servicios()
-                            ->where('servicio_id', $servicioCita->id)
-                            ->wherePivot('cantidad_usada', '<', DB::raw('cantidad_total'))
-                            ->first();
+                        // Iterar sobre los servicios de la cita
+                        foreach ($cita->servicios as $servicioCita) {
+                            // Buscar si hay un bono que incluya este servicio
+                            foreach ($bonosActivos as $bono) {
+                                $servicioBono = $bono->servicios()
+                                    ->where('servicio_id', $servicioCita->id)
+                                    ->wherePivot('cantidad_usada', '<', DB::raw('cantidad_total'))
+                                    ->first();
 
-                        if ($servicioBono) {
-                            // Hay disponibilidad en el bono, deducir 1
-                            $cantidadUsada = $servicioBono->pivot->cantidad_usada + 1;
-                            
-                            $bono->servicios()->updateExistingPivot($servicioCita->id, [
-                                'cantidad_usada' => $cantidadUsada
-                            ]);
+                                if ($servicioBono) {
+                                    // Hay disponibilidad en el bono, deducir 1
+                                    $cantidadUsada = $servicioBono->pivot->cantidad_usada + 1;
+                                    
+                                    $bono->servicios()->updateExistingPivot($servicioCita->id, [
+                                        'cantidad_usada' => $cantidadUsada
+                                    ]);
 
-                            $serviciosAplicados[] = $servicioCita->nombre;
-                            
-                            // Acumular el descuento del servicio cubierto por el bono
-                            $descuentoBonos += $servicioCita->precio;
+                                    $serviciosAplicados[] = $servicioCita->nombre;
+                                    
+                                    // Acumular el descuento del servicio cubierto por el bono
+                                    $descuentoBonos += $servicioCita->precio;
 
-                            // Registrar el uso detallado del bono
-                            BonoUsoDetalle::create([
-                                'bono_cliente_id' => $bono->id,
-                                'cita_id' => $cita->id,
-                                'servicio_id' => $servicioCita->id,
-                                'cantidad_usada' => 1
-                            ]);
+                                    // Registrar el uso detallado del bono
+                                    BonoUsoDetalle::create([
+                                        'bono_cliente_id' => $bono->id,
+                                        'cita_id' => $cita->id,
+                                        'servicio_id' => $servicioCita->id,
+                                        'cantidad_usada' => 1
+                                    ]);
 
-                            // Verificar si el bono está completamente usado
-                            if ($bono->estaCompletamenteUsado()) {
-                                $bono->update(['estado' => 'usado']);
+                                    // Verificar si el bono está completamente usado
+                                    if ($bono->estaCompletamenteUsado()) {
+                                        $bono->update(['estado' => 'usado']);
+                                    }
+
+                                    break; // Ya se aplicó un bono para este servicio, pasar al siguiente
+                                }
                             }
-
-                            break; // Ya se aplicó un bono para este servicio, pasar al siguiente
                         }
                     }
                 }
             }
+            // CASO B: Cobro directo SIN cita (con servicios_data)
+            elseif ($request->has('servicios_data') && !empty($data['servicios_data'])) {
+                $serviciosData = json_decode($data['servicios_data'], true);
+                
+                if (is_array($serviciosData) && count($serviciosData) > 0) {
+                    // Obtener bonos activos del cliente
+                    $bonosActivos = BonoCliente::with('servicios')
+                        ->where('cliente_id', $clienteId)
+                        ->where('estado', 'activo')
+                        ->where('fecha_expiracion', '>=', Carbon::now())
+                        ->get();
+
+                    // Procesar cada servicio del cobro directo
+                    foreach ($serviciosData as $servicioData) {
+                        $servicioId = (int) $servicioData['id'];
+                        $servicio = \App\Models\Servicio::find($servicioId);
+                        
+                        if ($servicio) {
+                            // Buscar si hay un bono que incluya este servicio
+                            foreach ($bonosActivos as $bono) {
+                                $servicioBono = $bono->servicios()
+                                    ->where('servicio_id', $servicioId)
+                                    ->wherePivot('cantidad_usada', '<', DB::raw('cantidad_total'))
+                                    ->first();
+
+                                if ($servicioBono) {
+                                    // Hay disponibilidad en el bono, deducir 1
+                                    $cantidadUsada = $servicioBono->pivot->cantidad_usada + 1;
+                                    
+                                    $bono->servicios()->updateExistingPivot($servicioId, [
+                                        'cantidad_usada' => $cantidadUsada
+                                    ]);
+
+                                    $serviciosAplicados[] = $servicio->nombre;
+                                    
+                                    // Acumular el descuento del servicio cubierto por el bono
+                                    $descuentoBonos += $servicio->precio;
+
+                                    // Registrar el uso detallado del bono (sin cita_id porque no hay cita)
+                                    BonoUsoDetalle::create([
+                                        'bono_cliente_id' => $bono->id,
+                                        'cita_id' => null,
+                                        'servicio_id' => $servicioId,
+                                        'cantidad_usada' => 1
+                                    ]);
+
+                                    // Verificar si el bono está completamente usado
+                                    if ($bono->estaCompletamenteUsado()) {
+                                        $bono->update(['estado' => 'usado']);
+                                    }
+
+                                    break; // Ya se aplicó un bono para este servicio, pasar al siguiente
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -278,18 +349,6 @@ class RegistroCobroController extends Controller{
 
         // --- Calcular deuda si el dinero del cliente es menor que el total ajustado ---
         $deuda = max(0, $totalAjustado - ($data['dinero_cliente'] ?? 0));
-
-        // Obtener el ID del cliente (puede venir de la cita, citas agrupadas o directamente)
-        $clienteId = $data['id_cliente'] ?? null;
-        if (!$clienteId && !empty($data['id_cita'])) {
-            // Cobro individual con cita
-            $cita = Cita::find($data['id_cita']);
-            $clienteId = $cita ? $cita->id_cliente : null;
-        } elseif (!$clienteId && !empty($data['citas_ids']) && is_array($data['citas_ids'])) {
-            // Cobro agrupado - obtener cliente de la primera cita
-            $primeraCita = Cita::find($data['citas_ids'][0]);
-            $clienteId = $primeraCita ? $primeraCita->id_cliente : null;
-        }
 
         // --- Crear el registro principal ---
         $cobro = RegistroCobro::create([
