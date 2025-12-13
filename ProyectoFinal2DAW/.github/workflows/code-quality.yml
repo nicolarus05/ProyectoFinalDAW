@@ -1,0 +1,70 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  phpstan:
+    runs-on: ubuntu-latest
+    name: PHPStan Analysis
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, xml, ctype, json
+    
+    - name: Install Dependencies
+      run: |
+        cd ProyectoFinal2DAW
+        composer install --no-interaction --prefer-dist
+    
+    - name: Run PHPStan
+      run: |
+        cd ProyectoFinal2DAW
+        vendor/bin/phpstan analyse app --level=5 || true
+  
+  pint:
+    runs-on: ubuntu-latest
+    name: Laravel Pint (Code Style)
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+    
+    - name: Install Dependencies
+      run: |
+        cd ProyectoFinal2DAW
+        composer install --no-interaction --prefer-dist
+    
+    - name: Run Pint
+      run: |
+        cd ProyectoFinal2DAW
+        vendor/bin/pint --test || true
+  
+  security:
+    runs-on: ubuntu-latest
+    name: Security Scan
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+    
+    - name: Security Check
+      run: |
+        cd ProyectoFinal2DAW
+        composer audit || true

@@ -27,6 +27,14 @@ return new class extends Migration
         Schema::table('servicios', function (Blueprint $table) {
             $table->softDeletes();
         });
+
+        Schema::table('deudas', function (Blueprint $table) {
+            $table->softDeletes();
+        });
+
+        Schema::table('productos', function (Blueprint $table) {
+            $table->softDeletes();
+        });
     }
 
     public function down(): void
@@ -48,6 +56,14 @@ return new class extends Migration
         });
 
         Schema::table('servicios', function (Blueprint $table) {
+            $table->dropSoftDeletes();
+        });
+
+        Schema::table('deudas', function (Blueprint $table) {
+            $table->dropSoftDeletes();
+        });
+
+        Schema::table('productos', function (Blueprint $table) {
             $table->dropSoftDeletes();
         });
     }

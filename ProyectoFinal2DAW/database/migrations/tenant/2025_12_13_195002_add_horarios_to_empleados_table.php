@@ -11,10 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('empleados', function (Blueprint $table) {
-            $table->json('horario_invierno')->nullable()->after('categoria');
-            $table->json('horario_verano')->nullable()->after('horario_invierno');
-        });
+        if (Schema::hasTable('empleados')) {
+            Schema::table('empleados', function (Blueprint $table) {
+                $table->json('horario_invierno')->nullable()->after('categoria');
+                $table->json('horario_verano')->nullable()->after('horario_invierno');
+            });
+        }
     }
 
     /**

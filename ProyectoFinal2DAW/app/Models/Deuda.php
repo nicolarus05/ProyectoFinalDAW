@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Deuda extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'deudas';
 
@@ -30,6 +31,11 @@ class Deuda extends Model
     public function movimientos()
     {
         return $this->hasMany(MovimientoDeuda::class, 'id_deuda')->orderBy('created_at', 'desc');
+    }
+
+    public function registrosAbonos()
+    {
+        return $this->movimientos()->where('tipo', 'abono');
     }
 
     public function registrarCargo($monto, $nota = null, $fechaVencimiento = null, $idRegistroCobro = null)

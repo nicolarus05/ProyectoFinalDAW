@@ -1,0 +1,82 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: testing
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, xml, ctype, json, sqlite, pdo_sqlite, mysql, pdo_mysql
+        coverage: xdebug
+    
+    - name: Copy .env
+      run: |
+        cd ProyectoFinal2DAW
+        php -r "file_exists('.env') || copy('.env.example', '.env');"
+    
+    - name: Install Dependencies
+      run: |
+        cd ProyectoFinal2DAW
+        composer install --no-interaction --prefer-dist --optimize-autoloader
+    
+    - name: Generate key
+      run: |
+        cd ProyectoFinal2DAW
+        php artisan key:generate
+    
+    - name: Directory Permissions
+      run: |
+        cd ProyectoFinal2DAW
+        chmod -R 777 storage bootstrap/cache
+    
+    - name: Create Database
+      run: |
+        cd ProyectoFinal2DAW
+        php artisan migrate --force
+    
+    - name: Run Unit Tests
+      run: |
+        cd ProyectoFinal2DAW
+        php artisan test tests/Unit --coverage
+    
+    - name: Run Feature Tests - Models
+      run: |
+        cd ProyectoFinal2DAW
+        php artisan test tests/Feature/Models --stop-on-failure
+    
+    - name: Run Feature Tests - Scopes
+      run: |
+        cd ProyectoFinal2DAW
+        php artisan test tests/Feature/ScopesTest.php --stop-on-failure
+    
+    - name: Run Security Tests
+      run: |
+        cd ProyectoFinal2DAW
+        php artisan test tests/Feature/Security --stop-on-failure
+    
+    - name: Upload Coverage Reports
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./ProyectoFinal2DAW/coverage.xml
+        fail_ci_if_error: false

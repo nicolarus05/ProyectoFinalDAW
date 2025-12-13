@@ -12,7 +12,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement("ALTER TABLE citas MODIFY COLUMN estado ENUM('pendiente', 'completada', 'cancelada') NOT NULL DEFAULT 'pendiente'");
+        // Solo ejecutar en MySQL/MariaDB (SQLite no soporta MODIFY COLUMN ni ENUM)
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE citas MODIFY COLUMN estado ENUM('pendiente', 'completada', 'cancelada') NOT NULL DEFAULT 'pendiente'");
+        }
     }
 
     /**
@@ -20,6 +23,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::statement("ALTER TABLE citas MODIFY COLUMN estado ENUM('pendiente', 'completada') NOT NULL DEFAULT 'pendiente'");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE citas MODIFY COLUMN estado ENUM('pendiente', 'completada') NOT NULL DEFAULT 'pendiente'");
+        }
     }
 };

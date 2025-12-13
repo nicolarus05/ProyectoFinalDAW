@@ -12,11 +12,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Primero, convertir estados existentes
-        DB::statement("UPDATE citas SET estado = 'pendiente' WHERE estado IN ('confirmada', 'cancelada')");
-        
-        // Luego, modificar la columna ENUM
-        DB::statement("ALTER TABLE citas MODIFY COLUMN estado ENUM('pendiente', 'completada') NOT NULL DEFAULT 'pendiente'");
+        // Solo ejecutar en MySQL/MariaDB (SQLite no soporta MODIFY COLUMN ni ENUM)
+        if (DB::getDriverName() !== 'sqlite') {
+            // Primero, convertir estados existentes
+            DB::statement("UPDATE citas SET estado = 'pendiente' WHERE estado IN ('confirmada', 'cancelada')");
+            
+            // Luego, modificar la columna ENUM
+            DB::statement("ALTER TABLE citas MODIFY COLUMN estado ENUM('pendiente', 'completada') NOT NULL DEFAULT 'pendiente'");
+        }
     }
 
     /**
@@ -24,7 +27,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Revertir al ENUM original
-        DB::statement("ALTER TABLE citas MODIFY COLUMN estado ENUM('pendiente', 'confirmada', 'cancelada', 'completada') NOT NULL");
+        if (DB::getDriverName() !== 'sqlite') {
+            // Revertir al ENUM original
+            DB::statement("ALTER TABLE citas MODIFY COLUMN estado ENUM('pendiente', 'confirmada', 'cancelada', 'completada') NOT NULL");
+        }
     }
 };

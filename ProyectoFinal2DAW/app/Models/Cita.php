@@ -31,6 +31,10 @@ class Cita extends Model{
         'orden_servicio',
     ];
 
+    protected $casts = [
+        'fecha_hora' => 'datetime',
+    ];
+
     public function cliente(){
         return $this->belongsTo(Cliente::class, 'id_cliente');
     }

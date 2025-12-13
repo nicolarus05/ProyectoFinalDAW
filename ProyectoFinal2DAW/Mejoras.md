@@ -90,22 +90,59 @@
 
 ## 🟣 TESTING - Ampliar Cobertura
 
-### 14. Tests Unitarios para Modelos
-*   **Estado actual:** Solo existen tests de integración.
-*   **Acción:** Añadir tests unitarios para verificar la lógica de modelos y scopes.
-1. Factories para Tests
-*   ✅ Tests de validación creados (17 tests).
-*   ⚠️ **Pendiente:** Crear factories (ClienteFactory, EmpleadoFactory, ServicioFactory, CitaFactory, DeudaFactory).
+### ~~11. Factories para Tests~~ ✅ COMPLETADO
+*   ✅ Creados 7 factories completos: `ClienteFactory`, `EmpleadoFactory`, `ServicioFactory`, `CitaFactory`, `DeudaFactory`, `ProductosFactory`, `UserFactory` (actualizado).
+*   ✅ Implementados estados múltiples por factory (5-9 métodos state por factory).
+*   ✅ Total: ~700 líneas de código para generación de datos de prueba.
+*   ✅ Tests unitarios/integración creados: 93 tests en 6 archivos.
+*   ✅ Configurado entorno de testing con SQLite :memory: database.
+*   ✅ Todos los tests de modelos pasando (93/93).
+*   📄 **Documentado en:** `IMPLEMENTACION_TESTING.md`.
 
-### 12. Tests Unitarios para Modelos
-*   **Estado actual:** Solo existen tests de integración.
-*   **Acción:** Añadir tests unitarios para verificar la lógica de modelos y scopes.
+**Tests de modelos creados:**
+- `ClienteModelTest.php` - 14 tests (relaciones, métodos, factory states)
+- `EmpleadoModelTest.php` - 13 tests (horarios, facturación, categorías)
+- `ServicioModelTest.php` - 15 tests (categorías, precios, estados)
+- `CitaModelTest.php` - 18 tests (estados, fechas, validaciones)
+- `DeudaModelTest.php` - 16 tests (abonos, saldos, validaciones)
+- `ProductosModelTest.php` - 17 tests (stock, categorías, precios)
 
-### 13. Tests de Seguridad
-*   **Acción:** Implementar pruebas para verificar permisos, autenticación y protección de datos.
+### ~~12. Tests de Scopes y Relaciones~~ ✅ COMPLETADO
+*   ✅ Creado `ScopesTest.php` con 14 tests comprehensivos.
+*   ✅ Tests de scopes de Cliente: `conDeuda()`, `tieneDeudaPendiente()`, `deudaPendiente`, `nombreCompleto`.
+*   ✅ Tests de scopes de Cita: `porFecha()`, `porEmpleado()`, `duracionMinutos`, `horaFin`.
+*   ✅ Tests de scopes de HorarioTrabajo: `disponibles()`, `porRangoFechas()`.
+*   ✅ Tests de relaciones complejas many-to-many y HasMany.
 
-### 14. Continuous Integration (CI)
-*   **Acción:** Añadir flujos de **GitHub Actions** para ejecutar tests automáticamente en cada PR/Push.
+### ~~13. Tests de Seguridad~~ ✅ COMPLETADO
+*   ✅ Creados 27 tests de seguridad en 2 archivos.
+*   ✅ `AuthenticationSecurityTest.php` - 17 tests:
+    *   Autenticación y autorización (guest access, profile ownership)
+    *   Protección de datos sensibles (password hiding, remember_token)
+    *   Sanitización de inputs (XSS, SQL injection)
+    *   Seguridad de sesiones (regeneration, invalidation)
+    *   CSRF protection, Rate limiting, Password security
+*   ✅ `TenancySecurityTest.php` - 10 tests:
+    *   Aislamiento de datos por tenant
+    *   Seguridad de base de datos (naming patterns, cross-database queries)
+    *   Aislamiento de usuarios
+    *   Seguridad de file storage
+    *   Protección de configuración
+
+### ~~14. Continuous Integration (CI)~~ ✅ COMPLETADO
+*   ✅ Creado workflow `.github/workflows/tests.yml`:
+    *   MySQL 8.0 service configurado
+    *   PHP 8.2 con extensiones requeridas
+    *   Ejecución separada por categorías (Unit, Models, Scopes, Security)
+    *   Upload de code coverage a Codecov
+*   ✅ Creado workflow `.github/workflows/code-quality.yml`:
+    *   PHPStan nivel 5 para análisis estático
+    *   Laravel Pint para code style
+    *   Composer security audit
+*   ✅ **Total: 134 tests pasando (100%)**
+    *   93 tests de modelos
+    *   14 tests de scopes y relaciones
+    *   27 tests de seguridad
 
 ---
 

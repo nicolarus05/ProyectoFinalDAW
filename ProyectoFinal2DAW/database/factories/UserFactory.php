@@ -24,12 +24,48 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
+            'nombre' => fake()->firstName(),
+            'apellidos' => fake()->lastName(),
+            'telefono' => fake()->phoneNumber(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
+            'genero' => fake()->randomElement(['masculino', 'femenino', 'otro']),
+            'edad' => fake()->numberBetween(18, 70),
+            'rol' => 'cliente',
+            'foto_perfil' => null,
             'remember_token' => Str::random(10),
         ];
+    }
+
+    /**
+     * Usuario con rol de cliente
+     */
+    public function cliente(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'rol' => 'cliente',
+        ]);
+    }
+
+    /**
+     * Usuario con rol de empleado
+     */
+    public function empleado(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'rol' => 'empleado',
+        ]);
+    }
+
+    /**
+     * Usuario con rol de administrador
+     */
+    public function admin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'rol' => 'admin',
+        ]);
     }
 
     /**

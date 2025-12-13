@@ -31,9 +31,11 @@ return new class extends Migration
             $table->timestamps();
         });
 
-
-        DB::statement("ALTER TABLE registro_cobros MODIFY COLUMN metodo_pago ENUM('efectivo','tarjeta','bono','deuda') NOT NULL");
-        DB::statement("UPDATE registro_cobros rc JOIN citas c ON rc.id_cita = c.id SET rc.id_cliente = c.id_cliente, rc.id_empleado = c.id_empleado WHERE rc.id_cliente IS NULL OR rc.id_empleado IS NULL");
+        // Solo ejecutar en MySQL/MariaDB (SQLite no soporta MODIFY COLUMN)
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE registro_cobros MODIFY COLUMN metodo_pago ENUM('efectivo','tarjeta','bono','deuda') NOT NULL");
+            DB::statement("UPDATE registro_cobros rc JOIN citas c ON rc.id_cita = c.id SET rc.id_cliente = c.id_cliente, rc.id_empleado = c.id_empleado WHERE rc.id_cliente IS NULL OR rc.id_empleado IS NULL");
+        }
     }
 
     /**

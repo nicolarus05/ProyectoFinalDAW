@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('productos', function (Blueprint $table) {
-            $table->enum('categoria', ['peluqueria', 'estetica'])->default('peluqueria')->after('nombre');
+            $table->enum('categoria', ['capilar', 'maquillaje', 'unas', 'estetica', 'peluqueria'])->default('estetica')->after('nombre');
         });
     }
 

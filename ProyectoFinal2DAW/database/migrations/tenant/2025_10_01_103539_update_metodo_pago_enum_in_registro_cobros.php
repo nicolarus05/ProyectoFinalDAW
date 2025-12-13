@@ -9,12 +9,17 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Cambiar el enum para incluir 'bono' y 'deuda'
-        DB::statement("ALTER TABLE registro_cobros MODIFY COLUMN metodo_pago ENUM('efectivo', 'tarjeta', 'bono', 'deuda', 'mixto') NOT NULL");
+        // Solo ejecutar en MySQL/MariaDB (SQLite no soporta MODIFY COLUMN ni ENUM)
+        if (DB::getDriverName() !== 'sqlite') {
+            // Cambiar el enum para incluir 'bono' y 'deuda'
+            DB::statement("ALTER TABLE registro_cobros MODIFY COLUMN metodo_pago ENUM('efectivo', 'tarjeta', 'bono', 'deuda', 'mixto') NOT NULL");
+        }
     }
 
     public function down(): void
     {
-        DB::statement("ALTER TABLE registro_cobros MODIFY COLUMN metodo_pago ENUM('efectivo', 'tarjeta') NOT NULL");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE registro_cobros MODIFY COLUMN metodo_pago ENUM('efectivo', 'tarjeta') NOT NULL");
+        }
     }
 };
