@@ -10,6 +10,7 @@ use Illuminate\View\View;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\File;
 use App\Models\User;
+use App\Http\Requests\UpdateProfileRequest;
 
 class ProfileController extends Controller{
     /**
@@ -24,20 +25,11 @@ class ProfileController extends Controller{
     /**
      * Update the user's profile information.
      */
-    public function update(Request $request): RedirectResponse{
+    public function update(UpdateProfileRequest $request): RedirectResponse{
         $user = Auth::user();
 
-        $validated = $request->validate([
-            'nombre'     => 'required|string|max:255',
-            'apellidos'  => 'required|string|max:255',
-            'telefono'   => 'nullable|string|max:20',
-            'email'      => 'required|email|max:255|unique:users,email,' . $user->id,
-            'genero'     => 'required|string|in:masculino,femenino,otro',
-            'edad'       => 'nullable|integer|min:0',
-            'foto_perfil' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'current_password' => 'nullable|string',
-            'password' => 'nullable|confirmed|min:8',
-        ]);
+        // Los datos ya vienen validados y sanitizados del Form Request
+        $validated = $request->validated();
 
         $user->nombre = $validated['nombre'];
         $user->apellidos = $validated['apellidos'];

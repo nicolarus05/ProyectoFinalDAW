@@ -13,6 +13,7 @@ use App\Models\BonoUsoDetalle;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Http\Requests\StoreRegistroCobroRequest;
+use App\Services\CacheService;
 
 
 class RegistroCobroController extends Controller{
@@ -24,11 +25,14 @@ class RegistroCobroController extends Controller{
         $fecha = $request->input('fecha', now()->format('Y-m-d'));
         $fechaCarbon = \Carbon\Carbon::parse($fecha);
         
+        // Optimizar eager loading - cargar todas las relaciones necesarias en una sola consulta
         $cobros = RegistroCobro::with([
-            'cita.cliente.user',
-            'cita.empleado.user',
-            'cita.servicios',
-            'citasAgrupadas.servicios',
+            'cita' => function($query) {
+                $query->with(['cliente.user', 'empleado.user', 'servicios']);
+            },
+            'citasAgrupadas' => function($query) {
+                $query->with('servicios');
+            },
             'servicios',
             'cliente.user',
             'empleado.user',
@@ -64,11 +68,11 @@ class RegistroCobroController extends Controller{
      */
     public function createDirect(Request $request){
         $clientes = Cliente::with(['user', 'deuda'])->get();
-        $empleados = \App\Models\Empleado::with('user')->get();
-        $servicios = \App\Models\Servicio::where('activo', true)->get();
-        $bonosPlantilla = \App\Models\BonoPlantilla::with('servicios')
-            ->where('activo', true)
-            ->get();
+        
+        // Usar caché para datos maestros
+        $empleados = CacheService::getEmpleados();
+        $servicios = CacheService::getServiciosActivos();
+        $bonosPlantilla = CacheService::getBonosPlantilla();
         
         $cita = null;
         $citas = collect(); // Colección vacía por defecto

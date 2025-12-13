@@ -6,8 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\HorarioTrabajo;
 use App\Models\Empleado;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
-
+use Illuminate\Support\Facades\DB;use App\Services\CacheService;
 class HorarioTrabajoController extends Controller{
     /**
      * Display a listing of the resource.

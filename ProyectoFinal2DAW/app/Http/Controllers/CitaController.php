@@ -9,6 +9,7 @@ use App\Models\Servicio;
 use App\Models\Cita;
 use App\Models\HorarioTrabajo;
 use App\Services\NotificacionEmailService;
+use App\Services\CacheService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -113,8 +114,9 @@ class CitaController extends Controller{
     public function create(){
         $user = Auth::user();
 
-        $empleados = Empleado::all();
-        $servicios = Servicio::all();
+        // Usar caché para empleados y servicios
+        $empleados = CacheService::getEmpleados();
+        $servicios = CacheService::getServiciosActivos();
 
         // Si es admin o empleado, necesita poder elegir un cliente
         if ($user->rol === 'admin' || $user->rol === 'empleado') {
@@ -314,9 +316,10 @@ class CitaController extends Controller{
      * Show the form for editing the specified resource.
      */
     public function edit(Cita $cita){
-        $clientes = Cliente::all();
-        $empleados = Empleado::all();
-        $servicios = Servicio::all();
+        $clientes = Cliente::with('user')->get();
+        // Usar caché para empleados y servicios
+        $empleados = CacheService::getEmpleados();
+        $servicios = CacheService::getServiciosActivos();
         return view('citas.edit', compact('cita','clientes','empleados','servicios'));
     }
 
