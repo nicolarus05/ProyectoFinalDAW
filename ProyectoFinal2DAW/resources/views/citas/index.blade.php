@@ -321,6 +321,31 @@
                                     <div class="cita-info">
                                         <div class="cita-cliente">
                                             {{ $cita->cliente && $cita->cliente->user ? $cita->cliente->user->nombre . ' ' . $cita->cliente->user->apellidos : 'Cliente no disponible' }}
+                                            
+                                            @php
+                                                // Verificar si el cliente tiene bonos disponibles para los servicios de esta cita
+                                                $tieneBono = false;
+                                                if ($cita->cliente && $cita->cliente->bonos) {
+                                                    foreach ($cita->cliente->bonos as $bono) {
+                                                        if ($bono->estado === 'activo') {
+                                                            foreach ($cita->servicios as $servicio) {
+                                                                $servicioEnBono = $bono->servicios->firstWhere('id', $servicio->id);
+                                                                if ($servicioEnBono) {
+                                                                    $disponible = $servicioEnBono->pivot->cantidad_total - $servicioEnBono->pivot->cantidad_usada;
+                                                                    if ($disponible > 0) {
+                                                                        $tieneBono = true;
+                                                                        break 2;
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            @endphp
+                                            
+                                            @if($tieneBono)
+                                                <span title="Este cliente tiene bono disponible para este servicio" style="display: inline-block; margin-left: 4px; font-size: 14px;">🎫</span>
+                                            @endif
                                         </div>
                                         
                                         <div class="cita-servicio">

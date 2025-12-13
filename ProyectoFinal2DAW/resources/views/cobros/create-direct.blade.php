@@ -14,6 +14,69 @@
         .animate-fade-in {
             animation: fadeIn 0.2s ease-out;
         }
+        
+        /* Estilos para badges de bonos */
+        .badge-bono-verde {
+            background-color: #10b981;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .badge-bono-amarillo {
+            background-color: #f59e0b;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .badge-bono-rojo {
+            background-color: #ef4444;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .7; }
+        }
+        
+        .bono-card {
+            background: white;
+            border: 2px solid #a78bfa;
+            border-radius: 8px;
+            padding: 12px;
+            transition: all 0.2s;
+        }
+        
+        .bono-card:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .bono-servicio-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 0.875rem;
+        }
     </style>
 </head>
 <body class="bg-gray-100 p-8">
@@ -87,7 +150,7 @@
                     <input type="text" id="buscar-cliente" class="w-full border rounded px-3 py-2 mb-2" placeholder="Escribe nombre o apellido..." oninput="filtrarClientes()">
                     
                     <label for="id_cliente" class="block font-semibold mb-1">Seleccionar cliente:</label>
-                    <select name="id_cliente" id="id_cliente" class="w-full border rounded px-3 py-2" onchange="actualizarDeudaCliente()">
+                    <select name="id_cliente" id="id_cliente" class="w-full border rounded px-3 py-2" onchange="actualizarDeudaCliente(); mostrarPanelBonos()">
                         <option value="">-- Sin cliente --</option>
                         @foreach($clientes as $cliente)
                             @php
@@ -108,6 +171,22 @@
                     </select>
                 </div>
                 <p id="deuda-info" class="text-sm text-gray-600 mt-2"></p>
+                
+                <!-- Panel informativo de bonos del cliente -->
+                <div id="panel-bonos-cliente" class="hidden mt-4 bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-300 rounded-lg p-4 shadow-md">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-lg font-bold text-purple-800 flex items-center">
+                            <span class="text-2xl mr-2">🎫</span>
+                            Bonos Activos del Cliente
+                        </h3>
+                        <button type="button" onclick="document.getElementById('panel-bonos-cliente').classList.add('hidden')" class="text-gray-500 hover:text-gray-700">
+                            ✕
+                        </button>
+                    </div>
+                    <div id="lista-bonos-cliente" class="space-y-3">
+                        <!-- Se llenará dinámicamente -->
+                    </div>
+                </div>
             </div>
 
             <!-- Empleado -->
@@ -405,8 +484,15 @@
                     </thead>
                     <tbody id="servicios-tbody-modal">
                         @foreach($servicios as $servicio)
-                        <tr class="border-b hover:bg-gray-50 servicio-row" data-nombre="{{ strtolower($servicio->nombre) }}">
-                            <td class="p-2">{{ $servicio->nombre }}</td>
+                        <tr class="border-b hover:bg-gray-50 servicio-row" data-nombre="{{ strtolower($servicio->nombre) }}" data-servicio-id="{{ $servicio->id }}">
+                            <td class="p-2">
+                                <div class="flex items-center justify-between">
+                                    <span>{{ $servicio->nombre }}</span>
+                                    <span class="badge-bono-disponible hidden ml-2" data-servicio-id="{{ $servicio->id }}">
+                                        <!-- Badge dinámico -->
+                                    </span>
+                                </div>
+                            </td>
                             <td class="p-2 text-right">€{{ number_format($servicio->precio, 2) }}</td>
                             <td class="p-2">
                                 <button type="button" onclick="addService({{ $servicio->id }}, '{{ $servicio->nombre }}', {{ $servicio->precio }})" class="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 text-sm">
@@ -681,6 +767,157 @@ window.actualizarDeudaCliente = function() {
         info.textContent = '✓ Sin deudas pendientes';
         info.className = 'text-sm text-green-600 mt-2';
     }
+}
+
+// Mostrar panel de bonos del cliente y actualizar badges
+window.mostrarPanelBonos = function() {
+    const clienteId = document.getElementById('id_cliente').value;
+    const panelBonos = document.getElementById('panel-bonos-cliente');
+    const listaBonos = document.getElementById('lista-bonos-cliente');
+    
+    // Ocultar panel si no hay cliente seleccionado
+    if (!clienteId) {
+        panelBonos.classList.add('hidden');
+        ocultarTodosBadges();
+        return;
+    }
+    
+    // Buscar bonos del cliente
+    const bonosData = @json($bonosCliente ?? collect());
+    
+    // Filtrar bonos del cliente actual
+    const bonosCliente = bonosData.filter(bono => bono.cliente_id == clienteId);
+    
+    if (bonosCliente.length === 0) {
+        panelBonos.classList.add('hidden');
+        ocultarTodosBadges();
+        return;
+    }
+    
+    // Mostrar panel
+    panelBonos.classList.remove('hidden');
+    
+    // Construir contenido del panel
+    let html = '';
+    bonosCliente.forEach(bono => {
+        const plantilla = bono.plantilla;
+        const servicios = bono.servicios || [];
+        
+        // Calcular fecha de vencimiento
+        const fechaExp = new Date(bono.fecha_expiracion);
+        const hoy = new Date();
+        const diasRestantes = Math.ceil((fechaExp - hoy) / (1000 * 60 * 60 * 24));
+        
+        // Determinar color de alerta
+        let alertaVencimiento = '';
+        if (diasRestantes <= 7 && diasRestantes > 0) {
+            alertaVencimiento = '<span class="text-red-600 font-semibold">⚠️ Vence en ' + diasRestantes + ' días</span>';
+        } else if (diasRestantes <= 0) {
+            alertaVencimiento = '<span class="text-red-700 font-bold">❌ VENCIDO</span>';
+        } else {
+            alertaVencimiento = '<span class="text-gray-600">⏰ Vence: ' + fechaExp.toLocaleDateString('es-ES') + '</span>';
+        }
+        
+        html += '<div class="bono-card">';
+        html += '<div class="flex justify-between items-start mb-2">';
+        html += '<h4 class="font-bold text-purple-700">' + plantilla.nombre + '</h4>';
+        html += '<span class="text-xs">' + alertaVencimiento + '</span>';
+        html += '</div>';
+        html += '<div class="text-sm text-gray-600 space-y-1">';
+        
+        servicios.forEach(servicio => {
+            const usado = servicio.pivot.cantidad_usada;
+            const total = servicio.pivot.cantidad_total;
+            const restante = total - usado;
+            
+            let colorTexto = 'text-green-600';
+            if (restante <= 2 && restante > 0) {
+                colorTexto = 'text-yellow-600';
+            } else if (restante === 0) {
+                colorTexto = 'text-gray-400';
+            }
+            
+            html += '<div class="bono-servicio-item">';
+            html += '<span>• ' + servicio.nombre + '</span>';
+            html += '<span class="font-semibold ' + colorTexto + '">' + restante + '/' + total + ' disponibles</span>';
+            html += '</div>';
+        });
+        
+        html += '</div>';
+        html += '</div>';
+    });
+    
+    listaBonos.innerHTML = html;
+    
+    // Actualizar badges en servicios
+    actualizarBadgesBonos(bonosCliente);
+}
+
+// Actualizar badges de bonos disponibles en servicios
+function actualizarBadgesBonos(bonosCliente) {
+    // Primero ocultar todos los badges
+    ocultarTodosBadges();
+    
+    // Crear un mapa de servicios disponibles
+    const serviciosDisponibles = {};
+    
+    bonosCliente.forEach(bono => {
+        const servicios = bono.servicios || [];
+        servicios.forEach(servicio => {
+            const restante = servicio.pivot.cantidad_total - servicio.pivot.cantidad_usada;
+            if (restante > 0) {
+                if (!serviciosDisponibles[servicio.id]) {
+                    serviciosDisponibles[servicio.id] = {
+                        cantidad: 0,
+                        diasVencimiento: null
+                    };
+                }
+                serviciosDisponibles[servicio.id].cantidad += restante;
+                
+                // Calcular días hasta vencimiento
+                const fechaExp = new Date(bono.fecha_expiracion);
+                const hoy = new Date();
+                const dias = Math.ceil((fechaExp - hoy) / (1000 * 60 * 60 * 24));
+                
+                if (serviciosDisponibles[servicio.id].diasVencimiento === null || dias < serviciosDisponibles[servicio.id].diasVencimiento) {
+                    serviciosDisponibles[servicio.id].diasVencimiento = dias;
+                }
+            }
+        });
+    });
+    
+    // Mostrar badges en cada servicio
+    Object.keys(serviciosDisponibles).forEach(servicioId => {
+        const badge = document.querySelector(`.badge-bono-disponible[data-servicio-id="${servicioId}"]`);
+        if (badge) {
+            const info = serviciosDisponibles[servicioId];
+            const cantidad = info.cantidad;
+            const dias = info.diasVencimiento;
+            
+            // Determinar color del badge
+            let claseColor = 'badge-bono-verde';
+            let icono = '🎫';
+            
+            if (dias <= 7 && dias > 0) {
+                claseColor = 'badge-bono-rojo';
+                icono = '⚠️';
+            } else if (cantidad <= 2) {
+                claseColor = 'badge-bono-amarillo';
+                icono = '⚠️';
+            }
+            
+            badge.innerHTML = `<span class="${claseColor}">${icono} ${cantidad} ${cantidad === 1 ? 'uso' : 'usos'}</span>`;
+            badge.classList.remove('hidden');
+        }
+    });
+}
+
+// Ocultar todos los badges
+function ocultarTodosBadges() {
+    document.querySelectorAll('.badge-bono-disponible').forEach(badge => {
+        badge.classList.add('hidden');
+        badge.innerHTML = '';
+    });
 }
 
 // Filtrar clientes
@@ -1098,6 +1335,7 @@ calcularTotales();
 // Actualizar deuda del cliente si está pre-seleccionado
 @if(isset($cita) || (isset($citas) && $citas->count() > 0))
     actualizarDeudaCliente();
+    mostrarPanelBonos();  // Mostrar panel de bonos si hay cliente
 @endif
 
 // --- Funciones para el modal de alertas de bonos ---

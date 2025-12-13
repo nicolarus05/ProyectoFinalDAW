@@ -64,7 +64,12 @@ class CitaController extends Controller{
                 abort(403, 'No tienes permiso para acceder a esta sección.');
             }
             // El empleado ve todas las citas del día (no solo las suyas, excluir canceladas)
-            $citas = Cita::with(['cliente.user', 'empleado.user', 'servicios'])
+            $citas = Cita::with(['cliente.user', 'cliente.bonos' => function($query) {
+                    $query->where('estado', 'activo')
+                          ->with(['servicios' => function($q) {
+                              $q->withPivot('cantidad_total', 'cantidad_usada');
+                          }]);
+                }, 'empleado.user', 'servicios'])
                 ->where('estado', '!=', 'cancelada')
                 ->porFecha($fecha)
                 ->orderBy('fecha_hora')
@@ -73,7 +78,12 @@ class CitaController extends Controller{
 
         } else if ($user->rol === 'admin') {
             // El admin ve todas las citas del día (excluir canceladas)
-            $citas = Cita::with(['cliente.user', 'empleado.user', 'servicios'])
+            $citas = Cita::with(['cliente.user', 'cliente.bonos' => function($query) {
+                    $query->where('estado', 'activo')
+                          ->with(['servicios' => function($q) {
+                              $q->withPivot('cantidad_total', 'cantidad_usada');
+                          }]);
+                }, 'empleado.user', 'servicios'])
                 ->where('estado', '!=', 'cancelada')
                 ->porFecha($fecha)
                 ->orderBy('fecha_hora')
