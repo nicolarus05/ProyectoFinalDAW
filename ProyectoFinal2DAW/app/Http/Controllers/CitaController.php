@@ -12,6 +12,8 @@ use App\Services\NotificacionEmailService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use App\Http\Requests\StoreCitaRequest;
+use App\Http\Requests\UpdateCitaRequest;
 
 class CitaController extends Controller{
     /**
@@ -130,15 +132,9 @@ class CitaController extends Controller{
      * Store a newly created resource in storage.
      */
 
-    public function store(Request $request){
-        $data = $request->validate([
-            'fecha_hora' => 'required|date|after_or_equal:today',
-            'notas_adicionales' => 'nullable|string|max:255',
-            'id_cliente' => 'required|exists:clientes,id',
-            'id_empleado' => 'required|exists:empleados,id',
-            'servicios' => 'required|array|min:1',
-            'servicios.*' => 'distinct|exists:servicios,id',
-        ]);
+    public function store(StoreCitaRequest $request){
+        // Los datos ya vienen validados y sanitizados del Form Request
+        $data = $request->validated();
 
         // Establecer estado automáticamente en "pendiente"
         $data['estado'] = 'pendiente';
@@ -327,10 +323,9 @@ class CitaController extends Controller{
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Cita $cita){
-        $data = $request->validate([
-            'estado' => 'required|in:pendiente,completada,cancelada',
-        ]);
+    public function update(UpdateCitaRequest $request, Cita $cita){
+        // Los datos ya vienen validados y sanitizados del Form Request
+        $data = $request->validated();
 
         $estadoAnterior = $cita->estado;
         $cita->update($data);

@@ -67,3 +67,62 @@ if (!function_exists('vite_asset')) {
         return $html;
     }
 }
+
+/**
+ * Sanitiza entrada HTML para prevenir XSS
+ * 
+ * @param string|null $html El HTML a sanitizar
+ * @param string|null $allowedTags Etiquetas HTML permitidas (formato: '<p><br><strong>')
+ * @return string El HTML sanitizado
+ */
+if (!function_exists('sanitize_html')) {
+    function sanitize_html($html, $allowedTags = null)
+    {
+        if ($html === null) {
+            return '';
+        }
+        
+        if ($allowedTags === null) {
+            // Por defecto, eliminar todas las etiquetas
+            return strip_tags($html);
+        }
+        
+        return strip_tags($html, $allowedTags);
+    }
+}
+
+/**
+ * Sanitiza input de texto simple
+ * Útil para nombres, emails, etc.
+ * 
+ * @param string|null $input El texto a sanitizar
+ * @return string El texto sanitizado
+ */
+if (!function_exists('sanitize_input')) {
+    function sanitize_input($input)
+    {
+        if ($input === null) {
+            return '';
+        }
+        
+        return htmlspecialchars(trim($input), ENT_QUOTES, 'UTF-8');
+    }
+}
+
+/**
+ * Sanitiza y valida un número de teléfono
+ * 
+ * @param string|null $phone El teléfono a sanitizar
+ * @return string El teléfono sanitizado
+ */
+if (!function_exists('sanitize_phone')) {
+    function sanitize_phone($phone)
+    {
+        if ($phone === null) {
+            return '';
+        }
+        
+        // Permitir solo números, espacios, guiones, paréntesis y +
+        return preg_replace('/[^0-9+\s\-()]/', '', trim($phone));
+    }
+}

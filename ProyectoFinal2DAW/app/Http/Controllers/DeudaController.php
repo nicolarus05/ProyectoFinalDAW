@@ -6,6 +6,7 @@ use App\Models\Cliente;
 use App\Models\Deuda;
 use App\Models\MovimientoDeuda;
 use Illuminate\Http\Request;
+use App\Http\Requests\RegistrarPagoDeudaRequest;
 
 class DeudaController extends Controller
 {
@@ -46,13 +47,10 @@ class DeudaController extends Controller
         return view('deudas.pago', compact('cliente', 'deuda'));
     }
 
-    public function registrarPago(Request $request, Cliente $cliente)
+    public function registrarPago(RegistrarPagoDeudaRequest $request, Cliente $cliente)
     {
-        $request->validate([
-            'monto' => 'required|numeric|min:0.01',
-            'metodo_pago' => 'required|in:efectivo,tarjeta,transferencia',
-            'nota' => 'nullable|string|max:500',
-        ]);
+        // Los datos ya vienen validados y sanitizados del Form Request
+        $validated = $request->validated();
 
         $deuda = $cliente->obtenerDeuda();
 
@@ -67,7 +65,7 @@ class DeudaController extends Controller
                 ->with('error', 'Este cliente no tiene deudas pendientes.');
         }
 
-        $monto = $request->monto;
+        $monto = $validated['monto'];
 
         if ($monto > $deuda->saldo_pendiente) {
             if ($request->expectsJson()) {
@@ -82,9 +80,9 @@ class DeudaController extends Controller
         }
 
         $deuda->registrarAbono(
-            $monto,
-            $request->metodo_pago,
-            $request->nota
+            $validated['monto'],
+            $validated['metodo_pago'],
+            $validated['nota'] ?? null
         );
 
         $mensaje = $deuda->saldo_pendiente > 0

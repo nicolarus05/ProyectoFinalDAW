@@ -4,6 +4,8 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Support\Facades\Route;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
+use Illuminate\Http\Request;
 
 $app = Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -27,6 +29,9 @@ $app = Application::configure(basePath: dirname(__DIR__))
         
         // Agregar CORS headers a los assets estáticos para multi-tenancy
         $middleware->append(\App\Http\Middleware\AddCorsHeadersToAssets::class);
+        
+        // Rate Limiting - Protección contra fuerza bruta
+        $middleware->throttleApi();
     })
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
@@ -34,7 +39,19 @@ $app = Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        // Personalizar respuesta de Rate Limiting
+        $exceptions->render(function (TooManyRequestsHttpException $e, Request $request) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Demasiadas peticiones. Por favor, espera un momento.',
+                    'retry_after' => $e->getHeaders()['Retry-After'] ?? 60
+                ], 429);
+            }
+
+            return response()->view('errors.429', [
+                'retry_after' => $e->getHeaders()['Retry-After'] ?? 60
+            ], 429);
+        });
     })->create();
 
 // Registrar alias de middleware personalizado

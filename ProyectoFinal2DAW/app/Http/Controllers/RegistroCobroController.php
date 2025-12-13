@@ -12,6 +12,7 @@ use App\Models\BonoCliente;
 use App\Models\BonoUsoDetalle;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Http\Requests\StoreRegistroCobroRequest;
 
 
 class RegistroCobroController extends Controller{
@@ -118,31 +119,9 @@ class RegistroCobroController extends Controller{
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request){
-        // --- Validación base ---
-        $data = $request->validate([
-            'id_cita' => 'nullable|exists:citas,id',
-            'citas_ids' => 'nullable|array', // Para cobro agrupado
-            'citas_ids.*' => 'exists:citas,id',
-            'id_cliente' => 'nullable|exists:clientes,id',
-            'id_empleado' => 'nullable|exists:empleados,id',
-            'coste' => 'required|numeric|min:0',
-            'descuento_porcentaje' => 'nullable|numeric|min:0',
-            'descuento_euro' => 'nullable|numeric|min:0',
-            'descuento_servicios_porcentaje' => 'nullable|numeric|min:0',
-            'descuento_servicios_euro' => 'nullable|numeric|min:0',
-            'descuento_productos_porcentaje' => 'nullable|numeric|min:0',
-            'descuento_productos_euro' => 'nullable|numeric|min:0',
-            'total_final' => 'required|numeric|min:0',
-            'metodo_pago' => 'required|in:efectivo,tarjeta,mixto',
-            'dinero_cliente' => 'nullable|numeric|min:0',
-            'cambio' => 'nullable|numeric|min:0',
-            'pago_efectivo' => 'nullable|numeric|min:0',
-            'pago_tarjeta' => 'nullable|numeric|min:0',
-            'productos_data' => 'nullable|json',
-            'servicios_data' => 'nullable|json',
-            'bono_plantilla_id' => 'nullable|exists:bonos_plantilla,id',
-        ]);
+    public function store(StoreRegistroCobroRequest $request){
+        // Los datos ya vienen validados y sanitizados del Form Request
+        $data = $request->validated();
 
         // Validar que al menos tenga una cita, múltiples citas O un cliente
         if (empty($data['id_cita']) && empty($data['citas_ids']) && empty($data['id_cliente'])) {

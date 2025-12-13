@@ -34,7 +34,7 @@ Route::middleware([
         ->middleware('guest')
         ->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])
-        ->middleware('guest')
+        ->middleware(['guest', 'throttle:5,1'])
         ->name('login.post');
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
         ->middleware('auth')
@@ -44,7 +44,7 @@ Route::middleware([
         ->middleware('guest')
         ->name('password.request');
     Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])
-        ->middleware('guest')
+        ->middleware(['guest', 'throttle:5,1'])
         ->name('password.email');
     Route::get('/reset-password/{token}', [NewPasswordController::class, 'create'])
         ->middleware('guest')
@@ -136,17 +136,17 @@ Route::middleware([
         Route::get('clientes/{cliente}/historial', [ClienteController::class, 'historial'])->name('clientes.historial');
 
         // Citas - Rutas específicas antes del resource
-        Route::post('citas/mover', [CitaController::class, 'moverCita'])->name('citas.mover');
-        Route::post('citas/marcar-completada', [CitaController::class, 'marcarCompletada'])->name('citas.marcarCompletada');
-        Route::post('citas/actualizar-duracion', [CitaController::class, 'actualizarDuracion'])->name('citas.actualizarDuracion');
-        Route::post('citas/{cita}/actualizar-notas', [CitaController::class, 'actualizarNotas'])->name('citas.actualizarNotas');
-        Route::post('citas/{cita}/completar-y-cobrar', [CitaController::class, 'completarYCobrar'])->name('citas.completarYCobrar');
-        Route::post('citas/{cita}/cancelar', [CitaController::class, 'cancelar'])->name('citas.cancelar');
-        Route::resource('citas', CitaController::class)->names('citas');
+        Route::post('citas/mover', [CitaController::class, 'moverCita'])->name('citas.mover')->middleware('throttle:60,1');
+        Route::post('citas/marcar-completada', [CitaController::class, 'marcarCompletada'])->name('citas.marcarCompletada')->middleware('throttle:60,1');
+        Route::post('citas/actualizar-duracion', [CitaController::class, 'actualizarDuracion'])->name('citas.actualizarDuracion')->middleware('throttle:60,1');
+        Route::post('citas/{cita}/actualizar-notas', [CitaController::class, 'actualizarNotas'])->name('citas.actualizarNotas')->middleware('throttle:60,1');
+        Route::post('citas/{cita}/completar-y-cobrar', [CitaController::class, 'completarYCobrar'])->name('citas.completarYCobrar')->middleware('throttle:60,1');
+        Route::post('citas/{cita}/cancelar', [CitaController::class, 'cancelar'])->name('citas.cancelar')->middleware('throttle:60,1');
+        Route::resource('citas', CitaController::class)->names('citas')->middleware('throttle:60,1');
 
         // Cobros
         Route::get('cobros/direct/create', [RegistroCobroController::class, 'createDirect'])->name('cobros.create.direct');
-        Route::resource('cobros', RegistroCobroController::class)->names('cobros');
+        Route::resource('cobros', RegistroCobroController::class)->names('cobros')->middleware('throttle:30,1');
         
         // Deudas (admin y empleado)
         Route::prefix('deudas')->name('deudas.')->group(function () {

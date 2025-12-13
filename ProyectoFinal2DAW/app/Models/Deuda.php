@@ -44,7 +44,7 @@ class Deuda extends Model
             'monto' => $monto,
             'nota' => $nota,
             'fecha_vencimiento' => $fechaVencimiento,
-            'usuario_registro_id' => auth()->id(),
+            'usuario_registro_id' => auth()->id() ?? 1,
         ]);
     }
 
@@ -62,7 +62,7 @@ class Deuda extends Model
             'monto' => $monto,
             'metodo_pago' => $metodoPago,
             'nota' => $nota,
-            'usuario_registro_id' => auth()->id(),
+            'usuario_registro_id' => auth()->id() ?? 1,
         ]);
     }
 

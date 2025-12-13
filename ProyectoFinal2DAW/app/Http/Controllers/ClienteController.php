@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Cliente;
 use App\Models\user;
+use App\Http\Requests\StoreClienteRequest;
+use App\Http\Requests\UpdateClienteRequest;
 
 class ClienteController extends Controller{
 
@@ -32,40 +34,30 @@ class ClienteController extends Controller{
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request){
-        // Validar datos del user y del cliente
-        $request->validate([
-            'nombre' => 'required|string|max:255',
-            'apellidos' => 'required|string|max:255',
-            'telefono' => 'nullable|string|max:20',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:6',
-            'genero' => 'required|string|max:20',
-            'edad' => 'required|integer|min:0',
-            'direccion' => 'required|string|max:255',
-            'notas_adicionales' => 'nullable|string|max:255',
-        ]);
+    public function store(StoreClienteRequest $request){
+        // Los datos ya vienen validados y sanitizados del Form Request
+        $validated = $request->validated();
 
         // Asignar fecha de registro automáticamente
         $fechaRegistro = $request->fecha_registro ?? date('Y-m-d');
 
-        // Crear user
+        // Crear user con datos validados y sanitizados
         $user = user::create([
-            'nombre' => $request->input('nombre'),
-            'apellidos' => $request->input('apellidos'),
-            'telefono' => $request->input('telefono'),
-            'email' => $request->input('email'),
-            'password' => bcrypt($request->input('password')),
-            'genero' => $request->input('genero'),
-            'edad' => $request->input('edad'),
+            'nombre' => $validated['nombre'],
+            'apellidos' => $validated['apellidos'],
+            'telefono' => $validated['telefono'] ?? null,
+            'email' => $validated['email'],
+            'password' => bcrypt($validated['password']),
+            'genero' => $validated['genero'],
+            'edad' => $validated['edad'],
             'rol' => 'cliente',
         ]);
         
         // Crear cliente
         $cliente = Cliente::create([
             'id_user' => $user->id,
-            'direccion' => $request->input('direccion'),
-            'notas_adicionales' => $request->input('notas_adicionales'),
+            'direccion' => $validated['direccion'],
+            'notas_adicionales' => $validated['notas_adicionales'] ?? null,
             'fecha_registro' => $fechaRegistro,
         ]);
 
@@ -104,34 +96,23 @@ class ClienteController extends Controller{
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Cliente $cliente){
-        // Validar datos del user y del cliente
-        $request->validate([
-            'nombre' => 'required|string|max:255',
-            'apellidos' => 'required|string|max:255',
-            'telefono' => 'nullable|string|max:20', 
-            'email' => 'required|email|unique:users,email,' . $cliente->user->id,
-            'genero' => 'required|string|max:20',
-            'edad' => 'required|integer|min:0',
-            'direccion' => 'required|string|max:255',
-            'notas_adicionales' => 'nullable|string|max:255',
-            'fecha_registro' => 'required|date',
-            'password' => 'nullable|string|min:8',
-        ]);
+    public function update(UpdateClienteRequest $request, Cliente $cliente){
+        // Los datos ya vienen validados y sanitizados del Form Request
+        $validated = $request->validated();
 
         // Preparar datos para actualizar el user
         $userData = [
-            'nombre' => $request->input('nombre'),
-            'apellidos' => $request->input('apellidos'),
-            'telefono' => $request->input('telefono'),
-            'email' => $request->input('email'),
-            'genero' => $request->input('genero'),
-            'edad' => $request->input('edad'),
+            'nombre' => $validated['nombre'],
+            'apellidos' => $validated['apellidos'],
+            'telefono' => $validated['telefono'] ?? null,
+            'email' => $validated['email'],
+            'genero' => $validated['genero'],
+            'edad' => $validated['edad'],
         ];
 
         // Si se proporciona contraseña, agregarla
-        if ($request->filled('password')) {
-            $userData['password'] = bcrypt($request->input('password'));
+        if (!empty($validated['password'])) {
+            $userData['password'] = bcrypt($validated['password']);
         }
 
         // Actualizar el user relacionado
@@ -139,9 +120,9 @@ class ClienteController extends Controller{
 
         // Actualizar los datos del cliente
         $cliente->update([
-            'direccion' => $request->input('direccion'),
-            'notas_adicionales' => $request->input('notas_adicionales'),
-            'fecha_registro' => $request->input('fecha_registro'),
+            'direccion' => $validated['direccion'],
+            'notas_adicionales' => $validated['notas_adicionales'] ?? null,
+            'fecha_registro' => $validated['fecha_registro'],
         ]);
 
         return redirect()->route('clientes.index')->with('success', 'El Cliente ha sido actualizado con éxito.');
