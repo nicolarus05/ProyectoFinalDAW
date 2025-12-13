@@ -14,9 +14,18 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Http\Requests\StoreRegistroCobroRequest;
 use App\Services\CacheService;
-
+use App\Http\Resources\RegistroCobroResource;
+use App\Traits\HasFlashMessages;
+use App\Traits\HasCrudMessages;
+use App\Traits\HasJsonResponses;
 
 class RegistroCobroController extends Controller{
+    use HasFlashMessages, HasCrudMessages, HasJsonResponses;
+
+    protected function getResourceName(): string
+    {
+        return 'cobro';
+    }
     /**
      * Display a listing of the resource.
      */
@@ -701,9 +710,7 @@ class RegistroCobroController extends Controller{
             $mensaje .= ' ¡Pago completo con bono!';
         }
 
-        return redirect()
-            ->route('cobros.index')
-            ->with('success', $mensaje);
+        return $this->redirectWithSuccess('cobros.index', $mensaje);
     }
 
 
@@ -773,7 +780,7 @@ class RegistroCobroController extends Controller{
             'pago_tarjeta' => $data['metodo_pago'] === 'mixto' ? ($data['pago_tarjeta'] ?? 0) : null,
         ]);
 
-        return redirect()->route('cobros.index')->with('success', 'Cobro actualizado correctamente.');
+        return $this->redirectWithSuccess('cobros.index', $this->getUpdatedMessage());
     }
 
 
@@ -789,6 +796,6 @@ class RegistroCobroController extends Controller{
         }
 
         $cobro->delete();
-        return redirect()->route('cobros.index')->with('success', 'Cobro eliminado y stock restaurado.');
+        return $this->redirectWithSuccess('cobros.index', 'Cobro eliminado y stock restaurado.');
     }
 }

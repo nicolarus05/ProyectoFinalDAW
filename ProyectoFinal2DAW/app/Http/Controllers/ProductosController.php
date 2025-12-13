@@ -7,8 +7,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use App\Traits\HasFlashMessages;
+use App\Traits\HasCrudMessages;
+use App\Traits\HasJsonResponses;
 
 class ProductosController extends Controller{
+    use HasFlashMessages, HasCrudMessages, HasJsonResponses;
+
+    protected function getResourceName(): string
+    {
+        return 'producto';
+    }
 
     /**
      * Lista paginada de productos (admin).
@@ -66,7 +75,7 @@ class ProductosController extends Controller{
                 'activo' => isset($data['activo']) ? (bool)$data['activo'] : true,
             ]);
 
-            return redirect()->route('productos.index')->with('success', 'Producto creado correctamente.');
+            return $this->redirectWithSuccess('productos.index', $this->getCreatedMessage());
         } catch (\Exception $e) {
             Log::error('Error creando producto: '.$e->getMessage());
             return redirect()->back()->withErrors(['error' => 'Ocurrió un error al crear el producto.'])->withInput();
@@ -121,7 +130,7 @@ class ProductosController extends Controller{
                 'activo' => isset($data['activo']) ? (bool)$data['activo'] : $producto->activo,
             ]);
 
-            return redirect()->route('productos.index')->with('success', 'Producto actualizado correctamente.');
+            return $this->redirectWithSuccess('productos.index', $this->getUpdatedMessage());
         } catch (\Exception $e) {
             Log::error('Error actualizando producto ID '.$producto->id.': '.$e->getMessage());
             return redirect()->back()->withErrors(['error' => 'Ocurrió un error al actualizar el producto.'])->withInput();
@@ -135,7 +144,7 @@ class ProductosController extends Controller{
     {
         try {
             $producto->delete();
-            return redirect()->route('productos.index')->with('success', 'Producto eliminado correctamente.');
+            return $this->redirectWithSuccess('productos.index', $this->getDeletedMessage());
         } catch (\Exception $e) {
             Log::error('Error eliminando producto ID '.$producto->id.': '.$e->getMessage());
             return redirect()->back()->withErrors(['error' => 'Ocurrió un error al eliminar el producto.']);

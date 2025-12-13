@@ -4,8 +4,18 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Servicio;
+use App\Http\Resources\ServicioResource;
+use App\Traits\HasFlashMessages;
+use App\Traits\HasCrudMessages;
+use App\Traits\HasJsonResponses;
 
 class ServicioController extends Controller{
+    use HasFlashMessages, HasCrudMessages, HasJsonResponses;
+
+    protected function getResourceName(): string
+    {
+        return 'servicio';
+    }
     /**
      * Display a listing of the resource.
      */
@@ -75,7 +85,7 @@ class ServicioController extends Controller{
      */
     public function destroy(Servicio $servicio){
         $servicio->delete();
-        return redirect()->route('servicios.index')->with('success', 'El servicio ha sido eliminado con exito.');
+        return $this->redirectWithSuccess('servicios.index', $this->getDeletedMessage());
     }
 
     /**
@@ -101,8 +111,11 @@ class ServicioController extends Controller{
 
         // Verificar si ya está asignado
         if ($servicio->empleados()->where('id_empleado', $request->id_empleado)->exists()) {
-            return redirect()->route('servicios.empleados', $servicio)
-                ->with('warning', 'Este empleado ya está asignado al servicio.');
+            return $this->redirectWithWarning(
+                "servicios.empleados",
+                'Este empleado ya está asignado al servicio.',
+                ['servicio' => $servicio->id]
+            );
         }
 
         // Asignar empleado al servicio (sin restricción de categoría)
@@ -110,8 +123,11 @@ class ServicioController extends Controller{
 
         $empleado = \App\Models\Empleado::find($request->id_empleado);
         
-        return redirect()->route('servicios.empleados', $servicio)
-            ->with('success', "Empleado {$empleado->user->nombre} {$empleado->user->apellidos} asignado correctamente al servicio.");
+        return $this->redirectWithSuccess(
+            "servicios.empleados",
+            "Empleado {$empleado->user->nombre} {$empleado->user->apellidos} asignado correctamente al servicio.",
+            ['servicio' => $servicio->id]
+        );
     }
 
     /**
@@ -122,7 +138,10 @@ class ServicioController extends Controller{
         
         $servicio->empleados()->detach($empleadoId);
 
-        return redirect()->route('servicios.empleados', $servicio)
-            ->with('success', "Empleado {$empleado->user->nombre} {$empleado->user->apellidos} removido del servicio.");
+        return $this->redirectWithSuccess(
+            "servicios.empleados",
+            "Empleado {$empleado->user->nombre} {$empleado->user->apellidos} removido del servicio.",
+            ['servicio' => $servicio->id]
+        );
     }
 }

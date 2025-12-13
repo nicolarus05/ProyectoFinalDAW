@@ -7,9 +7,18 @@ use App\Models\Deuda;
 use App\Models\MovimientoDeuda;
 use Illuminate\Http\Request;
 use App\Http\Requests\RegistrarPagoDeudaRequest;
+use App\Traits\HasFlashMessages;
+use App\Traits\HasCrudMessages;
+use App\Traits\HasJsonResponses;
 
 class DeudaController extends Controller
 {
+    use HasFlashMessages, HasCrudMessages, HasJsonResponses;
+
+    protected function getResourceName(): string
+    {
+        return 'pago de deuda';
+    }
     public function index()
     {
         $clientes = Cliente::conDeuda()
@@ -56,23 +65,19 @@ class DeudaController extends Controller
 
         if (!$deuda->tieneDeuda()) {
             if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Este cliente no tiene deudas pendientes.'
-                ], 400);
+                return $this->errorResponse('Este cliente no tiene deudas pendientes.', 400);
             }
-            return redirect()->route('deudas.show', $cliente)
-                ->with('error', 'Este cliente no tiene deudas pendientes.');
+            return $this->redirectWithError('deudas.show', 'Este cliente no tiene deudas pendientes.', ['cliente' => $cliente->id]);
         }
 
         $monto = $validated['monto'];
 
         if ($monto > $deuda->saldo_pendiente) {
             if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'El monto no puede ser mayor a la deuda pendiente (€' . number_format($deuda->saldo_pendiente, 2) . ')'
-                ], 400);
+                return $this->errorResponse(
+                    'El monto no puede ser mayor a la deuda pendiente (€' . number_format($deuda->saldo_pendiente, 2) . ')',
+                    400
+                );
             }
             return back()->withErrors([
                 'monto' => 'El monto no puede ser mayor a la deuda pendiente (€' . number_format($deuda->saldo_pendiente, 2) . ')'
@@ -90,15 +95,12 @@ class DeudaController extends Controller
             : 'Pago registrado. Deuda saldada completamente.';
 
         if ($request->expectsJson()) {
-            return response()->json([
-                'success' => true,
-                'message' => $mensaje,
+            return $this->successResponse([
                 'deuda_restante' => $deuda->saldo_pendiente
-            ]);
+            ], $mensaje);
         }
 
-        return redirect()->route('deudas.show', $cliente)
-            ->with('success', $mensaje);
+        return $this->redirectWithSuccess('deudas.show', $mensaje, ['cliente' => $cliente->id]);
     }
 
     public function historial(Cliente $cliente)

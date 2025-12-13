@@ -15,8 +15,18 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use App\Http\Requests\StoreCitaRequest;
 use App\Http\Requests\UpdateCitaRequest;
+use App\Http\Resources\CitaResource;
+use App\Traits\HasFlashMessages;
+use App\Traits\HasCrudMessages;
+use App\Traits\HasJsonResponses;
 
 class CitaController extends Controller{
+    use HasFlashMessages, HasCrudMessages, HasJsonResponses;
+
+    protected function getResourceName(): string
+    {
+        return 'cita';
+    }
     /**
      * Display a listing of the resource.
      */
@@ -287,8 +297,11 @@ class CitaController extends Controller{
         // Extraer la fecha de la cita para redirigir al día correcto
         $fechaCita = Carbon::parse($cita->fecha_hora)->format('Y-m-d');
 
-        return redirect()->route('citas.index', ['fecha' => $fechaCita])
-            ->with('success', 'Cita creada correctamente con múltiples servicios.');
+        return $this->redirectWithSuccess(
+            'citas.index',
+            'Cita creada correctamente con múltiples servicios.',
+            ['fecha' => $fechaCita]
+        );
     }
 
 
@@ -364,7 +377,7 @@ class CitaController extends Controller{
         // Eliminar permanentemente la cita
         $cita->delete();
         
-        return redirect()->route('citas.index')->with('success', 'La cita ha sido eliminada permanentemente.');
+        return $this->redirectWithSuccess('citas.index', 'La cita ha sido eliminada permanentemente.');
     }
 
     /**
@@ -404,7 +417,7 @@ class CitaController extends Controller{
             $mensaje .= ' El cobro asociado ha sido eliminado.';
         }
 
-        return redirect()->route('citas.index')->with('success', $mensaje);
+        return $this->redirectWithSuccess('citas.index', $mensaje);
     }
 
     /**
@@ -631,8 +644,7 @@ class CitaController extends Controller{
         ]);
 
         if (!$cita->cliente) {
-            return redirect()->route('citas.show', $cita->id)
-                ->with('error', 'Esta cita no tiene un cliente asociado.');
+            return $this->backWithError('Esta cita no tiene un cliente asociado.');
         }
 
         // Solo añadir si hay contenido nuevo

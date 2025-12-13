@@ -11,9 +11,19 @@ use App\Models\Empleado;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Http\Resources\BonoClienteResource;
+use App\Traits\HasFlashMessages;
+use App\Traits\HasCrudMessages;
+use App\Traits\HasJsonResponses;
 
 class BonoController extends Controller
 {
+    use HasFlashMessages, HasCrudMessages, HasJsonResponses;
+
+    protected function getResourceName(): string
+    {
+        return 'bono';
+    }
     /**
      * Listar plantillas de bonos
      */
@@ -69,7 +79,7 @@ class BonoController extends Controller
             }
 
             DB::commit();
-            return redirect()->route('bonos.index')->with('success', 'Bono creado correctamente.');
+            return $this->redirectWithSuccess('bonos.index', $this->getCreatedMessage());
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error creando bono plantilla: ' . $e->getMessage());
@@ -176,7 +186,7 @@ class BonoController extends Controller
                 $mensaje .= " | Pagado con tarjeta";
             }
             
-            return redirect()->route('bonos.misClientes', $clienteId)->with('success', $mensaje);
+            return $this->redirectWithSuccess('bonos.misClientes', $mensaje, ['cliente' => $clienteId]);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error procesando compra de bono: ' . $e->getMessage());
@@ -235,7 +245,7 @@ class BonoController extends Controller
                 'activo' => $request->has('activo')
             ]);
 
-            return redirect()->route('bonos.index')->with('success', 'Bono actualizado correctamente.');
+            return $this->redirectWithSuccess('bonos.index', $this->getUpdatedMessage());
         } catch (\Exception $e) {
             Log::error('Error actualizando bono: ' . $e->getMessage());
             return redirect()->back()->withErrors(['error' => 'Error al actualizar el bono.']);

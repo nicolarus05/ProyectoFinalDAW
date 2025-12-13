@@ -6,8 +6,19 @@ use Illuminate\Http\Request;
 use App\Models\HorarioTrabajo;
 use App\Models\Empleado;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;use App\Services\CacheService;
+use Illuminate\Support\Facades\DB;
+use App\Services\CacheService;
+use App\Traits\HasFlashMessages;
+use App\Traits\HasCrudMessages;
+use App\Traits\HasJsonResponses;
+
 class HorarioTrabajoController extends Controller{
+    use HasFlashMessages, HasCrudMessages, HasJsonResponses;
+
+    protected function getResourceName(): string
+    {
+        return 'horario';
+    }
     /**
      * Display a listing of the resource.
      */
@@ -106,8 +117,10 @@ class HorarioTrabajoController extends Controller{
             'notas' => $data['notas'] ?? null,
         ]);
 
-        return redirect()->route('horarios.index')
-            ->with('success', 'Horario creado correctamente. Se han sobrescrito los horarios anteriores de ese día.');
+        return $this->redirectWithSuccess(
+            'horarios.index',
+            'Horario creado correctamente. Se han sobrescrito los horarios anteriores de ese día.'
+        );
     }
 
     /**
@@ -139,7 +152,7 @@ class HorarioTrabajoController extends Controller{
         ]);
 
         $horario->update($data);
-        return redirect()->route('horarios.index')->with('success', 'El horario ha sido actualizado con éxito.');
+        return $this->redirectWithSuccess('horarios.index', $this->getUpdatedMessage());
     }
 
     /**
@@ -147,7 +160,7 @@ class HorarioTrabajoController extends Controller{
      */
     public function destroy(HorarioTrabajo $horario){
         $horario->delete();
-        return redirect()->route('horarios.index')->with('success', 'El horario ha sido eliminado con éxito.');
+        return $this->redirectWithSuccess('horarios.index', $this->getDeletedMessage());
     }
 
     /**
@@ -228,8 +241,10 @@ class HorarioTrabajoController extends Controller{
             }
         }
 
-        return redirect()->route('horarios.index')
-            ->with('success', "Se crearon {$registrosCreados} bloques horarios para la semana.");
+        return $this->redirectWithSuccess(
+            'horarios.index',
+            "Se crearon {$registrosCreados} bloques horarios para la semana."
+        );
     }
 
     /**
@@ -298,8 +313,10 @@ class HorarioTrabajoController extends Controller{
             $fecha->addDay();
         }
 
-        return redirect()->route('horarios.index')
-            ->with('success', "Se crearon {$registrosCreados} bloques horarios para el mes.");
+        return $this->redirectWithSuccess(
+            'horarios.index',
+            "Se crearon {$registrosCreados} bloques horarios para el mes."
+        );
     }
 
     /**
@@ -372,8 +389,10 @@ class HorarioTrabajoController extends Controller{
             }
         }
 
-        return redirect()->route('horarios.index')
-            ->with('success', "Se crearon {$registrosCreados} bloques horarios para el año {$anio}.");
+        return $this->redirectWithSuccess(
+            'horarios.index',
+            "Se crearon {$registrosCreados} bloques horarios para el año {$anio}."
+        );
     }
 
     /**

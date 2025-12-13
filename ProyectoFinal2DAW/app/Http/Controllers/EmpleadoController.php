@@ -6,8 +6,18 @@ use Illuminate\Http\Request;
 use App\Models\Empleado;
 use App\Models\user;
 use Illuminate\Support\Facades\Log;
+use App\Http\Resources\EmpleadoResource;
+use App\Traits\HasFlashMessages;
+use App\Traits\HasCrudMessages;
+use App\Traits\HasJsonResponses;
 
 class EmpleadoController extends Controller{
+    use HasFlashMessages, HasCrudMessages, HasJsonResponses;
+
+    protected function getResourceName(): string
+    {
+        return 'empleado';
+    }
     /**
      * Display a listing of the resource.
      */
@@ -66,7 +76,7 @@ class EmpleadoController extends Controller{
         ]);
         
         // Redirigir a la lista de empleados
-        return redirect()->route('empleados.index')->with('success', 'El empleado ha sido creado con éxito.');
+        return $this->redirectWithSuccess('empleados.index', $this->getCreatedMessage());
     }
 
     /**
@@ -119,7 +129,7 @@ class EmpleadoController extends Controller{
             'categoria' => $request->input('categoria'),
         ]);
 
-        return redirect()->route('empleados.index')->with('success', 'El empleado ha sido actualizado con éxito.');
+        return $this->redirectWithSuccess('empleados.index', $this->getUpdatedMessage());
     }
 
     /**
@@ -127,6 +137,6 @@ class EmpleadoController extends Controller{
      */
     public function destroy(Empleado $empleado){
         $empleado->delete();
-        return redirect()->route('empleados.index')->with('success', 'El empleado ha sido eliminado con éxito.');
+        return $this->redirectWithSuccess('empleados.index', $this->getDeletedMessage());
     }
 }

@@ -7,8 +7,18 @@ use App\Models\Cliente;
 use App\Models\user;
 use App\Http\Requests\StoreClienteRequest;
 use App\Http\Requests\UpdateClienteRequest;
+use App\Http\Resources\ClienteResource;
+use App\Traits\HasFlashMessages;
+use App\Traits\HasCrudMessages;
+use App\Traits\HasJsonResponses;
 
 class ClienteController extends Controller{
+    use HasFlashMessages, HasCrudMessages, HasJsonResponses;
+
+    protected function getResourceName(): string
+    {
+        return 'Cliente';
+    }
 
     /**
      * Display a listing of the resource.
@@ -63,19 +73,13 @@ class ClienteController extends Controller{
 
         // Si la petición espera JSON (desde el modal), devolver JSON
         if ($request->expectsJson() || $request->ajax()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Cliente creado exitosamente',
-                'cliente' => [
-                    'id' => $cliente->id,
-                    'nombre' => $user->nombre,
-                    'apellidos' => $user->apellidos,
-                    'email' => $user->email,
-                ]
-            ]);
+            return $this->createdResponse(
+                new ClienteResource($cliente->load('user')),
+                $this->getCreatedMessage()
+            );
         }
 
-        return redirect()->route('clientes.index')->with('success', 'El Cliente ha sido creado con éxito.');
+        return $this->redirectWithSuccess('clientes.index', $this->getCreatedMessage());
     }
 
     /**
@@ -125,7 +129,7 @@ class ClienteController extends Controller{
             'fecha_registro' => $validated['fecha_registro'],
         ]);
 
-        return redirect()->route('clientes.index')->with('success', 'El Cliente ha sido actualizado con éxito.');
+        return $this->redirectWithSuccess('clientes.index', $this->getUpdatedMessage());
     }
 
     /**
@@ -161,9 +165,9 @@ class ClienteController extends Controller{
                 }
             }
             
-            return redirect()->route('clientes.index')->with('success', 'El Cliente ha sido eliminado con éxito.');
+            return $this->redirectWithSuccess('clientes.index', $this->getDeletedMessage());
         } catch (\Exception $e) {
-            return redirect()->route('clientes.index')->with('error', 'Error al eliminar el cliente: ' . $e->getMessage());
+            return $this->redirectWithError('clientes.index', $this->getDeleteErrorMessage() . ': ' . $e->getMessage());
         }
     }
 }
