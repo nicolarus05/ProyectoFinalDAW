@@ -151,6 +151,86 @@ class RegistroCobroController extends Controller{
                 ->withInput();
         }
 
+        // --- VALIDACIÓN DE INTEGRIDAD: coste debe coincidir con servicios + productos ---
+        $totalServiciosCalculado = 0;
+        $totalProductosCalculado = 0;
+        $detalleValidacion = [];
+
+        // CASO 1: Cobro de cita individual
+        if (!empty($data['id_cita'])) {
+            $cita = Cita::with('servicios')->find($data['id_cita']);
+            if ($cita && $cita->servicios) {
+                foreach ($cita->servicios as $servicio) {
+                    $precio = $servicio->pivot->precio ?? $servicio->precio;
+                    $totalServiciosCalculado += $precio;
+                    $detalleValidacion[] = "{$servicio->nombre}: €" . number_format($precio, 2);
+                }
+            }
+        }
+        
+        // CASO 2: Cobro de múltiples citas agrupadas
+        elseif (!empty($data['citas_ids']) && is_array($data['citas_ids'])) {
+            $citas = Cita::with('servicios')->whereIn('id', $data['citas_ids'])->get();
+            foreach ($citas as $cita) {
+                if ($cita->servicios) {
+                    foreach ($cita->servicios as $servicio) {
+                        $precio = $servicio->pivot->precio ?? $servicio->precio;
+                        $totalServiciosCalculado += $precio;
+                        $detalleValidacion[] = "{$servicio->nombre}: €" . number_format($precio, 2);
+                    }
+                }
+            }
+        }
+        
+        // CASO 3: Cobro directo con servicios (sin cita)
+        if ($request->has('servicios_data') && !empty($data['servicios_data'])) {
+            $serviciosData = json_decode($data['servicios_data'], true);
+            if (is_array($serviciosData)) {
+                foreach ($serviciosData as $s) {
+                    $precio = (float) ($s['precio'] ?? 0);
+                    $totalServiciosCalculado += $precio;
+                    $detalleValidacion[] = "Servicio ID {$s['id']}: €" . number_format($precio, 2);
+                }
+            }
+        }
+
+        // CASO 4: Productos (aplica a todos los tipos de cobro)
+        if ($request->has('productos_data') && !empty($data['productos_data'])) {
+            $productosData = json_decode($data['productos_data'], true);
+            if (is_array($productosData)) {
+                foreach ($productosData as $p) {
+                    $cantidad = (int) ($p['cantidad'] ?? 0);
+                    $precio = (float) ($p['precio'] ?? 0);
+                    $subtotal = $cantidad * $precio;
+                    $totalProductosCalculado += $subtotal;
+                    $detalleValidacion[] = "Producto ID {$p['id']} (x{$cantidad}): €" . number_format($subtotal, 2);
+                }
+            }
+        }
+
+        // Calcular el coste total esperado
+        $costeCalculado = $totalServiciosCalculado + $totalProductosCalculado;
+        $costeRecibido = (float) $data['coste'];
+
+        // Validar con margen de error de ±€0.01 para redondeos
+        $diferencia = abs($costeCalculado - $costeRecibido);
+        if ($diferencia > 0.01) {
+            $mensajeError = "El coste total no coincide con los servicios/productos.\n\n";
+            $mensajeError .= "💰 Coste recibido: €" . number_format($costeRecibido, 2) . "\n";
+            $mensajeError .= "🧮 Coste calculado: €" . number_format($costeCalculado, 2) . "\n";
+            $mensajeError .= "   - Servicios: €" . number_format($totalServiciosCalculado, 2) . "\n";
+            $mensajeError .= "   - Productos: €" . number_format($totalProductosCalculado, 2) . "\n";
+            $mensajeError .= "❌ Diferencia: €" . number_format($diferencia, 2) . "\n\n";
+            
+            if (!empty($detalleValidacion)) {
+                $mensajeError .= "📋 Detalle:\n" . implode("\n", $detalleValidacion);
+            }
+
+            return back()
+                ->withErrors(['coste' => $mensajeError])
+                ->withInput();
+        }
+
         // --- Lógica según método de pago ---
         if ($data['metodo_pago'] === 'efectivo') {
             // Si es efectivo, el dinero_cliente puede ser menor que el total (genera deuda)

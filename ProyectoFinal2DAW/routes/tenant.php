@@ -108,15 +108,6 @@ Route::middleware([
         Route::get('/servicios/{servicio}/citas', [ServicioController::class, 'citas'])->name('servicios.citas');
         Route::post('/servicios/{servicio}/citas', [ServicioController::class, 'addCita'])->name('servicios.addcita');
 
-        // Deudas (solo admin)
-        Route::prefix('deudas')->name('deudas.')->group(function () {
-            Route::get('/', [DeudaController::class, 'index'])->name('index');
-            Route::get('/cliente/{cliente}', [DeudaController::class, 'show'])->name('show');
-            Route::get('/cliente/{cliente}/pago', [DeudaController::class, 'crearPago'])->name('pago.create');
-            Route::post('/cliente/{cliente}/pago', [DeudaController::class, 'registrarPago'])->name('pago.store');
-            Route::get('/cliente/{cliente}/historial', [DeudaController::class, 'historial'])->name('historial');
-        });
-
         // Bonos (solo admin)
         Route::prefix('bonos')->name('bonos.')->group(function () {
             Route::get('/', [BonoController::class, 'index'])->name('index');
@@ -156,6 +147,15 @@ Route::middleware([
         // Cobros
         Route::get('cobros/direct/create', [RegistroCobroController::class, 'createDirect'])->name('cobros.create.direct');
         Route::resource('cobros', RegistroCobroController::class)->names('cobros');
+        
+        // Deudas (admin y empleado)
+        Route::prefix('deudas')->name('deudas.')->group(function () {
+            Route::get('/', [DeudaController::class, 'index'])->name('index');
+            Route::get('/cliente/{cliente}', [DeudaController::class, 'show'])->name('show');
+            Route::get('/cliente/{cliente}/pago', [DeudaController::class, 'crearPago'])->name('pago.create');
+            Route::post('/cliente/{cliente}/pago', [DeudaController::class, 'registrarPago'])->name('pago.store');
+            Route::get('/cliente/{cliente}/historial', [DeudaController::class, 'historial'])->name('historial');
+        });
         
         // Caja diaria
         Route::get('/caja', [CajaDiariaController::class, 'index'])->name('caja.index');

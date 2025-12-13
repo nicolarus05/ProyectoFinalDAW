@@ -205,7 +205,7 @@
             </div>
 
             <!-- Grid para Empleados - Solo acceso a operaciones diarias -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
                 
                 <!-- Gestionar Citas -->
                 <a href="{{ route('citas.index') }}" class="card-hover bg-white border-2 border-black rounded-xl p-6 text-center group">
@@ -232,6 +232,15 @@
                     </div>
                     <h3 class="text-xl font-bold text-black mb-2">Registro de Cobros</h3>
                     <p class="text-gray-600 text-sm">Historial de pagos y transacciones</p>
+                </a>
+
+                <!-- Gestionar Deudas -->
+                <a href="{{ route('deudas.index') }}" class="card-hover card-deudas border-2 border-black rounded-xl p-6 text-center group">
+                    <div class="w-16 h-16 bg-red-500 text-white rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-red-600 transition">
+                        <span class="text-3xl">💰</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-red-700 mb-2">Gestionar Deudas</h3>
+                    <p class="text-red-600 text-sm">Control de cuentas pendientes</p>
                 </a>
 
                 <!-- Caja del Día (Destacado) -->
