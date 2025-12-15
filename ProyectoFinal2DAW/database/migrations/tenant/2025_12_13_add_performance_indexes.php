@@ -123,14 +123,15 @@ return new class extends Migration
 
         // Índices para servicios
         Schema::table('servicios', function (Blueprint $table) {
-            if (!$this->hasIndex('servicios', 'idx_servicios_tipo')) {
-                $table->index('tipo', 'idx_servicios_tipo');
+            // Nota: La columna es 'categoria' no 'tipo'
+            if (!$this->hasIndex('servicios', 'idx_servicios_categoria')) {
+                $table->index('categoria', 'idx_servicios_categoria');
             }
             if (!$this->hasIndex('servicios', 'idx_servicios_activo')) {
                 $table->index('activo', 'idx_servicios_activo');
             }
-            if (!$this->hasIndex('servicios', 'idx_servicios_tipo_activo')) {
-                $table->index(['tipo', 'activo'], 'idx_servicios_tipo_activo');
+            if (!$this->hasIndex('servicios', 'idx_servicios_categoria_activo')) {
+                $table->index(['categoria', 'activo'], 'idx_servicios_categoria_activo');
             }
         });
 
@@ -291,14 +292,14 @@ return new class extends Migration
 
         // Eliminar índices de servicios
         Schema::table('servicios', function (Blueprint $table) {
-            if ($this->hasIndex('servicios', 'idx_servicios_tipo')) {
-                $table->dropIndex('idx_servicios_tipo');
+            if ($this->hasIndex('servicios', 'idx_servicios_categoria')) {
+                $table->dropIndex('idx_servicios_categoria');
             }
             if ($this->hasIndex('servicios', 'idx_servicios_activo')) {
                 $table->dropIndex('idx_servicios_activo');
             }
-            if ($this->hasIndex('servicios', 'idx_servicios_tipo_activo')) {
-                $table->dropIndex('idx_servicios_tipo_activo');
+            if ($this->hasIndex('servicios', 'idx_servicios_categoria_activo')) {
+                $table->dropIndex('idx_servicios_categoria_activo');
             }
         });
 
