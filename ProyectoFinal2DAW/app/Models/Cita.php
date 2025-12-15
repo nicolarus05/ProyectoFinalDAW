@@ -44,7 +44,8 @@ class Cita extends Model{
     }
 
     public function servicios(){
-        return $this->belongsToMany(Servicio::class, 'cita_servicio', 'id_cita', 'id_servicio');
+        return $this->belongsToMany(Servicio::class, 'cita_servicio', 'id_cita', 'id_servicio')
+            ->withTimestamps();
     }
 
     public function cobro(){

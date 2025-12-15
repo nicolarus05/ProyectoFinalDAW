@@ -1190,18 +1190,20 @@ window.calcularTotales = function() {
     // Calcular total de servicios
     const totalServicios = serviciosSeleccionados.reduce((sum, s) => sum + parseFloat(s.precio), 0);
     document.getElementById('services-total').textContent = `€${totalServicios.toFixed(2)}`;
+    
+    // IMPORTANTE: El campo 'coste' debe contener SOLO el total de servicios, no productos ni bonos
+    document.getElementById('coste').value = totalServicios.toFixed(2);
 
     // Calcular total de productos
     const totalProductos = productosSeleccionados.reduce((sum, p) => sum + (parseFloat(p.precio) * parseInt(p.cantidad)), 0);
     document.getElementById('products-total').textContent = `€${totalProductos.toFixed(2)}`;
 
-    // Subtotal (incluir precio del bono si está seleccionado)
+    // Subtotal (para mostrar en pantalla, incluye servicios + productos + bono)
     let subtotal = totalServicios + totalProductos;
     if (bonoSeleccionado) {
         subtotal += bonoSeleccionado.precio;
     }
     document.getElementById('subtotal').textContent = `€${subtotal.toFixed(2)}`;
-    document.getElementById('coste').value = subtotal.toFixed(2);
 
     // Descuentos separados
     const descServPor = parseFloat(document.getElementById('descuento_servicios_porcentaje')?.value || 0);

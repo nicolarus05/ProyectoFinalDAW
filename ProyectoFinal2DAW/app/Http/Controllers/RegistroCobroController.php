@@ -150,25 +150,51 @@ class RegistroCobroController extends Controller{
 
         // CASO 1: Cobro de cita individual
         if (!empty($data['id_cita'])) {
-            $cita = Cita::with('servicios')->find($data['id_cita']);
-            if ($cita && $cita->servicios) {
-                foreach ($cita->servicios as $servicio) {
-                    $precio = $servicio->pivot->precio ?? $servicio->precio;
-                    $totalServiciosCalculado += $precio;
-                    $detalleValidacion[] = "{$servicio->nombre}: €" . number_format($precio, 2);
+            // Si hay servicios_data, usar esos (modificados por el usuario)
+            if ($request->has('servicios_data') && !empty($data['servicios_data'])) {
+                $serviciosData = json_decode($data['servicios_data'], true);
+                if (is_array($serviciosData)) {
+                    foreach ($serviciosData as $s) {
+                        $precio = (float) ($s['precio'] ?? 0);
+                        $totalServiciosCalculado += $precio;
+                        $detalleValidacion[] = "{$s['nombre']}: €" . number_format($precio, 2);
+                    }
+                }
+            } else {
+                // Si no hay servicios_data, usar los servicios originales de la cita
+                $cita = Cita::with('servicios')->find($data['id_cita']);
+                if ($cita && $cita->servicios) {
+                    foreach ($cita->servicios as $servicio) {
+                        $precio = $servicio->precio;
+                        $totalServiciosCalculado += $precio;
+                        $detalleValidacion[] = "{$servicio->nombre}: €" . number_format($precio, 2);
+                    }
                 }
             }
         }
         
         // CASO 2: Cobro de múltiples citas agrupadas
         elseif (!empty($data['citas_ids']) && is_array($data['citas_ids'])) {
-            $citas = Cita::with('servicios')->whereIn('id', $data['citas_ids'])->get();
-            foreach ($citas as $cita) {
-                if ($cita->servicios) {
-                    foreach ($cita->servicios as $servicio) {
-                        $precio = $servicio->pivot->precio ?? $servicio->precio;
+            // Si hay servicios_data, usar esos (modificados por el usuario en create-direct)
+            if ($request->has('servicios_data') && !empty($data['servicios_data'])) {
+                $serviciosData = json_decode($data['servicios_data'], true);
+                if (is_array($serviciosData)) {
+                    foreach ($serviciosData as $s) {
+                        $precio = (float) ($s['precio'] ?? 0);
                         $totalServiciosCalculado += $precio;
-                        $detalleValidacion[] = "{$servicio->nombre}: €" . number_format($precio, 2);
+                        $detalleValidacion[] = "{$s['nombre']}: €" . number_format($precio, 2);
+                    }
+                }
+            } else {
+                // Si no hay servicios_data, usar los servicios originales de las citas
+                $citas = Cita::with('servicios')->whereIn('id', $data['citas_ids'])->get();
+                foreach ($citas as $cita) {
+                    if ($cita->servicios) {
+                        foreach ($cita->servicios as $servicio) {
+                            $precio = $servicio->precio;
+                            $totalServiciosCalculado += $precio;
+                            $detalleValidacion[] = "{$servicio->nombre}: €" . number_format($precio, 2);
+                        }
                     }
                 }
             }
@@ -181,7 +207,7 @@ class RegistroCobroController extends Controller{
                 foreach ($serviciosData as $s) {
                     $precio = (float) ($s['precio'] ?? 0);
                     $totalServiciosCalculado += $precio;
-                    $detalleValidacion[] = "Servicio ID {$s['id']}: €" . number_format($precio, 2);
+                    $detalleValidacion[] = "{$s['nombre']}: €" . number_format($precio, 2);
                 }
             }
         }
@@ -200,26 +226,63 @@ class RegistroCobroController extends Controller{
             }
         }
 
-        // Calcular el coste total esperado
-        $costeCalculado = $totalServiciosCalculado + $totalProductosCalculado;
+        // VALIDACIÓN 1: El campo 'coste' debe coincidir con el total de SERVICIOS solamente
         $costeRecibido = (float) $data['coste'];
-
-        // Validar con margen de error de ±€0.01 para redondeos
-        $diferencia = abs($costeCalculado - $costeRecibido);
-        if ($diferencia > 0.01) {
-            $mensajeError = "El coste total no coincide con los servicios/productos.\n\n";
+        $diferenciaServicios = abs($totalServiciosCalculado - $costeRecibido);
+        
+        if ($diferenciaServicios > 0.01) {
+            $mensajeError = "El coste de servicios no coincide.\n\n";
             $mensajeError .= "💰 Coste recibido: €" . number_format($costeRecibido, 2) . "\n";
-            $mensajeError .= "🧮 Coste calculado: €" . number_format($costeCalculado, 2) . "\n";
-            $mensajeError .= "   - Servicios: €" . number_format($totalServiciosCalculado, 2) . "\n";
-            $mensajeError .= "   - Productos: €" . number_format($totalProductosCalculado, 2) . "\n";
-            $mensajeError .= "❌ Diferencia: €" . number_format($diferencia, 2) . "\n\n";
+            $mensajeError .= "🧮 Coste calculado (servicios): €" . number_format($totalServiciosCalculado, 2) . "\n";
+            $mensajeError .= "❌ Diferencia: €" . number_format($diferenciaServicios, 2) . "\n\n";
             
             if (!empty($detalleValidacion)) {
-                $mensajeError .= "📋 Detalle:\n" . implode("\n", $detalleValidacion);
+                $mensajeError .= "📋 Detalle servicios:\n";
+                foreach ($detalleValidacion as $detalle) {
+                    if (strpos($detalle, 'Producto') === false) {
+                        $mensajeError .= $detalle . "\n";
+                    }
+                }
             }
 
             return back()
                 ->withErrors(['coste' => $mensajeError])
+                ->withInput();
+        }
+
+        // VALIDACIÓN 2: El total_final debe ser igual a (servicios - desc_servicios) + (productos - desc_productos)
+        $descServiciosPor = (float) ($data['descuento_servicios_porcentaje'] ?? 0);
+        $descServiciosEur = (float) ($data['descuento_servicios_euro'] ?? 0);
+        $descProductosPor = (float) ($data['descuento_productos_porcentaje'] ?? 0);
+        $descProductosEur = (float) ($data['descuento_productos_euro'] ?? 0);
+        
+        // Calcular descuentos aplicados
+        $descuentoServiciosTotal = ($totalServiciosCalculado * ($descServiciosPor / 100)) + $descServiciosEur;
+        $descuentoProductosTotal = ($totalProductosCalculado * ($descProductosPor / 100)) + $descProductosEur;
+        
+        // Total después de descuentos
+        $totalServiciosConDescuento = max(0, $totalServiciosCalculado - $descuentoServiciosTotal);
+        $totalProductosConDescuento = max(0, $totalProductosCalculado - $descuentoProductosTotal);
+        $totalFinalCalculado = $totalServiciosConDescuento + $totalProductosConDescuento;
+        
+        $totalFinalRecibido = (float) $data['total_final'];
+        $diferenciaTotalFinal = abs($totalFinalCalculado - $totalFinalRecibido);
+        
+        if ($diferenciaTotalFinal > 0.01) {
+            $mensajeError = "El total final no coincide con el cálculo esperado.\n\n";
+            $mensajeError .= "💰 Total final recibido: €" . number_format($totalFinalRecibido, 2) . "\n";
+            $mensajeError .= "🧮 Total final calculado: €" . number_format($totalFinalCalculado, 2) . "\n\n";
+            $mensajeError .= "📊 Desglose del cálculo:\n";
+            $mensajeError .= "   Servicios: €" . number_format($totalServiciosCalculado, 2) . "\n";
+            $mensajeError .= "   - Descuento servicios (" . number_format($descServiciosPor, 2) . "% + €" . number_format($descServiciosEur, 2) . "): -€" . number_format($descuentoServiciosTotal, 2) . "\n";
+            $mensajeError .= "   = Subtotal servicios: €" . number_format($totalServiciosConDescuento, 2) . "\n\n";
+            $mensajeError .= "   Productos: €" . number_format($totalProductosCalculado, 2) . "\n";
+            $mensajeError .= "   - Descuento productos (" . number_format($descProductosPor, 2) . "% + €" . number_format($descProductosEur, 2) . "): -€" . number_format($descuentoProductosTotal, 2) . "\n";
+            $mensajeError .= "   = Subtotal productos: €" . number_format($totalProductosConDescuento, 2) . "\n\n";
+            $mensajeError .= "❌ Diferencia: €" . number_format($diferenciaTotalFinal, 2) . "\n";
+
+            return back()
+                ->withErrors(['total_final' => $mensajeError])
                 ->withInput();
         }
 

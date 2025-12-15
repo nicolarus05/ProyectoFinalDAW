@@ -492,15 +492,12 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     };
 
-    // Inicializar si hay cita preseleccionada
+    // Inicializar al cargar la página
     if (citaPreseleccionada) {
+        // Si hay cita preseleccionada, actualizar todos los valores
         actualizarClienteInfo();
-        actualizarCosteYTotales();
-        calcularTotales();
+    } else {
+        // Si no hay cita preseleccionada, solo inicializar el método de pago
+        toggleMetodoPagoCampos();
     }
-    
-    // Inicializar en load
-    actualizarCosteYTotales();
-    toggleMetodoPagoCampos();
-    actualizarClienteInfo();
 });

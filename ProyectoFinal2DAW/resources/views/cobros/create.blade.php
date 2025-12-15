@@ -26,7 +26,7 @@
             </div>
         @endif
 
-        <form action="{{ route('cobros.store') }}" method="POST" oninput="calcularTotales()" onchange="actualizarCosteYTotales()" class="space-y-4" id="cobro-form">
+        <form action="{{ route('cobros.store') }}" method="POST" oninput="calcularTotales()" class="space-y-4" id="cobro-form">
             @csrf
 
             <div>
@@ -53,7 +53,10 @@
 
             <div>
                 <label for="coste" class="block font-semibold mb-1">Coste (servicios):</label>
-                <input type="number" name="coste" id="coste" required class="w-full border rounded px-3 py-2" step="0.01" value="0.00">
+                <input type="number" name="coste" id="coste" required class="w-full border rounded px-3 py-2 bg-gray-50" step="0.01" 
+                       value="{{ isset($citaSeleccionada) && $citaSeleccionada ? number_format($citaSeleccionada->servicios->sum('precio'), 2, '.', '') : '0.00' }}" 
+                       readonly>
+                <p class="text-xs text-gray-500 mt-1">Este valor se calcula automáticamente según los servicios de la cita</p>
             </div>
 
             <div class="flex items-center justify-between">
