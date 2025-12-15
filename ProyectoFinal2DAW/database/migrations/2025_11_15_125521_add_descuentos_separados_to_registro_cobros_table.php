@@ -15,18 +15,10 @@ return new class extends Migration
         if (Schema::hasTable('registro_cobros')) {
             Schema::table('registro_cobros', function (Blueprint $table) {
                 // Agregar campos para descuentos separados de servicios y productos
-                if (!Schema::hasColumn('registro_cobros', 'descuento_servicios_porcentaje')) {
-                    $table->decimal('descuento_servicios_porcentaje', 5, 2)->default(0)->after('coste');
-                }
-                if (!Schema::hasColumn('registro_cobros', 'descuento_servicios_euro')) {
-                    $table->decimal('descuento_servicios_euro', 8, 2)->default(0)->after('descuento_servicios_porcentaje');
-                }
-                if (!Schema::hasColumn('registro_cobros', 'descuento_productos_porcentaje')) {
-                    $table->decimal('descuento_productos_porcentaje', 5, 2)->default(0)->after('descuento_servicios_euro');
-                }
-                if (!Schema::hasColumn('registro_cobros', 'descuento_productos_euro')) {
-                    $table->decimal('descuento_productos_euro', 8, 2)->default(0)->after('descuento_productos_porcentaje');
-                }
+                $table->decimal('descuento_servicios_porcentaje', 5, 2)->default(0)->after('coste');
+                $table->decimal('descuento_servicios_euro', 8, 2)->default(0)->after('descuento_servicios_porcentaje');
+                $table->decimal('descuento_productos_porcentaje', 5, 2)->default(0)->after('descuento_servicios_euro');
+                $table->decimal('descuento_productos_euro', 8, 2)->default(0)->after('descuento_productos_porcentaje');
             });
         }
     }

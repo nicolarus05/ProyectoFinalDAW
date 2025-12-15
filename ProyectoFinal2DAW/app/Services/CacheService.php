@@ -35,19 +35,19 @@ class CacheService
     {
         return Cache::remember('empleados_list', self::CACHE_DURATION, function () {
             return Empleado::with('user')
-                ->orderBy('disponible', 'desc')
+                ->orderBy('id', 'asc')
                 ->get();
         });
     }
 
     /**
      * Obtener empleados disponibles con caché
+     * (Nota: Si en el futuro se agrega columna 'disponible', actualizar este método)
      */
     public static function getEmpleadosDisponibles()
     {
         return Cache::remember('empleados_disponibles', self::CACHE_DURATION, function () {
             return Empleado::with('user')
-                ->where('disponible', true)
                 ->get();
         });
     }

@@ -9,45 +9,31 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            if (!Schema::hasColumn('users', 'deleted_at')) {
-                $table->softDeletes();
-            }
+            $table->softDeletes();
         });
 
         Schema::table('clientes', function (Blueprint $table) {
-            if (!Schema::hasColumn('clientes', 'deleted_at')) {
-                $table->softDeletes();
-            }
+            $table->softDeletes();
         });
 
         Schema::table('empleados', function (Blueprint $table) {
-            if (!Schema::hasColumn('empleados', 'deleted_at')) {
-                $table->softDeletes();
-            }
+            $table->softDeletes();
         });
 
         Schema::table('citas', function (Blueprint $table) {
-            if (!Schema::hasColumn('citas', 'deleted_at')) {
-                $table->softDeletes();
-            }
+            $table->softDeletes();
         });
 
         Schema::table('servicios', function (Blueprint $table) {
-            if (!Schema::hasColumn('servicios', 'deleted_at')) {
-                $table->softDeletes();
-            }
+            $table->softDeletes();
         });
 
         Schema::table('deudas', function (Blueprint $table) {
-            if (!Schema::hasColumn('deudas', 'deleted_at')) {
-                $table->softDeletes();
-            }
+            $table->softDeletes();
         });
 
         Schema::table('productos', function (Blueprint $table) {
-            if (!Schema::hasColumn('productos', 'deleted_at')) {
-                $table->softDeletes();
-            }
+            $table->softDeletes();
         });
     }
 

@@ -13,12 +13,8 @@ return new class extends Migration
     {
         if (Schema::hasTable('empleados')) {
             Schema::table('empleados', function (Blueprint $table) {
-                if (!Schema::hasColumn('empleados', 'horario_invierno')) {
-                    $table->json('horario_invierno')->nullable()->after('categoria');
-                }
-                if (!Schema::hasColumn('empleados', 'horario_verano')) {
-                    $table->json('horario_verano')->nullable()->after('horario_invierno');
-                }
+                $table->json('horario_invierno')->nullable()->after('categoria');
+                $table->json('horario_verano')->nullable()->after('horario_invierno');
             });
         }
     }

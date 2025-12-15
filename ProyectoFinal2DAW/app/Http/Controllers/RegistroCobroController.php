@@ -174,8 +174,8 @@ class RegistroCobroController extends Controller{
             }
         }
         
-        // CASO 3: Cobro directo con servicios (sin cita)
-        if ($request->has('servicios_data') && !empty($data['servicios_data'])) {
+        // CASO 3: Cobro directo con servicios (sin cita - solo cuando no hay id_cita ni citas_ids)
+        elseif ($request->has('servicios_data') && !empty($data['servicios_data'])) {
             $serviciosData = json_decode($data['servicios_data'], true);
             if (is_array($serviciosData)) {
                 foreach ($serviciosData as $s) {
