@@ -109,7 +109,7 @@
                         <td class="px-4 py-3">
                             <div class="flex items-center gap-2">
                                 @if($cliente->user->foto_perfil)
-                                    <img src="{{ asset('storage/' . $cliente->user->foto_perfil) }}" 
+                                    <img src="{{ asset('storage/' . $cliente->user->foto_perfil) }}" loading="lazy" 
                                          class="w-8 h-8 rounded-full object-cover">
                                 @else
                                     <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-xs">

@@ -25,7 +25,7 @@
             <div class="flex items-center gap-4">
                 <a href="{{ route('profile.edit') }}" class="flex items-center gap-3 hover:opacity-80 transition group">
                     @if ($user && $user->foto_perfil)
-                        <img src="{{ asset('storage/' . $user->foto_perfil) }}"
+                        <img src="{{ asset('storage/' . $user->foto_perfil) }}" loading="lazy"
                             class="foto-perfil-redonda rounded-full border-2 border-white shadow-lg group-hover:border-gray-300 transition">
                     @else
                         <div class="w-12 h-12 flex items-center justify-center bg-white rounded-full text-black font-bold shadow-lg group-hover:bg-gray-200 transition">
