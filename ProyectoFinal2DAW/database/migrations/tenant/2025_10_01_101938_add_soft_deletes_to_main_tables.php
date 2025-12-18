@@ -8,63 +8,91 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->softDeletes();
-        });
+        if (Schema::hasTable('users') && !Schema::hasColumn('users', 'deleted_at')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->softDeletes();
+            });
+        }
 
-        Schema::table('clientes', function (Blueprint $table) {
-            $table->softDeletes();
-        });
+        if (Schema::hasTable('clientes') && !Schema::hasColumn('clientes', 'deleted_at')) {
+            Schema::table('clientes', function (Blueprint $table) {
+                $table->softDeletes();
+            });
+        }
 
-        Schema::table('empleados', function (Blueprint $table) {
-            $table->softDeletes();
-        });
+        if (Schema::hasTable('empleados') && !Schema::hasColumn('empleados', 'deleted_at')) {
+            Schema::table('empleados', function (Blueprint $table) {
+                $table->softDeletes();
+            });
+        }
 
-        Schema::table('citas', function (Blueprint $table) {
-            $table->softDeletes();
-        });
+        if (Schema::hasTable('citas') && !Schema::hasColumn('citas', 'deleted_at')) {
+            Schema::table('citas', function (Blueprint $table) {
+                $table->softDeletes();
+            });
+        }
 
-        Schema::table('servicios', function (Blueprint $table) {
-            $table->softDeletes();
-        });
+        if (Schema::hasTable('servicios') && !Schema::hasColumn('servicios', 'deleted_at')) {
+            Schema::table('servicios', function (Blueprint $table) {
+                $table->softDeletes();
+            });
+        }
 
-        Schema::table('deudas', function (Blueprint $table) {
-            $table->softDeletes();
-        });
+        if (Schema::hasTable('deudas') && !Schema::hasColumn('deudas', 'deleted_at')) {
+            Schema::table('deudas', function (Blueprint $table) {
+                $table->softDeletes();
+            });
+        }
 
-        Schema::table('productos', function (Blueprint $table) {
-            $table->softDeletes();
-        });
+        if (Schema::hasTable('productos') && !Schema::hasColumn('productos', 'deleted_at')) {
+            Schema::table('productos', function (Blueprint $table) {
+                $table->softDeletes();
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropSoftDeletes();
-        });
+        if (Schema::hasTable('users') && Schema::hasColumn('users', 'deleted_at')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->dropSoftDeletes();
+            });
+        }
 
-        Schema::table('clientes', function (Blueprint $table) {
-            $table->dropSoftDeletes();
-        });
+        if (Schema::hasTable('clientes') && Schema::hasColumn('clientes', 'deleted_at')) {
+            Schema::table('clientes', function (Blueprint $table) {
+                $table->dropSoftDeletes();
+            });
+        }
 
-        Schema::table('empleados', function (Blueprint $table) {
-            $table->dropSoftDeletes();
-        });
+        if (Schema::hasTable('empleados') && Schema::hasColumn('empleados', 'deleted_at')) {
+            Schema::table('empleados', function (Blueprint $table) {
+                $table->dropSoftDeletes();
+            });
+        }
 
-        Schema::table('citas', function (Blueprint $table) {
-            $table->dropSoftDeletes();
-        });
+        if (Schema::hasTable('citas') && Schema::hasColumn('citas', 'deleted_at')) {
+            Schema::table('citas', function (Blueprint $table) {
+                $table->dropSoftDeletes();
+            });
+        }
 
-        Schema::table('servicios', function (Blueprint $table) {
-            $table->dropSoftDeletes();
-        });
+        if (Schema::hasTable('servicios') && Schema::hasColumn('servicios', 'deleted_at')) {
+            Schema::table('servicios', function (Blueprint $table) {
+                $table->dropSoftDeletes();
+            });
+        }
 
-        Schema::table('deudas', function (Blueprint $table) {
-            $table->dropSoftDeletes();
-        });
+        if (Schema::hasTable('deudas') && Schema::hasColumn('deudas', 'deleted_at')) {
+            Schema::table('deudas', function (Blueprint $table) {
+                $table->dropSoftDeletes();
+            });
+        }
 
-        Schema::table('productos', function (Blueprint $table) {
-            $table->dropSoftDeletes();
-        });
+        if (Schema::hasTable('productos') && Schema::hasColumn('productos', 'deleted_at')) {
+            Schema::table('productos', function (Blueprint $table) {
+                $table->dropSoftDeletes();
+            });
+        }
     }
 };
