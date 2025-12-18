@@ -38,7 +38,9 @@
             <input type="text" 
                    id="buscar-producto" 
                    placeholder="🔍 Buscar por nombre, categoría o descripción..."
-                   class="w-full border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                   class="w-full border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   autocomplete="off">
+            <p class="text-sm text-gray-600 mt-2" id="result-count"></p>
         </div>
 
         <div class="overflow-x-auto">
@@ -96,43 +98,77 @@
     </div>
 
     <script>
-        const inputBuscar = document.getElementById('buscar-producto');
+        // Búsqueda instantánea con AJAX en toda la base de datos
+        const searchInput = document.getElementById('buscar-producto');
         const tbody = document.querySelector('tbody');
-        const filas = Array.from(tbody.querySelectorAll('tr'));
-        
-        inputBuscar.addEventListener('input', function() {
-            const busqueda = this.value.toLowerCase().trim();
-            let visibles = 0;
+        const resultCount = document.getElementById('result-count');
+        let searchTimeout;
+
+        searchInput.addEventListener('input', function() {
+            const searchValue = this.value.trim();
             
-            filas.forEach(fila => {
-                // Excluir fila de "No hay productos"
-                if (fila.querySelector('td[colspan]')) return;
-                
-                const nombre = fila.children[0].textContent.toLowerCase();
-                const categoria = fila.children[1].textContent.toLowerCase();
-                const descripcion = fila.children[2].textContent.toLowerCase();
-                
-                const coincide = nombre.includes(busqueda) || 
-                                categoria.includes(busqueda) || 
-                                descripcion.includes(busqueda);
-                
-                fila.style.display = coincide ? '' : 'none';
-                if (coincide) visibles++;
-            });
+            // Limpiar timeout anterior
+            clearTimeout(searchTimeout);
             
-            // Mostrar mensaje si no hay resultados
-            let mensajeNoResultados = tbody.querySelector('.no-resultados');
-            if (visibles === 0 && busqueda !== '') {
-                if (!mensajeNoResultados) {
-                    mensajeNoResultados = document.createElement('tr');
-                    mensajeNoResultados.className = 'no-resultados';
-                    mensajeNoResultados.innerHTML = '<td colspan="8" class="px-4 py-6 text-center text-gray-600">No se encontraron productos que coincidan con la búsqueda.</td>';
-                    tbody.appendChild(mensajeNoResultados);
-                }
-            } else if (mensajeNoResultados) {
-                mensajeNoResultados.remove();
-            }
+            // Búsqueda instantánea con pequeño debounce (300ms)
+            searchTimeout = setTimeout(() => {
+                searchProducts(searchValue);
+            }, 300);
         });
+
+        async function searchProducts(query) {
+            try {
+                // Mostrar indicador de carga
+                tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-gray-600">🔍 Buscando...</td></tr>';
+                
+                // Construir URL con parámetro de búsqueda
+                const url = query ? '{{ route("productos.index") }}?q=' + encodeURIComponent(query) : '{{ route("productos.index") }}';
+                
+                // Hacer petición AJAX
+                const response = await fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/html'
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Error en la búsqueda');
+                
+                // Obtener el HTML completo
+                const html = await response.text();
+                
+                // Crear un elemento temporal para parsear el HTML
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // Extraer solo el tbody del resultado
+                const newTbody = doc.querySelector('tbody');
+                const newResultInfo = doc.querySelector('#result-count');
+                
+                if (newTbody) {
+                    tbody.innerHTML = newTbody.innerHTML;
+                }
+                
+                // Actualizar contador de resultados
+                if (newResultInfo && query) {
+                    const rows = tbody.querySelectorAll('tr:not([colspan])');
+                    resultCount.textContent = `Mostrando ${rows.length} ${rows.length === 1 ? 'producto' : 'productos'}`;
+                } else {
+                    resultCount.textContent = '';
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-red-600">Error al buscar productos</td></tr>';
+            }
+        }
+        
+        // Búsqueda inicial si hay parámetro en la URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialQuery = urlParams.get('q');
+        if (initialQuery) {
+            searchInput.value = initialQuery;
+        }
     </script>
 </body>
 </html>

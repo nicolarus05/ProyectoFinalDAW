@@ -2,6 +2,9 @@
 function formatMoney(v){ return Number(v).toFixed(2); }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#039;"}[m])); }
 
+// Variable global para timeout de búsqueda
+let productSearchTimeout;
+
 document.addEventListener('DOMContentLoaded', function() {
     const appElement = document.getElementById('cobros-app');
     const productosAvailableUrl = appElement?.dataset.productosUrl || '';
@@ -34,14 +37,20 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // cargar productos desde Laravel
-    async function loadProductos(){
+    async function loadProductos(searchQuery = ''){
       loadingHint.classList.remove('hidden');
       productosTbody.innerHTML = '<tr><td colspan="5" class="py-4">Cargando...</td></tr>';
       
-      console.log('URL productos:', productosAvailableUrl);
+      // Construir URL con parámetro de búsqueda si existe
+      let url = productosAvailableUrl;
+      if (searchQuery) {
+        url += (url.includes('?') ? '&' : '?') + 'q=' + encodeURIComponent(searchQuery);
+      }
+      
+      console.log('URL productos:', url);
       
       try {
-        const resp = await fetch(productosAvailableUrl, {
+        const resp = await fetch(url, {
           headers: { 'Accept':'application/json','X-CSRF-TOKEN': csrfToken },
           credentials: 'same-origin'
         });
@@ -60,7 +69,7 @@ document.addEventListener('DOMContentLoaded', function() {
         productosLoaded = true;
         productosTbody.innerHTML = '';
         if (productos.length === 0) {
-          productosTbody.innerHTML = '<tr><td colspan="5" class="py-4">No hay productos disponibles.</td></tr>';
+          productosTbody.innerHTML = '<tr><td colspan="5" class="py-4">No se encontraron productos.</td></tr>';
           return;
         }
 
@@ -500,4 +509,20 @@ document.addEventListener('DOMContentLoaded', function() {
         // Si no hay cita preseleccionada, solo inicializar el método de pago
         toggleMetodoPagoCampos();
     }
+    
+    // Exponer loadProductos globalmente para búsqueda
+    window.loadProductos = loadProductos;
 });
+
+// Función de búsqueda de productos con debounce
+window.searchProducts = function() {
+    const busqueda = document.getElementById('buscar-producto-modal').value.trim();
+    
+    // Limpiar timeout anterior
+    clearTimeout(productSearchTimeout);
+    
+    // Esperar 500ms después de que el usuario deje de escribir
+    productSearchTimeout = setTimeout(() => {
+        window.loadProductos(busqueda);
+    }, 500);
+};

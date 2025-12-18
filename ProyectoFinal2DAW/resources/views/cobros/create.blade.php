@@ -238,6 +238,11 @@
       <button id="btn-close-products" class="text-gray-600 hover:text-gray-900">Cerrar ✕</button>
     </div>
 
+    <!-- Buscador de productos -->
+    <div class="mb-3">
+      <input type="text" id="buscar-producto-modal" class="w-full border rounded px-3 py-2" placeholder="🔍 Buscar producto..." oninput="searchProducts()">
+    </div>
+
     <div id="productos-loading" class="text-sm text-gray-600 mb-2 hidden">Cargando productos...</div>
 
     <div class="overflow-auto max-h-72">

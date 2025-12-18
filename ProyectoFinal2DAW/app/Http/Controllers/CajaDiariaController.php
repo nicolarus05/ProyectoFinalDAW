@@ -13,32 +13,41 @@ class CajaDiariaController extends Controller{
         // Fecha que queremos ver Por defecto hoy.
         $fecha = $request->input('fecha', Carbon::today()->toDateString());
 
-        // Totales por metodo de pago (usamos total_final -> el precio real del servicio realizado)
-        $totalEfectivo = RegistroCobro::whereDate('created_at', $fecha)
+        // Totales por metodo de pago - SOLO lo que realmente se pagó (total_final - deuda)
+        // Para efectivo: total_final - deuda para cobros en efectivo
+        $cobrosEfectivo = RegistroCobro::whereDate('created_at', $fecha)
             ->where('metodo_pago', 'efectivo')
-            ->sum('total_final');
+            ->get();
+        $totalEfectivo = $cobrosEfectivo->sum(function($cobro) {
+            return $cobro->total_final - $cobro->deuda;
+        });
         
-        // Para pagos mixtos, sumar el pago en efectivo
+        // Para pagos mixtos, sumar el pago en efectivo (ya refleja lo pagado realmente)
         $totalEfectivoMixto = RegistroCobro::whereDate('created_at', $fecha)
             ->where('metodo_pago', 'mixto')
             ->sum('pago_efectivo');
         
         $totalEfectivo += $totalEfectivoMixto;
 
-        $totalTarjeta  = RegistroCobro::whereDate('created_at', $fecha)
+        // Para tarjeta: total_final - deuda para cobros en tarjeta
+        $cobrosTarjeta = RegistroCobro::whereDate('created_at', $fecha)
             ->where('metodo_pago', 'tarjeta')
-            ->sum('total_final');
+            ->get();
+        $totalTarjeta = $cobrosTarjeta->sum(function($cobro) {
+            return $cobro->total_final - $cobro->deuda;
+        });
         
-        // Para pagos mixtos, sumar el pago con tarjeta
+        // Para pagos mixtos, sumar el pago con tarjeta (ya refleja lo pagado realmente)
         $totalTarjetaMixto = RegistroCobro::whereDate('created_at', $fecha)
             ->where('metodo_pago', 'mixto')
             ->sum('pago_tarjeta');
         
         $totalTarjeta += $totalTarjetaMixto;
 
+        // Para bonos: el coste es el valor real del servicio (sin deuda porque se paga con bono)
         $totalBono  = RegistroCobro::whereDate('created_at', $fecha)
             ->where('metodo_pago', 'bono')
-            ->sum('coste'); // Para bonos, el coste es el valor real del servicio
+            ->sum('coste');
 
         // Bonos vendidos ese día
         $totalBonosEfectivo = BonoCliente::whereDate('fecha_compra', $fecha)
@@ -51,13 +60,16 @@ class CajaDiariaController extends Controller{
 
         $totalBonosVendidos = $totalBonosEfectivo + $totalBonosTarjeta;
 
-        // Total pagado incluye servicios + bonos vendidos
-        $totalPagado = RegistroCobro::whereDate('created_at', $fecha)->sum('total_final') + $totalBonosVendidos;
+        // Total pagado: lo que realmente ingresó en caja (total_final - deuda) + bonos vendidos
+        $cobrosDelDia = RegistroCobro::whereDate('created_at', $fecha)->get();
+        $totalPagado = $cobrosDelDia->sum(function($cobro) {
+            return $cobro->total_final - $cobro->deuda;
+        }) + $totalBonosVendidos;
 
-        // Total de servicios realizados
+        // Total de servicios realizados (incluye todo, pagado y no pagado)
         $totalServicios = RegistroCobro::whereDate('created_at', $fecha)->sum('total_final');
 
-        // Total de deuda del día
+        // Total de deuda del día (dinero que quedó pendiente)
         $totalDeuda = RegistroCobro::whereDate('created_at', $fecha)->sum('deuda');
 
         // Clientes que han dejado deuda ese día
@@ -104,14 +116,17 @@ class CajaDiariaController extends Controller{
             $metodoPago = $cobro->metodo_pago;
             $yaContados = false; // Flag para evitar duplicación
             
+            // Calcular el monto realmente pagado (sin incluir la deuda)
+            $montoPagado = $cobro->total_final - $cobro->deuda;
+            
             // PRIORIDAD 1: Servicios de cita individual
             if ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
                 foreach($cobro->cita->servicios as $servicio) {
                     $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
                     
-                    // Calcular precio real considerando descuentos
+                    // Calcular precio real considerando descuentos y solo lo pagado
                     $proporcion = $cobro->coste > 0 ? ($precioServicio / $cobro->coste) : 0;
-                    $precioRealServicio = $cobro->total_final * $proporcion;
+                    $precioRealServicio = $montoPagado * $proporcion;
                     
                     // Solo sumar si NO es pago con bono (los bonos no generan ingreso ese día)
                     if ($metodoPago !== 'bono') {
@@ -144,9 +159,9 @@ class CajaDiariaController extends Controller{
                         foreach($citaGrupo->servicios as $servicio) {
                             $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
                             
-                            // Calcular precio real considerando descuentos
+                            // Calcular precio real considerando descuentos y solo lo pagado
                             $proporcion = $cobro->coste > 0 ? ($precioServicio / $cobro->coste) : 0;
-                            $precioRealServicio = $cobro->total_final * $proporcion;
+                            $precioRealServicio = $montoPagado * $proporcion;
                             
                             // Solo sumar si NO es pago con bono
                             if ($metodoPago !== 'bono') {
@@ -179,9 +194,9 @@ class CajaDiariaController extends Controller{
                 foreach($cobro->servicios as $servicio) {
                     $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
                     
-                    // Calcular precio real considerando descuentos
+                    // Calcular precio real considerando descuentos y solo lo pagado
                     $proporcion = $cobro->coste > 0 ? ($precioServicio / $cobro->coste) : 0;
-                    $precioRealServicio = $cobro->total_final * $proporcion;
+                    $precioRealServicio = $montoPagado * $proporcion;
                     
                     // Solo sumar si NO es pago con bono
                     if ($metodoPago !== 'bono') {
@@ -211,9 +226,9 @@ class CajaDiariaController extends Controller{
                 foreach($cobro->productos as $producto) {
                     $subtotal = $producto->pivot->subtotal ?? 0;
                     
-                    // Calcular precio real considerando descuentos
+                    // Calcular precio real considerando descuentos y solo lo pagado
                     $proporcion = $cobro->coste > 0 ? ($subtotal / $cobro->coste) : 0;
-                    $subtotalReal = $cobro->total_final * $proporcion;
+                    $subtotalReal = $montoPagado * $proporcion;
                     
                     // Solo sumar si NO es pago con bono
                     if ($metodoPago !== 'bono') {

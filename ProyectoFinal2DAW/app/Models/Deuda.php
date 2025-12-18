@@ -54,7 +54,7 @@ class Deuda extends Model
         ]);
     }
 
-    public function registrarAbono($monto, $metodoPago, $nota = null)
+    public function registrarAbono($monto, $metodoPago, $nota = null, $idRegistroCobro = null)
     {
         if ($monto > $this->saldo_pendiente) {
             $monto = $this->saldo_pendiente;
@@ -64,6 +64,7 @@ class Deuda extends Model
         $this->save();
 
         return $this->movimientos()->create([
+            'id_registro_cobro' => $idRegistroCobro,
             'tipo' => 'abono',
             'monto' => $monto,
             'metodo_pago' => $metodoPago,

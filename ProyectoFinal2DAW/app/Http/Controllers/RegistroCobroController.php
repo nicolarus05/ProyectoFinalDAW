@@ -485,6 +485,22 @@ class RegistroCobroController extends Controller{
         // --- Calcular deuda si el dinero del cliente es menor que el total ajustado ---
         $deuda = max(0, $totalAjustado - ($data['dinero_cliente'] ?? 0));
 
+        // --- Determinar id_empleado (nunca debe ser null) ---
+        $empleadoId = $data['id_empleado'] ?? null;
+        if (!$empleadoId) {
+            $user = auth()->user();
+            if ($user && $user->empleado) {
+                $empleadoId = $user->empleado->id;
+            }
+        }
+
+        // Validar que se haya determinado un empleado
+        if (!$empleadoId) {
+            return back()
+                ->withErrors(['id_empleado' => 'No se pudo determinar el empleado para este cobro. Por favor, seleccione un empleado o asegúrese de que su usuario tiene un empleado asociado.'])
+                ->withInput();
+        }
+
         // --- Crear el registro principal ---
         $cobro = RegistroCobro::create([
             'id_cita' => $data['id_cita'] ?? null,
@@ -502,7 +518,7 @@ class RegistroCobroController extends Controller{
             'cambio' => $data['cambio'] ?? 0,
             'metodo_pago' => $descuentoBonos > 0 && $totalAjustado == 0 ? 'bono' : $data['metodo_pago'], // Si se pagó todo con bono, método = bono
             'id_cliente' => $clienteId,
-            'id_empleado' => $data['id_empleado'] ?? null,
+            'id_empleado' => $empleadoId,
             'deuda' => $deuda,
         ]);
 
@@ -538,7 +554,7 @@ class RegistroCobroController extends Controller{
                     'precio_pagado' => $bonoPlantilla->precio,
                     'dinero_cliente' => 0,
                     'cambio' => 0,
-                    'id_empleado' => $data['id_empleado'] ?? null,
+                    'id_empleado' => $empleadoId,
                 ]);
 
                 // Copiar servicios de la plantilla al bono del cliente
@@ -645,16 +661,16 @@ class RegistroCobroController extends Controller{
                 foreach ($serviciosData as $s) {
                     $servicioId = (int) $s['id'];
                     $precio = (float) $s['precio'];
-                    $empleadoId = isset($s['empleado_id']) ? (int) $s['empleado_id'] : null;
+                    $empleadoServicio = isset($s['empleado_id']) ? (int) $s['empleado_id'] : null;
 
-                    // Si no hay empleado_id, usar el empleado principal del cobro
-                    if (!$empleadoId && !empty($data['id_empleado'])) {
-                        $empleadoId = $data['id_empleado'];
+                    // Si no hay empleado_id en el servicio, usar el empleado principal del cobro
+                    if (!$empleadoServicio) {
+                        $empleadoServicio = $empleadoId; // Usar la variable $empleadoId del cobro
                     }
 
                     $cobro->servicios()->attach($servicioId, [
                         'precio' => $precio,
-                        'empleado_id' => $empleadoId,
+                        'empleado_id' => $empleadoServicio,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);

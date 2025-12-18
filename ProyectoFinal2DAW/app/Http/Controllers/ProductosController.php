@@ -27,12 +27,16 @@ class ProductosController extends Controller{
         $query = Productos::query();
 
         if ($q = $request->input('q')) {
-            $query->where('nombre', 'LIKE', "%{$q}%");
+            $query->where(function($query) use ($q) {
+                $query->where('nombre', 'LIKE', "%{$q}%")
+                      ->orWhere('categoria', 'LIKE', "%{$q}%")
+                      ->orWhere('descripcion', 'LIKE', "%{$q}%");
+            });
         }
 
         $productos = $query->orderBy('nombre')->paginate(20)->withQueryString();
 
-        return view('productos.index', compact('productos', 'q'));
+        return view('productos.index', compact('productos'));
     }
 
     /**
@@ -152,16 +156,23 @@ class ProductosController extends Controller{
     }
 
     /**
-     * Endpoint JSON para modal (productos activos).
+     * Endpoint JSON para modal (productos activos con búsqueda).
      */
-    public function available()
+    public function available(Request $request)
     {
         try {
             // Log para debugging
             $user = Auth::user();
             logger()->info('ProductosController@available - Usuario: ' . ($user ? $user->email : 'NO AUTH') . ' | Rol: ' . ($user ? $user->rol : 'N/A'));
             
-            $productos = Productos::where('activo', true)
+            $query = Productos::where('activo', true);
+            
+            // Búsqueda por nombre si se proporciona el parámetro 'q'
+            if ($search = $request->input('q')) {
+                $query->where('nombre', 'LIKE', '%' . $search . '%');
+            }
+            
+            $productos = $query
                 ->select('id', 'nombre', 'precio_venta', 'stock')
                 ->orderBy('nombre')
                 ->get();

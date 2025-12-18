@@ -84,10 +84,63 @@ class DeudaController extends Controller
             ])->withInput();
         }
 
+        // Obtener el empleado y servicios del servicio original de la deuda
+        // Buscamos el último cargo (cuando se generó la deuda) para obtener el empleado y servicios originales
+        $ultimoCargo = $deuda->movimientos()
+            ->where('tipo', 'cargo')
+            ->with(['registroCobro.servicios', 'registroCobro.cita'])
+            ->latest()
+            ->first();
+        
+        // Usar el empleado del servicio original, o el empleado actual como fallback
+        $empleadoId = null;
+        $citaId = null;
+        $serviciosOriginales = [];
+        
+        if ($ultimoCargo && $ultimoCargo->registroCobro) {
+            $empleadoId = $ultimoCargo->registroCobro->id_empleado;
+            $citaId = $ultimoCargo->registroCobro->id_cita;
+            
+            // Obtener los servicios del cobro original
+            if ($ultimoCargo->registroCobro->servicios && $ultimoCargo->registroCobro->servicios->count() > 0) {
+                $serviciosOriginales = $ultimoCargo->registroCobro->servicios;
+            }
+        } else {
+            // Fallback: empleado actual que registra el pago
+            $empleadoId = auth()->user()->empleado->id ?? null;
+        }
+        
+        // Crear registro de cobro para la caja del día (con referencia a la cita original si existe)
+        $registroCobro = \App\Models\RegistroCobro::create([
+            'id_cita' => $citaId, // Vinculamos con la cita original
+            'id_cliente' => $cliente->id,
+            'id_empleado' => $empleadoId,
+            'coste' => $monto,
+            'total_final' => $monto,
+            'metodo_pago' => $validated['metodo_pago'],
+            'deuda' => 0, // No genera nueva deuda, la está pagando
+            'dinero_cliente' => $monto,
+            'pago_efectivo' => $validated['metodo_pago'] === 'efectivo' ? $monto : 0,
+            'pago_tarjeta' => $validated['metodo_pago'] === 'tarjeta' ? $monto : 0,
+            'cambio' => 0,
+        ]);
+        
+        // Vincular los servicios originales al nuevo registro de cobro
+        if (count($serviciosOriginales) > 0) {
+            foreach ($serviciosOriginales as $servicio) {
+                $registroCobro->servicios()->attach($servicio->id, [
+                    'empleado_id' => $servicio->pivot->empleado_id ?? $empleadoId,
+                    'precio' => 0 // El precio ya está en el monto del pago
+                ]);
+            }
+        }
+
+        // Registrar el abono en la deuda vinculado al registro de cobro
         $deuda->registrarAbono(
             $validated['monto'],
             $validated['metodo_pago'],
-            $validated['nota'] ?? null
+            $validated['nota'] ?? 'Pago de deuda',
+            $registroCobro->id
         );
 
         $mensaje = $deuda->saldo_pendiente > 0

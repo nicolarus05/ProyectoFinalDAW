@@ -202,7 +202,7 @@
                             @endforeach
                         </ul>
                     </div>
-                    <select name="id_empleado" id="id_empleado" class="w-full border rounded px-3 py-2 mt-3">
+                    <select name="id_empleado" id="id_empleado" class="w-full border rounded px-3 py-2 mt-3" required>
                         <option value="">-- Seleccionar empleado principal --</option>
                         @foreach($empleados as $empleado)
                             @php
@@ -217,8 +217,8 @@
                 @else
                     {{-- Una sola cita o sin cita --}}
                     <div>
-                        <label for="id_empleado" class="block font-semibold mb-1">Seleccionar empleado:</label>
-                        <select name="id_empleado" id="id_empleado" class="w-full border rounded px-3 py-2">
+                        <label for="id_empleado" class="block font-semibold mb-1">Seleccionar empleado: <span class="text-red-500">*</span></label>
+                        <select name="id_empleado" id="id_empleado" class="w-full border rounded px-3 py-2" required>
                             <option value="">-- Seleccionar empleado --</option>
                             @foreach($empleados as $empleado)
                                 @php
@@ -962,21 +962,18 @@ window.filtrarServicios = function() {
     });
 }
 
-// Filtrar productos en el modal
+// Filtrar productos en el modal - ahora con búsqueda en backend
+let productSearchTimeout;
 window.filtrarProductos = function() {
     const busqueda = document.getElementById('buscar-producto').value.toLowerCase().trim();
-    const rows = document.querySelectorAll('.producto-row');
     
-    let encontrados = 0;
-    rows.forEach(row => {
-        const nombre = row.dataset.nombre || '';
-        if (nombre.includes(busqueda)) {
-            row.style.display = '';
-            encontrados++;
-        } else {
-            row.style.display = 'none';
-        }
-    });
+    // Limpiar timeout anterior
+    clearTimeout(productSearchTimeout);
+    
+    // Esperar 500ms después de que el usuario deje de escribir
+    productSearchTimeout = setTimeout(() => {
+        loadProducts(busqueda);
+    }, 500);
 }
 
 // Modal de servicios
@@ -998,6 +995,13 @@ window.addService = function(id, nombre, precio) {
     // Obtener el empleado por defecto (el seleccionado en el formulario principal)
     const empleadoSelect = document.getElementById('id_empleado');
     const empleadoId = empleadoSelect.value ? parseInt(empleadoSelect.value) : null;
+    
+    // Validar que haya un empleado seleccionado
+    if (!empleadoId) {
+        alert('Debe seleccionar un empleado antes de añadir servicios');
+        empleadoSelect.focus();
+        return;
+    }
     
     serviciosSeleccionados.push({ id, nombre, precio, empleado_id: empleadoId });
     renderServicios();
@@ -1071,7 +1075,7 @@ window.closeModalProducts = function() {
     document.getElementById('modal-products').classList.add('hidden');
 }
 
-async function loadProducts() {
+async function loadProducts(searchQuery = '') {
     const loading = document.getElementById('products-loading');
     const content = document.getElementById('products-content');
     const tbody = document.getElementById('modal-products-tbody');
@@ -1080,7 +1084,13 @@ async function loadProducts() {
     content.classList.add('hidden');
     
     try {
-        const response = await fetch('{{ route("productos.available") }}', {
+        // Construir URL con parámetro de búsqueda si existe
+        let url = '{{ route("productos.available") }}';
+        if (searchQuery) {
+            url += '?q=' + encodeURIComponent(searchQuery);
+        }
+        
+        const response = await fetch(url, {
             headers: { 'Accept': 'application/json' }
         });
         
@@ -1089,25 +1099,28 @@ async function loadProducts() {
         const productos = await response.json();
         tbody.innerHTML = '';
         
-        productos.forEach(producto => {
-            const tr = document.createElement('tr');
-            tr.className = 'border-b hover:bg-gray-50 producto-row';
-            tr.dataset.nombre = producto.nombre.toLowerCase();
-            tr.innerHTML = `
-                <td class="p-2">${producto.nombre}</td>
-                <td class="p-2 text-center">${producto.stock}</td>
-                <td class="p-2 text-right">€${parseFloat(producto.precio_venta).toFixed(2)}</td>
-                <td class="p-2 text-center">
-                    <input type="number" id="qty-${producto.id}" min="1" max="${producto.stock}" value="1" class="w-16 border rounded px-2 py-1 text-center">
-                </td>
-                <td class="p-2">
-                    <button type="button" onclick="addProduct(${producto.id}, '${producto.nombre}', ${producto.precio_venta}, ${producto.stock})" class="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 text-sm">
-                        Añadir
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
+        if (productos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">No se encontraron productos</td></tr>';
+        } else {
+            productos.forEach(producto => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b hover:bg-gray-50 producto-row';
+                tr.innerHTML = `
+                    <td class="p-2">${producto.nombre}</td>
+                    <td class="p-2 text-center">${producto.stock}</td>
+                    <td class="p-2 text-right">€${parseFloat(producto.precio_venta).toFixed(2)}</td>
+                    <td class="p-2 text-center">
+                        <input type="number" id="qty-${producto.id}" min="1" max="${producto.stock}" value="1" class="w-16 border rounded px-2 py-1 text-center">
+                    </td>
+                    <td class="p-2">
+                        <button type="button" onclick="addProduct(${producto.id}, '${producto.nombre}', ${producto.precio_venta}, ${producto.stock})" class="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 text-sm">
+                            Añadir
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
         
         loading.classList.add('hidden');
         content.classList.remove('hidden');
