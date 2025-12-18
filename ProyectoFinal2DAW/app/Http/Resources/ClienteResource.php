@@ -25,7 +25,7 @@ class ClienteResource extends JsonResource
             'edad' => $this->user->edad,
             'fecha_registro' => $this->fecha_registro?->format('Y-m-d'),
             'fecha_registro_formatted' => $this->fecha_registro?->format('d/m/Y'),
-            'notas' => $this->notas,
+            'notas' => $this->notas_adicionales,
             'foto_perfil' => $this->user->foto_perfil ? tenant_asset($this->user->foto_perfil) : null,
             
             // Relaciones opcionales (solo si están cargadas)

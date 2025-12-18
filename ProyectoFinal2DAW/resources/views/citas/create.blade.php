@@ -538,9 +538,9 @@
                         </label>
                         <select name="genero" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none">
                             <option value="">Seleccionar...</option>
-                            <option value="masculino">Masculino</option>
-                            <option value="femenino">Femenino</option>
-                            <option value="otro">Otro</option>
+                            <option value="Hombre">Hombre</option>
+                            <option value="Mujer">Mujer</option>
+                            <option value="Otro">Otro</option>
                         </select>
                     </div>
 
@@ -548,7 +548,8 @@
                         <label class="block text-sm font-semibold text-gray-700 mb-2">
                             Edad <span class="text-red-500">*</span>
                         </label>
-                        <input type="number" name="edad" required min="0" max="120" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none">
+                        <input type="number" name="edad" required min="16" max="120" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none">
+                        <p class="text-xs text-gray-500 mt-1">Edad mínima: 16 años</p>
                     </div>
 
                     <div class="md:col-span-2">
@@ -562,8 +563,8 @@
                         <label class="block text-sm font-semibold text-gray-700 mb-2">
                             Contraseña <span class="text-red-500">*</span>
                         </label>
-                        <input type="password" name="password" required minlength="8" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none">
-                        <p class="text-xs text-gray-500 mt-1">Mínimo 8 caracteres</p>
+                        <input type="password" name="password" required minlength="6" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none">
+                        <p class="text-xs text-gray-500 mt-1">Mínimo 6 caracteres</p>
                     </div>
 
                     <div class="md:col-span-2">
@@ -679,19 +680,24 @@
                 const data = await response.json();
 
                 if (!response.ok) {
+                    // Manejar errores de validación
+                    if (data.errors) {
+                        const errores = Object.values(data.errors).flat().join(', ');
+                        throw new Error(errores);
+                    }
                     throw new Error(data.message || 'Error al crear el cliente');
                 }
 
                 // Cliente creado exitosamente
-                const nuevoCliente = data.cliente;
+                const nuevoCliente = data.data;
                 
                 // Añadir cliente al select oculto
                 const selectCliente = document.getElementById('id_cliente');
                 const option = document.createElement('option');
                 option.value = nuevoCliente.id;
-                option.setAttribute('data-nombre', (nuevoCliente.nombre + ' ' + nuevoCliente.apellidos).toLowerCase());
+                option.setAttribute('data-nombre', (nuevoCliente.nombre_completo || nuevoCliente.nombre + ' ' + nuevoCliente.apellidos).toLowerCase());
                 option.setAttribute('data-email', (nuevoCliente.email || '').toLowerCase());
-                option.textContent = nuevoCliente.nombre + ' ' + nuevoCliente.apellidos;
+                option.textContent = nuevoCliente.nombre_completo || nuevoCliente.nombre + ' ' + nuevoCliente.apellidos;
                 selectCliente.appendChild(option);
                 selectCliente.value = nuevoCliente.id;
 
@@ -700,7 +706,7 @@
                 const divCliente = document.createElement('div');
                 divCliente.className = 'cliente-item p-3 border-b border-gray-200 hover:bg-blue-50 cursor-pointer transition';
                 divCliente.setAttribute('data-cliente-id', nuevoCliente.id);
-                divCliente.setAttribute('data-nombre', (nuevoCliente.nombre + ' ' + nuevoCliente.apellidos).toLowerCase());
+                divCliente.setAttribute('data-nombre', (nuevoCliente.nombre_completo || nuevoCliente.nombre + ' ' + nuevoCliente.apellidos).toLowerCase());
                 divCliente.setAttribute('data-email', (nuevoCliente.email || '').toLowerCase());
                 divCliente.innerHTML = `
                     <div class="flex items-center space-x-3">
@@ -708,7 +714,7 @@
                             ${nuevoCliente.nombre.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                            <p class="font-semibold text-gray-900">${nuevoCliente.nombre} ${nuevoCliente.apellidos}</p>
+                            <p class="font-semibold text-gray-900">${nuevoCliente.nombre_completo || nuevoCliente.nombre + ' ' + nuevoCliente.apellidos}</p>
                             <p class="text-sm text-gray-600">${nuevoCliente.email || 'Sin email'}</p>
                         </div>
                     </div>

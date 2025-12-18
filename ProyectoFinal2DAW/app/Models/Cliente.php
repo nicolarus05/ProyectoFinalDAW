@@ -22,6 +22,15 @@ class Cliente extends Model{
         'notas_adicionales',
         'fecha_registro',
     ];
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array
+     */
+    protected $casts = [
+        'fecha_registro' => 'date',
+    ];
     
     public function user(){
         return $this->belongsTo(User::class, 'id_user');
