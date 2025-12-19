@@ -148,20 +148,37 @@ class RegistroCobroController extends Controller{
         $totalProductosCalculado = 0;
         $detalleValidacion = [];
 
+        // IMPORTANTE: Detectar si es venta SOLO de bono comparando total_final con precio del bono
+        $soloVentaDeBono = false;
+        $precioBonoVendido = 0;
+        
+        if (!empty($data['bono_plantilla_id'])) {
+            $bonoPlantilla = \App\Models\BonoPlantilla::find($data['bono_plantilla_id']);
+            if ($bonoPlantilla) {
+                $precioBonoVendido = $bonoPlantilla->precio;
+                $totalFinalRecibido = (float) $data['total_final'];
+                
+                // Si el total_final coincide EXACTAMENTE con el precio del bono, es venta solo de bono
+                if (abs($totalFinalRecibido - $precioBonoVendido) < 0.01) {
+                    $soloVentaDeBono = true;
+                }
+            }
+        }
+
         // CASO 1: Cobro de cita individual
-        if (!empty($data['id_cita'])) {
+        if (!empty($data['id_cita']) && !$soloVentaDeBono) {
             // Si hay servicios_data, usar esos (modificados por el usuario)
             if ($request->has('servicios_data') && !empty($data['servicios_data'])) {
                 $serviciosData = json_decode($data['servicios_data'], true);
-                if (is_array($serviciosData)) {
+                if (is_array($serviciosData) && count($serviciosData) > 0) {
                     foreach ($serviciosData as $s) {
                         $precio = (float) ($s['precio'] ?? 0);
                         $totalServiciosCalculado += $precio;
                         $detalleValidacion[] = "{$s['nombre']}: €" . number_format($precio, 2);
                     }
                 }
-            } else {
-                // Si no hay servicios_data, usar los servicios originales de la cita
+            } elseif (!$soloVentaDeBono) {
+                // Si no hay servicios_data Y NO es solo venta de bono, usar los servicios originales de la cita
                 $cita = Cita::with('servicios')->find($data['id_cita']);
                 if ($cita && $cita->servicios) {
                     foreach ($cita->servicios as $servicio) {
@@ -174,19 +191,19 @@ class RegistroCobroController extends Controller{
         }
         
         // CASO 2: Cobro de múltiples citas agrupadas
-        elseif (!empty($data['citas_ids']) && is_array($data['citas_ids'])) {
+        elseif (!empty($data['citas_ids']) && is_array($data['citas_ids']) && !$soloVentaDeBono) {
             // Si hay servicios_data, usar esos (modificados por el usuario en create-direct)
             if ($request->has('servicios_data') && !empty($data['servicios_data'])) {
                 $serviciosData = json_decode($data['servicios_data'], true);
-                if (is_array($serviciosData)) {
+                if (is_array($serviciosData) && count($serviciosData) > 0) {
                     foreach ($serviciosData as $s) {
                         $precio = (float) ($s['precio'] ?? 0);
                         $totalServiciosCalculado += $precio;
                         $detalleValidacion[] = "{$s['nombre']}: €" . number_format($precio, 2);
                     }
                 }
-            } else {
-                // Si no hay servicios_data, usar los servicios originales de las citas
+            } elseif (!$soloVentaDeBono) {
+                // Si no hay servicios_data Y NO es solo venta de bono, usar los servicios originales de las citas
                 $citas = Cita::with('servicios')->whereIn('id', $data['citas_ids'])->get();
                 foreach ($citas as $cita) {
                     if ($cita->servicios) {
@@ -201,7 +218,7 @@ class RegistroCobroController extends Controller{
         }
         
         // CASO 3: Cobro directo con servicios (sin cita - solo cuando no hay id_cita ni citas_ids)
-        elseif ($request->has('servicios_data') && !empty($data['servicios_data'])) {
+        elseif ($request->has('servicios_data') && !empty($data['servicios_data']) && !$soloVentaDeBono) {
             $serviciosData = json_decode($data['servicios_data'], true);
             if (is_array($serviciosData)) {
                 foreach ($serviciosData as $s) {
@@ -212,8 +229,8 @@ class RegistroCobroController extends Controller{
             }
         }
 
-        // CASO 4: Productos (aplica a todos los tipos de cobro)
-        if ($request->has('productos_data') && !empty($data['productos_data'])) {
+        // CASO 4: Productos (aplica a todos los tipos de cobro, excepto venta solo de bono)
+        if (!$soloVentaDeBono && $request->has('productos_data') && !empty($data['productos_data'])) {
             $productosData = json_decode($data['productos_data'], true);
             if (is_array($productosData)) {
                 foreach ($productosData as $p) {
@@ -227,10 +244,12 @@ class RegistroCobroController extends Controller{
         }
 
         // VALIDACIÓN 1: El campo 'coste' debe coincidir con el total de SERVICIOS solamente
+        // EXCEPCIÓN: Si solo se vende un bono, el coste puede ser 0 (no hay servicios)
         $costeRecibido = (float) $data['coste'];
         $diferenciaServicios = abs($totalServiciosCalculado - $costeRecibido);
         
-        if ($diferenciaServicios > 0.01) {
+        // Solo validar si NO es venta exclusiva de bono
+        if (!$soloVentaDeBono && $diferenciaServicios > 0.01) {
             $mensajeError = "El coste de servicios no coincide.\n\n";
             $mensajeError .= "💰 Coste recibido: €" . number_format($costeRecibido, 2) . "\n";
             $mensajeError .= "🧮 Coste calculado (servicios): €" . number_format($totalServiciosCalculado, 2) . "\n";
@@ -250,7 +269,7 @@ class RegistroCobroController extends Controller{
                 ->withInput();
         }
 
-        // VALIDACIÓN 2: El total_final debe ser igual a (servicios - desc_servicios) + (productos - desc_productos)
+        // VALIDACIÓN 2: El total_final debe ser igual a (servicios - desc_servicios) + (productos - desc_productos) + bonos
         $descServiciosPor = (float) ($data['descuento_servicios_porcentaje'] ?? 0);
         $descServiciosEur = (float) ($data['descuento_servicios_euro'] ?? 0);
         $descProductosPor = (float) ($data['descuento_productos_porcentaje'] ?? 0);
@@ -263,7 +282,11 @@ class RegistroCobroController extends Controller{
         // Total después de descuentos
         $totalServiciosConDescuento = max(0, $totalServiciosCalculado - $descuentoServiciosTotal);
         $totalProductosConDescuento = max(0, $totalProductosCalculado - $descuentoProductosTotal);
-        $totalFinalCalculado = $totalServiciosConDescuento + $totalProductosConDescuento;
+        
+        // Usar el precio del bono ya calculado arriba
+        $totalBonosVendidos = $precioBonoVendido;
+        
+        $totalFinalCalculado = $totalServiciosConDescuento + $totalProductosConDescuento + $totalBonosVendidos;
         
         $totalFinalRecibido = (float) $data['total_final'];
         $diferenciaTotalFinal = abs($totalFinalCalculado - $totalFinalRecibido);
@@ -279,6 +302,11 @@ class RegistroCobroController extends Controller{
             $mensajeError .= "   Productos: €" . number_format($totalProductosCalculado, 2) . "\n";
             $mensajeError .= "   - Descuento productos (" . number_format($descProductosPor, 2) . "% + €" . number_format($descProductosEur, 2) . "): -€" . number_format($descuentoProductosTotal, 2) . "\n";
             $mensajeError .= "   = Subtotal productos: €" . number_format($totalProductosConDescuento, 2) . "\n\n";
+            
+            if ($totalBonosVendidos > 0) {
+                $mensajeError .= "   Bonos vendidos: €" . number_format($totalBonosVendidos, 2) . "\n\n";
+            }
+            
             $mensajeError .= "❌ Diferencia: €" . number_format($diferenciaTotalFinal, 2) . "\n";
 
             return back()

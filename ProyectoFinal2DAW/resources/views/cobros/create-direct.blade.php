@@ -1294,9 +1294,13 @@ window.calcularPagoMixto = function() {
 
 // Validar formulario antes de enviar
 document.getElementById('cobro-form').addEventListener('submit', function(e) {
-    if (serviciosSeleccionados.length === 0 && productosSeleccionados.length === 0) {
+    // Verificar si se está vendiendo un bono
+    const bonoSeleccionado = document.getElementById('bono_plantilla_id').value;
+    
+    // Si no hay servicios, productos NI bono, mostrar error
+    if (serviciosSeleccionados.length === 0 && productosSeleccionados.length === 0 && !bonoSeleccionado) {
         e.preventDefault();
-        alert('Debe añadir al menos un servicio o producto');
+        alert('Debe añadir al menos un servicio, producto o bono');
         return false;
     }
     

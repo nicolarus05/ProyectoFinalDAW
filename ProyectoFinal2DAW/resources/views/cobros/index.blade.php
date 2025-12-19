@@ -102,6 +102,10 @@
                                             $horaCita = \Carbon\Carbon::parse($primeraCita->fecha_hora)->format('H:i');
                                         }
                                     }
+                                    // Si no hay cita, usar la hora del cobro (para cobros directos)
+                                    if (!$horaCita && $cobro->created_at) {
+                                        $horaCita = \Carbon\Carbon::parse($cobro->created_at)->format('H:i');
+                                    }
                                 @endphp
                                 {{ $horaCita ?? '-' }}
                             </td>

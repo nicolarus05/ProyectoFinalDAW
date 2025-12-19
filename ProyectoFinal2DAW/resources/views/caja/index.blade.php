@@ -571,7 +571,7 @@
                         <tbody>
                             @foreach($bonosVendidos as $bono)
                                 <tr>
-                                    <td class="font-semibold">{{ \Carbon\Carbon::parse($bono->fecha_compra)->format('H:i') }}</td>
+                                    <td class="font-semibold">{{ \Carbon\Carbon::parse($bono->created_at)->format('H:i') }}</td>
                                     <td>
                                         @if($bono->cliente && $bono->cliente->user)
                                             {{ $bono->cliente->user->nombre }} {{ $bono->cliente->user->apellidos }}
