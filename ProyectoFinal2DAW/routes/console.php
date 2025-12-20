@@ -12,3 +12,21 @@ Artisan::command('inspire', function () {
 Schedule::command('citas:enviar-recordatorios')
     ->dailyAt('10:00')
     ->timezone('Europe/Madrid');
+
+// Programar backups automáticos diariamente a las 2:00 AM
+Schedule::command('backup:run')
+    ->daily()
+    ->at('02:00')
+    ->when(fn() => env('BACKUP_ENABLED', true));
+
+// Limpiar backups antiguos diariamente a las 3:00 AM
+Schedule::command('backup:clean')
+    ->daily()
+    ->at('03:00')
+    ->when(fn() => env('BACKUP_ENABLED', true));
+
+// Monitorear salud de backups diariamente a las 4:00 AM
+Schedule::command('backup:monitor')
+    ->daily()
+    ->at('04:00')
+    ->when(fn() => env('BACKUP_ENABLED', true));
