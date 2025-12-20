@@ -173,18 +173,74 @@
                 <p id="deuda-info" class="text-sm text-gray-600 mt-2"></p>
                 
                 <!-- Panel informativo de bonos del cliente -->
-                <div id="panel-bonos-cliente" class="hidden mt-4 bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-300 rounded-lg p-4 shadow-md">
+                <div id="panel-bonos-cliente" class="mt-4 bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-300 rounded-lg p-4 shadow-md" style="{{ (isset($cita) && $cita->cliente->bonos->count() > 0) || (isset($citas) && $citas->count() > 0 && $citas->first()->cliente->bonos->count() > 0) ? '' : 'display: none;' }}">
                     <div class="flex items-center justify-between mb-3">
                         <h3 class="text-lg font-bold text-purple-800 flex items-center">
                             <span class="text-2xl mr-2">🎫</span>
                             Bonos Activos del Cliente
                         </h3>
-                        <button type="button" onclick="document.getElementById('panel-bonos-cliente').classList.add('hidden')" class="text-gray-500 hover:text-gray-700">
+                        <button type="button" onclick="document.getElementById('panel-bonos-cliente').style.display='none'" class="text-gray-500 hover:text-gray-700">
                             ✕
                         </button>
                     </div>
                     <div id="lista-bonos-cliente" class="space-y-3">
-                        <!-- Se llenará dinámicamente -->
+                        @if(isset($cita) && $cita->cliente->bonos)
+                            @foreach($cita->cliente->bonos as $bono)
+                                <div class="bg-white border-l-4 border-purple-500 rounded-lg p-3 shadow-sm">
+                                    <div class="flex items-start justify-between">
+                                        <div class="flex-1">
+                                            <p class="font-bold text-purple-700 mb-1">{{ $bono->plantilla->nombre ?? $bono->nombre }}</p>
+                                            @if($bono->servicios && $bono->servicios->count() > 0)
+                                                <div class="space-y-1 mt-2 text-sm text-gray-600">
+                                                    @foreach($bono->servicios as $servicio)
+                                                        @php
+                                                            $cantidadTotal = $servicio->pivot->cantidad_total;
+                                                            $cantidadUsada = $servicio->pivot->cantidad_usada;
+                                                            $cantidadDisponible = $cantidadTotal - $cantidadUsada;
+                                                            $colorTexto = $cantidadDisponible > 2 ? 'text-green-600' : ($cantidadDisponible > 0 ? 'text-yellow-600' : 'text-gray-400');
+                                                        @endphp
+                                                        <div class="flex items-center justify-between">
+                                                            <span>• {{ $servicio->nombre }}</span>
+                                                            <span class="font-semibold {{ $colorTexto }}">
+                                                                {{ $cantidadDisponible }}/{{ $cantidadTotal }} disponibles
+                                                            </span>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        @elseif(isset($citas) && $citas->count() > 0 && $citas->first()->cliente->bonos)
+                            @foreach($citas->first()->cliente->bonos as $bono)
+                                <div class="bg-white border-l-4 border-purple-500 rounded-lg p-3 shadow-sm">
+                                    <div class="flex items-start justify-between">
+                                        <div class="flex-1">
+                                            <p class="font-bold text-purple-700 mb-1">{{ $bono->plantilla->nombre ?? $bono->nombre }}</p>
+                                            @if($bono->servicios && $bono->servicios->count() > 0)
+                                                <div class="space-y-1 mt-2 text-sm text-gray-600">
+                                                    @foreach($bono->servicios as $servicio)
+                                                        @php
+                                                            $cantidadTotal = $servicio->pivot->cantidad_total;
+                                                            $cantidadUsada = $servicio->pivot->cantidad_usada;
+                                                            $cantidadDisponible = $cantidadTotal - $cantidadUsada;
+                                                            $colorTexto = $cantidadDisponible > 2 ? 'text-green-600' : ($cantidadDisponible > 0 ? 'text-yellow-600' : 'text-gray-400');
+                                                        @endphp
+                                                        <div class="flex items-center justify-between">
+                                                            <span>• {{ $servicio->nombre }}</span>
+                                                            <span class="font-semibold {{ $colorTexto }}">
+                                                                {{ $cantidadDisponible }}/{{ $cantidadTotal }} disponibles
+                                                            </span>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        @endif
                     </div>
                 </div>
             </div>

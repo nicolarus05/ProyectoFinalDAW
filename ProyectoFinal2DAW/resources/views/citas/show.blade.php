@@ -22,6 +22,12 @@
         <div class="space-y-4 text-gray-800 text-base">
             <p><strong class="font-semibold">Cliente:</strong> {{ $cita->cliente->user->nombre }} {{ $cita->cliente->user->apellidos }}</p>
             
+            @if($cita->cliente->user->telefono)
+                <p><strong class="font-semibold">Teléfono:</strong> 
+                    {{ $cita->cliente->user->telefono }}
+                </p>
+            @endif
+            
             @if($cita->cliente && $cita->cliente->notas_adicionales)
                 <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md shadow-sm">
                     <p class="font-semibold text-yellow-800 mb-2 flex items-center">

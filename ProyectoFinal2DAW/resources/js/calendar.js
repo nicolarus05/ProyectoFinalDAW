@@ -227,6 +227,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Mostrar mensaje de éxito
                 mostrarMensaje('Duración actualizada correctamente', 'success');
+                
+                // Recargar el calendario después de 500ms para actualizar la disponibilidad de bloques
+                // Esto permite que el usuario vea el cambio visual primero, luego se actualiza la disponibilidad
+                setTimeout(() => {
+                    // Obtener la fecha actual de la URL o del calendario
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const fechaActual = urlParams.get('fecha') || new Date().toISOString().split('T')[0];
+                    
+                    // Recargar la página manteniendo la misma fecha
+                    window.location.href = window.location.pathname + '?fecha=' + fechaActual;
+                }, 500);
             } else {
                 alert('Error: ' + data.message);
             }

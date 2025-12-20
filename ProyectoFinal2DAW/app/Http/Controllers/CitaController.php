@@ -205,7 +205,7 @@ class CitaController extends Controller{
         // Calcular la duración total de la nueva cita
         $servicios = $data['servicios'];
         $serviciosSeleccionados = Servicio::whereIn('id', $servicios)->get();
-        $duracionTotalNuevaCita = $serviciosSeleccionados->sum('duracion');
+        $duracionTotalNuevaCita = $serviciosSeleccionados->sum('tiempo_estimado');
         $finNuevaCita = $fechaHora->copy()->addMinutes($duracionTotalNuevaCita);
 
         // Verificar solapamiento real con otras citas del empleado
@@ -315,7 +315,12 @@ class CitaController extends Controller{
         $cita->refresh();
         
         // Cargar las relaciones necesarias
-        $cita->load(['cliente.user', 'empleado.user', 'servicios']);
+        $cita->load(['cliente.user', 'cliente.bonos' => function($query) {
+            $query->where('estado', 'activo')
+                  ->with(['servicios' => function($q) {
+                      $q->withPivot('cantidad_total', 'cantidad_usada');
+                  }]);
+        }, 'empleado.user', 'servicios']);
         
         \Log::info('Mostrando cita', [
             'cita_id' => $cita->id,
@@ -621,6 +626,71 @@ class CitaController extends Controller{
                     'message' => 'La nueva duración causaría superposición con otra cita de ' . 
                                 $otraInicio->format('H:i') . ' a ' . $otraFin->format('H:i')
                 ], 400);
+            }
+        }
+
+        // Calcular duración anterior y nueva para gestionar bloques horarios
+        $duracionAnterior = $cita->duracion_minutos; // Usa duracion_real si existe, sino suma servicios
+        $duracionNueva = $request->duracion_minutos;
+        
+        // Si la nueva duración es MENOR, liberar bloques horarios sobrantes
+        if ($duracionNueva < $duracionAnterior) {
+            // Calcular desde qué momento liberar (después de la nueva duración)
+            $horaInicioLiberar = $horaInicio->copy()->addMinutes($duracionNueva);
+            $bloquesALiberar = ceil(($duracionAnterior - $duracionNueva) / 15);
+            
+            // Liberar cada bloque de 15 minutos que ya no se necesita
+            $horaActual = $horaInicioLiberar->copy();
+            for ($i = 0; $i < $bloquesALiberar; $i++) {
+                HorarioTrabajo::where('id_empleado', $cita->id_empleado)
+                    ->whereDate('fecha', $horaActual->format('Y-m-d'))
+                    ->where('hora', $horaActual->format('H:i:s'))
+                    ->update(['disponible' => true]);
+                
+                $horaActual->addMinutes(15);
+            }
+        }
+        // Si la nueva duración es MAYOR, ocupar bloques adicionales
+        elseif ($duracionNueva > $duracionAnterior) {
+            // Calcular desde qué momento ocupar (después de la duración anterior)
+            $horaInicioOcupar = $horaInicio->copy()->addMinutes($duracionAnterior);
+            $bloquesAOcupar = ceil(($duracionNueva - $duracionAnterior) / 15);
+            
+            // Primero verificar que todos los bloques estén disponibles
+            $horaActual = $horaInicioOcupar->copy();
+            for ($i = 0; $i < $bloquesAOcupar; $i++) {
+                $horarioDisponible = HorarioTrabajo::where('id_empleado', $cita->id_empleado)
+                    ->where('fecha', $horaActual->format('Y-m-d'))
+                    ->where('disponible', true)
+                    ->where(function($query) use ($horaActual) {
+                        $hora = $horaActual->format('H:i:s');
+                        $query->where('hora', $hora)
+                            ->orWhere(function($q) use ($hora) {
+                                $q->whereTime('hora_inicio', '<=', $hora)
+                                  ->whereTime('hora_fin', '>=', $hora);
+                            });
+                    })
+                    ->exists();
+
+                if (!$horarioDisponible) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No hay suficiente espacio disponible para extender la cita hasta ' . $nuevaHoraFin->format('H:i')
+                    ], 400);
+                }
+                
+                $horaActual->addMinutes(15);
+            }
+            
+            // Si todos están disponibles, ocuparlos
+            $horaActual = $horaInicioOcupar->copy();
+            for ($i = 0; $i < $bloquesAOcupar; $i++) {
+                HorarioTrabajo::where('id_empleado', $cita->id_empleado)
+                    ->whereDate('fecha', $horaActual->format('Y-m-d'))
+                    ->where('hora', $horaActual->format('H:i:s'))
+                    ->update(['disponible' => false]);
+                
+                $horaActual->addMinutes(15);
             }
         }
 
