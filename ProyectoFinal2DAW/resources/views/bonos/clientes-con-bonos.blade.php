@@ -128,10 +128,19 @@
                                                             <div class="ml-4 mt-2 space-y-1">
                                                                 <p class="text-xs font-semibold text-gray-600">Fechas de uso:</p>
                                                                 @foreach($usosServicio as $uso)
-                                                                    @if($uso->cita && $uso->cita->fecha_hora)
+                                                                    @php
+                                                                        // Intentar obtener fecha de la cita, si no usar created_at del uso
+                                                                        $fechaUso = null;
+                                                                        if ($uso->cita && $uso->cita->fecha_hora) {
+                                                                            $fechaUso = \Carbon\Carbon::parse($uso->cita->fecha_hora)->format('d/m/Y H:i');
+                                                                        } elseif ($uso->created_at) {
+                                                                            $fechaUso = \Carbon\Carbon::parse($uso->created_at)->format('d/m/Y H:i');
+                                                                        }
+                                                                    @endphp
+                                                                    @if($fechaUso)
                                                                         <div class="text-xs text-gray-700 flex items-center gap-1">
                                                                             <span class="text-green-600">✓</span>
-                                                                            <span>{{ \Carbon\Carbon::parse($uso->cita->fecha_hora)->format('d/m/Y H:i') }}</span>
+                                                                            <span>{{ $fechaUso }}</span>
                                                                         </div>
                                                                     @endif
                                                                 @endforeach
