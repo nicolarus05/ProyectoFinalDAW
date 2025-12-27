@@ -275,12 +275,98 @@ class RegistroCobroController extends Controller{
         $descProductosPor = (float) ($data['descuento_productos_porcentaje'] ?? 0);
         $descProductosEur = (float) ($data['descuento_productos_euro'] ?? 0);
         
+        // Calcular servicios cubiertos por bonos (vendidos + activos)
+        $totalServiciosCubiertosporBono = 0;
+        $serviciosYaContados = []; // Para evitar contar servicios dos veces
+        
+        // 1. Servicios cubiertos por bono VENDIDO en esta transacción
+        if (!empty($data['bono_plantilla_id']) && !$soloVentaDeBono) {
+            $bonoPlantilla = \App\Models\BonoPlantilla::with('servicios')->find($data['bono_plantilla_id']);
+            if ($bonoPlantilla) {
+                // Obtener IDs de servicios incluidos en el bono
+                $serviciosEnBono = $bonoPlantilla->servicios->pluck('id')->toArray();
+                
+                // Calcular el precio de los servicios que están en el bono
+                if ($request->has('servicios_data') && !empty($data['servicios_data'])) {
+                    $serviciosData = json_decode($data['servicios_data'], true);
+                    if (is_array($serviciosData)) {
+                        foreach ($serviciosData as $s) {
+                            $servicioId = (int) $s['id'];
+                            $precio = (float) ($s['precio'] ?? 0);
+                            
+                            // Si el servicio está incluido en el bono, sumarlo al total cubierto
+                            if (in_array($servicioId, $serviciosEnBono)) {
+                                $totalServiciosCubiertosporBono += $precio;
+                                $serviciosYaContados[] = $servicioId; // Marcar como contado
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 2. Servicios cubiertos por bonos ACTIVOS del cliente (solo los que no están ya cubiertos por bono vendido)
+        // Obtener el ID del cliente
+        $clienteId = null;
+        if (!empty($data['id_cita'])) {
+            $cita = Cita::find($data['id_cita']);
+            $clienteId = $cita ? $cita->id_cliente : null;
+        } elseif (!empty($data['citas_ids']) && is_array($data['citas_ids'])) {
+            $cita = Cita::whereIn('id', $data['citas_ids'])->first();
+            $clienteId = $cita ? $cita->id_cliente : null;
+        } elseif (!empty($data['id_cliente'])) {
+            $clienteId = $data['id_cliente'];
+        }
+        
+        // Si hay cliente, buscar sus bonos activos
+        if ($clienteId) {
+            $bonosActivos = \App\Models\BonoCliente::with(['servicios' => function($query) {
+                $query->withPivot('cantidad_total', 'cantidad_usada');
+            }])
+            ->where('cliente_id', $clienteId)
+            ->where('estado', 'activo')
+            ->get();
+            
+            // Por cada servicio de la cita, verificar si está cubierto por un bono activo
+            if ($request->has('servicios_data') && !empty($data['servicios_data'])) {
+                $serviciosData = json_decode($data['servicios_data'], true);
+                if (is_array($serviciosData)) {
+                    foreach ($serviciosData as $s) {
+                        $servicioId = (int) $s['id'];
+                        $precio = (float) ($s['precio'] ?? 0);
+                        
+                        // Skip si ya fue contado por bono vendido
+                        if (in_array($servicioId, $serviciosYaContados)) {
+                            continue;
+                        }
+                        
+                        // Buscar si algún bono activo cubre este servicio
+                        foreach ($bonosActivos as $bonoActivo) {
+                            $servicioEnBono = $bonoActivo->servicios->firstWhere('id', $servicioId);
+                            
+                            if ($servicioEnBono) {
+                                $cantidadDisponible = $servicioEnBono->pivot->cantidad_total - $servicioEnBono->pivot->cantidad_usada;
+                                
+                                // Si tiene usos disponibles, este servicio está cubierto
+                                if ($cantidadDisponible > 0) {
+                                    $totalServiciosCubiertosporBono += $precio;
+                                    $serviciosYaContados[] = $servicioId; // Marcar como contado
+                                    break; // No buscar en más bonos para este servicio
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
         // Calcular descuentos aplicados
         $descuentoServiciosTotal = ($totalServiciosCalculado * ($descServiciosPor / 100)) + $descServiciosEur;
         $descuentoProductosTotal = ($totalProductosCalculado * ($descProductosPor / 100)) + $descProductosEur;
         
-        // Total después de descuentos
-        $totalServiciosConDescuento = max(0, $totalServiciosCalculado - $descuentoServiciosTotal);
+        // Total de servicios SIN contar los cubiertos por el bono
+        $totalServiciosSinBono = $totalServiciosCalculado - $totalServiciosCubiertosporBono;
+        $totalServiciosConDescuento = max(0, $totalServiciosSinBono - $descuentoServiciosTotal);
         $totalProductosConDescuento = max(0, $totalProductosCalculado - $descuentoProductosTotal);
         
         // Usar el precio del bono ya calculado arriba
@@ -296,7 +382,13 @@ class RegistroCobroController extends Controller{
             $mensajeError .= "💰 Total final recibido: €" . number_format($totalFinalRecibido, 2) . "\n";
             $mensajeError .= "🧮 Total final calculado: €" . number_format($totalFinalCalculado, 2) . "\n\n";
             $mensajeError .= "📊 Desglose del cálculo:\n";
-            $mensajeError .= "   Servicios: €" . number_format($totalServiciosCalculado, 2) . "\n";
+            $mensajeError .= "   Servicios totales: €" . number_format($totalServiciosCalculado, 2) . "\n";
+            
+            if ($totalServiciosCubiertosporBono > 0) {
+                $mensajeError .= "   - Servicios cubiertos por bono: -€" . number_format($totalServiciosCubiertosporBono, 2) . "\n";
+                $mensajeError .= "   = Servicios a cobrar: €" . number_format($totalServiciosSinBono, 2) . "\n";
+            }
+            
             $mensajeError .= "   - Descuento servicios (" . number_format($descServiciosPor, 2) . "% + €" . number_format($descServiciosEur, 2) . "): -€" . number_format($descuentoServiciosTotal, 2) . "\n";
             $mensajeError .= "   = Subtotal servicios: €" . number_format($totalServiciosConDescuento, 2) . "\n\n";
             $mensajeError .= "   Productos: €" . number_format($totalProductosCalculado, 2) . "\n";
@@ -502,16 +594,11 @@ class RegistroCobroController extends Controller{
             }
         }
 
-        // Ajustar el total final restando los servicios cubiertos por bonos
-        $totalAjustado = max(0, $data['total_final'] - $descuentoBonos);
+        // NOTA: El total_final que viene del frontend YA tiene descontados los servicios cubiertos por bonos activos
+        // No debemos ajustarlo de nuevo. Solo marcamos los servicios como usados en el bono (ya hecho arriba)
 
-        // Recalcular el cambio con el total ajustado
-        if ($data['metodo_pago'] === 'efectivo' && $descuentoBonos > 0) {
-            $data['cambio'] = max(0, ($data['dinero_cliente'] ?? 0) - $totalAjustado);
-        }
-
-        // --- Calcular deuda si el dinero del cliente es menor que el total ajustado ---
-        $deuda = max(0, $totalAjustado - ($data['dinero_cliente'] ?? 0));
+        // --- Calcular deuda si el dinero del cliente es menor que el total ---
+        $deuda = max(0, $data['total_final'] - ($data['dinero_cliente'] ?? 0));
 
         // --- Determinar id_empleado (nunca debe ser null) ---
         $empleadoId = $data['id_empleado'] ?? null;
@@ -534,17 +621,17 @@ class RegistroCobroController extends Controller{
             'id_cita' => $data['id_cita'] ?? null,
             'coste' => $data['coste'],
             'descuento_porcentaje' => $data['descuento_porcentaje'] ?? 0,
-            'descuento_euro' => ($data['descuento_euro'] ?? 0) + $descuentoBonos, // Sumar descuento por bonos
+            'descuento_euro' => $data['descuento_euro'] ?? 0, // NO sumar descuento por bonos aquí
             'descuento_servicios_porcentaje' => $data['descuento_servicios_porcentaje'] ?? 0,
             'descuento_servicios_euro' => $data['descuento_servicios_euro'] ?? 0,
             'descuento_productos_porcentaje' => $data['descuento_productos_porcentaje'] ?? 0,
             'descuento_productos_euro' => $data['descuento_productos_euro'] ?? 0,
-            'total_final' => $totalAjustado, // Guardar el total ajustado
+            'total_final' => $data['total_final'], // Usar el total_final original del frontend
             'dinero_cliente' => $data['dinero_cliente'] ?? 0,
             'pago_efectivo' => $data['metodo_pago'] === 'mixto' ? ($data['pago_efectivo'] ?? 0) : null,
             'pago_tarjeta' => $data['metodo_pago'] === 'mixto' ? ($data['pago_tarjeta'] ?? 0) : null,
             'cambio' => $data['cambio'] ?? 0,
-            'metodo_pago' => $descuentoBonos > 0 && $totalAjustado == 0 ? 'bono' : $data['metodo_pago'], // Si se pagó todo con bono, método = bono
+            'metodo_pago' => $data['metodo_pago'], // Usar el método de pago original
             'id_cliente' => $clienteId,
             'id_empleado' => $empleadoId,
             'deuda' => $deuda,
@@ -810,11 +897,7 @@ class RegistroCobroController extends Controller{
             $mensaje .= ' Deuda registrada: €' . number_format($deuda, 2);
         }
         if (!empty($serviciosAplicados)) {
-            $mensaje .= ' Servicios aplicados desde bono: ' . implode(', ', $serviciosAplicados) . '.';
-            $mensaje .= ' Descuento por bonos: €' . number_format($descuentoBonos, 2) . '.';
-        }
-        if ($descuentoBonos > 0 && $totalAjustado == 0) {
-            $mensaje .= ' ¡Pago completo con bono!';
+            $mensaje .= ' Servicios aplicados desde bono activo: ' . implode(', ', $serviciosAplicados) . '.';
         }
 
         return $this->redirectWithSuccess('cobros.index', $mensaje);

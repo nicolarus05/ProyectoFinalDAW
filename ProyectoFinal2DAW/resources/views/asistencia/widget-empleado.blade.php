@@ -149,9 +149,13 @@
 
 @if($estado === 'trabajando')
 <script>
-    // Actualizar horas trabajadas cada minuto
-    setInterval(function() {
-        const entrada = new Date('{{ $registroActivo->fecha }} {{ $registroActivo->hora_entrada }}');
+    // Función para calcular y actualizar horas trabajadas
+    function actualizarHorasTrabajadas() {
+        @php
+            $fechaStr = $registroActivo->fecha instanceof \Carbon\Carbon ? $registroActivo->fecha->format('Y-m-d') : $registroActivo->fecha;
+            $entradaISO = $fechaStr . 'T' . $registroActivo->hora_entrada;
+        @endphp
+        const entrada = new Date('{{ $entradaISO }}');
         const ahora = new Date();
         const diff = ahora - entrada;
         
@@ -159,7 +163,13 @@
         const minutos = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
         
         document.getElementById('horas-actuales').textContent = `${horas}h ${String(minutos).padStart(2, '0')}min`;
-    }, 60000); // Actualizar cada minuto
+    }
+    
+    // Ejecutar inmediatamente al cargar
+    actualizarHorasTrabajadas();
+    
+    // Actualizar horas trabajadas cada minuto
+    setInterval(actualizarHorasTrabajadas, 60000);
 
     // Actualizar reloj cada segundo
     setInterval(function() {

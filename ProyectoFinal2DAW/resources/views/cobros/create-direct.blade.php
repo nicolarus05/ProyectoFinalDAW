@@ -186,59 +186,95 @@
                     <div id="lista-bonos-cliente" class="space-y-3">
                         @if(isset($cita) && $cita->cliente->bonos)
                             @foreach($cita->cliente->bonos as $bono)
-                                <div class="bg-white border-l-4 border-purple-500 rounded-lg p-3 shadow-sm">
-                                    <div class="flex items-start justify-between">
-                                        <div class="flex-1">
-                                            <p class="font-bold text-purple-700 mb-1">{{ $bono->plantilla->nombre ?? $bono->nombre }}</p>
-                                            @if($bono->servicios && $bono->servicios->count() > 0)
-                                                <div class="space-y-1 mt-2 text-sm text-gray-600">
-                                                    @foreach($bono->servicios as $servicio)
-                                                        @php
-                                                            $cantidadTotal = $servicio->pivot->cantidad_total;
-                                                            $cantidadUsada = $servicio->pivot->cantidad_usada;
-                                                            $cantidadDisponible = $cantidadTotal - $cantidadUsada;
-                                                            $colorTexto = $cantidadDisponible > 2 ? 'text-green-600' : ($cantidadDisponible > 0 ? 'text-yellow-600' : 'text-gray-400');
-                                                        @endphp
-                                                        <div class="flex items-center justify-between">
-                                                            <span>• {{ $servicio->nombre }}</span>
-                                                            <span class="font-semibold {{ $colorTexto }}">
-                                                                {{ $cantidadDisponible }}/{{ $cantidadTotal }} disponibles
-                                                            </span>
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                            @endif
+                                @php
+                                    // Verificar si el bono tiene al menos un servicio disponible
+                                    $tieneServiciosDisponibles = false;
+                                    if ($bono->servicios && $bono->servicios->count() > 0) {
+                                        foreach ($bono->servicios as $servicio) {
+                                            $disponible = $servicio->pivot->cantidad_total - $servicio->pivot->cantidad_usada;
+                                            if ($disponible > 0) {
+                                                $tieneServiciosDisponibles = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                @endphp
+                                
+                                @if($tieneServiciosDisponibles)
+                                    <div class="bg-white border-l-4 border-purple-500 rounded-lg p-3 shadow-sm">
+                                        <div class="flex items-start justify-between">
+                                            <div class="flex-1">
+                                                <p class="font-bold text-purple-700 mb-1">{{ $bono->plantilla->nombre ?? $bono->nombre }}</p>
+                                                @if($bono->servicios && $bono->servicios->count() > 0)
+                                                    <div class="space-y-1 mt-2 text-sm text-gray-600">
+                                                        @foreach($bono->servicios as $servicio)
+                                                            @php
+                                                                $cantidadTotal = $servicio->pivot->cantidad_total;
+                                                                $cantidadUsada = $servicio->pivot->cantidad_usada;
+                                                                $cantidadDisponible = $cantidadTotal - $cantidadUsada;
+                                                                $colorTexto = $cantidadDisponible > 2 ? 'text-green-600' : ($cantidadDisponible > 0 ? 'text-yellow-600' : 'text-gray-400');
+                                                            @endphp
+                                                            @if($cantidadDisponible > 0)
+                                                                <div class="flex items-center justify-between">
+                                                                    <span>• {{ $servicio->nombre }}</span>
+                                                                    <span class="font-semibold {{ $colorTexto }}">
+                                                                        {{ $cantidadDisponible }}/{{ $cantidadTotal }} disponibles
+                                                                    </span>
+                                                                </div>
+                                                            @endif
+                                                        @endforeach
+                                                    </div>
+                                                @endif
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                @endif
                             @endforeach
                         @elseif(isset($citas) && $citas->count() > 0 && $citas->first()->cliente->bonos)
                             @foreach($citas->first()->cliente->bonos as $bono)
-                                <div class="bg-white border-l-4 border-purple-500 rounded-lg p-3 shadow-sm">
-                                    <div class="flex items-start justify-between">
-                                        <div class="flex-1">
-                                            <p class="font-bold text-purple-700 mb-1">{{ $bono->plantilla->nombre ?? $bono->nombre }}</p>
-                                            @if($bono->servicios && $bono->servicios->count() > 0)
-                                                <div class="space-y-1 mt-2 text-sm text-gray-600">
-                                                    @foreach($bono->servicios as $servicio)
-                                                        @php
-                                                            $cantidadTotal = $servicio->pivot->cantidad_total;
-                                                            $cantidadUsada = $servicio->pivot->cantidad_usada;
-                                                            $cantidadDisponible = $cantidadTotal - $cantidadUsada;
-                                                            $colorTexto = $cantidadDisponible > 2 ? 'text-green-600' : ($cantidadDisponible > 0 ? 'text-yellow-600' : 'text-gray-400');
-                                                        @endphp
-                                                        <div class="flex items-center justify-between">
-                                                            <span>• {{ $servicio->nombre }}</span>
-                                                            <span class="font-semibold {{ $colorTexto }}">
-                                                                {{ $cantidadDisponible }}/{{ $cantidadTotal }} disponibles
-                                                            </span>
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                            @endif
+                                @php
+                                    // Verificar si el bono tiene al menos un servicio disponible
+                                    $tieneServiciosDisponibles = false;
+                                    if ($bono->servicios && $bono->servicios->count() > 0) {
+                                        foreach ($bono->servicios as $servicio) {
+                                            $disponible = $servicio->pivot->cantidad_total - $servicio->pivot->cantidad_usada;
+                                            if ($disponible > 0) {
+                                                $tieneServiciosDisponibles = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                @endphp
+                                
+                                @if($tieneServiciosDisponibles)
+                                    <div class="bg-white border-l-4 border-purple-500 rounded-lg p-3 shadow-sm">
+                                        <div class="flex items-start justify-between">
+                                            <div class="flex-1">
+                                                <p class="font-bold text-purple-700 mb-1">{{ $bono->plantilla->nombre ?? $bono->nombre }}</p>
+                                                @if($bono->servicios && $bono->servicios->count() > 0)
+                                                    <div class="space-y-1 mt-2 text-sm text-gray-600">
+                                                        @foreach($bono->servicios as $servicio)
+                                                            @php
+                                                                $cantidadTotal = $servicio->pivot->cantidad_total;
+                                                                $cantidadUsada = $servicio->pivot->cantidad_usada;
+                                                                $cantidadDisponible = $cantidadTotal - $cantidadUsada;
+                                                                $colorTexto = $cantidadDisponible > 2 ? 'text-green-600' : ($cantidadDisponible > 0 ? 'text-yellow-600' : 'text-gray-400');
+                                                            @endphp
+                                                            @if($cantidadDisponible > 0)
+                                                                <div class="flex items-center justify-between">
+                                                                    <span>• {{ $servicio->nombre }}</span>
+                                                                    <span class="font-semibold {{ $colorTexto }}">
+                                                                        {{ $cantidadDisponible }}/{{ $cantidadTotal }} disponibles
+                                                                    </span>
+                                                                </div>
+                                                            @endif
+                                                        @endforeach
+                                                    </div>
+                                                @endif
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                @endif
                             @endforeach
                         @endif
                     </div>
@@ -637,6 +673,7 @@ let productosSeleccionados = [];
 let csrfToken;
 let bonoSeleccionado = null;
 let descuentoPorBono = 0;
+let bonosActivosCliente = @json($bonosCliente ?? collect()); // Bonos activos del cliente
 
 document.addEventListener('DOMContentLoaded', function() {
 csrfToken = document.querySelector('meta[name="csrf-token"]').content;
@@ -804,6 +841,38 @@ window.calcularDescuentoBono = function() {
     }
 }
 
+// NUEVA FUNCIÓN: Detectar y aplicar automáticamente bonos activos del cliente
+window.detectarBonosActivos = function() {
+    if (!bonosActivosCliente || bonosActivosCliente.length === 0) {
+        return 0;
+    }
+    
+    let totalDescuentoBonosActivos = 0;
+    
+    // Por cada servicio seleccionado, buscar si hay un bono activo que lo cubra
+    serviciosSeleccionados.forEach(servicio => {
+        // Buscar si algún bono activo incluye este servicio
+        for (let bono of bonosActivosCliente) {
+            if (!bono.servicios || bono.servicios.length === 0) continue;
+            
+            // Verificar si el servicio está en el bono y tiene usos disponibles
+            const servicioEnBono = bono.servicios.find(s => 
+                s.id === servicio.id && 
+                (s.pivot.cantidad_usada < s.pivot.cantidad_total)
+            );
+            
+            if (servicioEnBono) {
+                // Este servicio está cubierto por un bono activo
+                totalDescuentoBonosActivos += servicio.precio;
+                servicio.pagadoConBono = true; // Marcar el servicio
+                break; // No buscar en más bonos para este servicio
+            }
+        }
+    });
+    
+    return totalDescuentoBonosActivos;
+}
+
 // Botón añadir bono
 document.getElementById('btn-add-bono').addEventListener('click', function() {
     mostrarModalBonos();
@@ -859,48 +928,58 @@ window.mostrarPanelBonos = function() {
         const plantilla = bono.plantilla;
         const servicios = bono.servicios || [];
         
-        // Calcular fecha de vencimiento
-        const fechaExp = new Date(bono.fecha_expiracion);
-        const hoy = new Date();
-        const diasRestantes = Math.ceil((fechaExp - hoy) / (1000 * 60 * 60 * 24));
-        
-        // Determinar color de alerta
-        let alertaVencimiento = '';
-        if (diasRestantes <= 7 && diasRestantes > 0) {
-            alertaVencimiento = '<span class="text-red-600 font-semibold">⚠️ Vence en ' + diasRestantes + ' días</span>';
-        } else if (diasRestantes <= 0) {
-            alertaVencimiento = '<span class="text-red-700 font-bold">❌ VENCIDO</span>';
-        } else {
-            alertaVencimiento = '<span class="text-gray-600">⏰ Vence: ' + fechaExp.toLocaleDateString('es-ES') + '</span>';
-        }
-        
-        html += '<div class="bono-card">';
-        html += '<div class="flex justify-between items-start mb-2">';
-        html += '<h4 class="font-bold text-purple-700">' + plantilla.nombre + '</h4>';
-        html += '<span class="text-xs">' + alertaVencimiento + '</span>';
-        html += '</div>';
-        html += '<div class="text-sm text-gray-600 space-y-1">';
+        // Verificar si el bono tiene al menos un servicio disponible
+        let tieneServiciosDisponibles = false;
+        let serviciosHTML = '';
         
         servicios.forEach(servicio => {
             const usado = servicio.pivot.cantidad_usada;
             const total = servicio.pivot.cantidad_total;
             const restante = total - usado;
             
-            let colorTexto = 'text-green-600';
-            if (restante <= 2 && restante > 0) {
-                colorTexto = 'text-yellow-600';
-            } else if (restante === 0) {
-                colorTexto = 'text-gray-400';
+            // Solo incluir servicios con cantidad disponible > 0
+            if (restante > 0) {
+                tieneServiciosDisponibles = true;
+                
+                let colorTexto = 'text-green-600';
+                if (restante <= 2 && restante > 0) {
+                    colorTexto = 'text-yellow-600';
+                }
+                
+                serviciosHTML += '<div class="bono-servicio-item">';
+                serviciosHTML += '<span>• ' + servicio.nombre + '</span>';
+                serviciosHTML += '<span class="font-semibold ' + colorTexto + '">' + restante + '/' + total + ' disponibles</span>';
+                serviciosHTML += '</div>';
             }
-            
-            html += '<div class="bono-servicio-item">';
-            html += '<span>• ' + servicio.nombre + '</span>';
-            html += '<span class="font-semibold ' + colorTexto + '">' + restante + '/' + total + ' disponibles</span>';
-            html += '</div>';
         });
         
-        html += '</div>';
-        html += '</div>';
+        // Solo mostrar el bono si tiene servicios disponibles
+        if (tieneServiciosDisponibles) {
+            // Calcular fecha de vencimiento
+            const fechaExp = new Date(bono.fecha_expiracion);
+            const hoy = new Date();
+            const diasRestantes = Math.ceil((fechaExp - hoy) / (1000 * 60 * 60 * 24));
+            
+            // Determinar color de alerta
+            let alertaVencimiento = '';
+            if (diasRestantes <= 7 && diasRestantes > 0) {
+                alertaVencimiento = '<span class="text-red-600 font-semibold">⚠️ Vence en ' + diasRestantes + ' días</span>';
+            } else if (diasRestantes <= 0) {
+                alertaVencimiento = '<span class="text-red-700 font-bold">❌ VENCIDO</span>';
+            } else {
+                alertaVencimiento = '<span class="text-gray-600">⏰ Vence: ' + fechaExp.toLocaleDateString('es-ES') + '</span>';
+            }
+            
+            html += '<div class="bono-card">';
+            html += '<div class="flex justify-between items-start mb-2">';
+            html += '<h4 class="font-bold text-purple-700">' + plantilla.nombre + '</h4>';
+            html += '<span class="text-xs">' + alertaVencimiento + '</span>';
+            html += '</div>';
+            html += '<div class="text-sm text-gray-600 space-y-1">';
+            html += serviciosHTML;
+            html += '</div>';
+            html += '</div>';
+        }
     });
     
     listaBonos.innerHTML = html;
@@ -1267,7 +1346,10 @@ window.calcularTotales = function() {
     const totalProductos = productosSeleccionados.reduce((sum, p) => sum + (parseFloat(p.precio) * parseInt(p.cantidad)), 0);
     document.getElementById('products-total').textContent = `€${totalProductos.toFixed(2)}`;
 
-    // Subtotal (para mostrar en pantalla, incluye servicios + productos + bono)
+    // Detectar bonos activos del cliente automáticamente
+    const descuentoBonosActivos = detectarBonosActivos();
+    
+    // Subtotal (para mostrar en pantalla, incluye servicios + productos + bono vendido)
     let subtotal = totalServicios + totalProductos;
     if (bonoSeleccionado) {
         subtotal += bonoSeleccionado.precio;
@@ -1286,14 +1368,25 @@ window.calcularTotales = function() {
 
     document.getElementById('descuentos-total').textContent = `-€${totalDescuentos.toFixed(2)}`;
 
-    // Total final (restar descuento por servicios incluidos en el bono)
-    let totalFinal = Math.max(0, (totalServicios - descuentoServicios) + (totalProductos - descuentoProductos));
+    // Total final
+    // 1. Servicios sin bonos activos (restar primero los servicios cubiertos por bonos activos del cliente)
+    let serviciosSinBonosActivos = totalServicios - descuentoBonosActivos;
     
-    // Si hay bono, sumar su precio y restar servicios coincidentes
+    // 2. Si hay bono VENDIDO, restar también los servicios coincidentes con ese bono
     if (bonoSeleccionado) {
-        totalFinal += bonoSeleccionado.precio;
-        totalFinal -= descuentoPorBono;
+        serviciosSinBonosActivos -= descuentoPorBono;
     }
+    
+    let totalServiciosFinal = Math.max(0, serviciosSinBonosActivos - descuentoServicios);
+    
+    // 3. Productos con su descuento
+    let totalProductosFinal = Math.max(0, totalProductos - descuentoProductos);
+    
+    // 4. Si hay bono vendido, sumar el precio del bono (es un ingreso adicional)
+    let precioBonoVendido = bonoSeleccionado ? bonoSeleccionado.precio : 0;
+    
+    // Total final = servicios (sin los que están cubiertos por bonos) + productos + precio del bono vendido
+    let totalFinal = totalServiciosFinal + totalProductosFinal + precioBonoVendido;
     
     document.getElementById('total-final').textContent = `€${totalFinal.toFixed(2)}`;
     document.getElementById('total_final_input').value = totalFinal.toFixed(2);
@@ -1483,10 +1576,23 @@ document.getElementById('btn-entendido')?.addEventListener('click', cerrarAlerta
     const bonosClienteData = @json($bonosCliente);
     console.log('🎫 Bonos del cliente cargados:', bonosClienteData);
     
-    // Verificar si algún bono tiene alertas
+    // Verificar si algún bono tiene alertas Y servicios disponibles
     bonosClienteData.forEach(bono => {
         console.log('Verificando bono:', bono.plantilla.nombre, 'Alertas:', bono.alertas);
-        if (bono.alertas && bono.alertas.length > 0) {
+        
+        // Verificar si el bono tiene al menos un servicio disponible
+        let tieneServiciosDisponibles = false;
+        if (bono.servicios && bono.servicios.length > 0) {
+            bono.servicios.forEach(servicio => {
+                const restante = servicio.pivot.cantidad_total - servicio.pivot.cantidad_usada;
+                if (restante > 0) {
+                    tieneServiciosDisponibles = true;
+                }
+            });
+        }
+        
+        // Solo mostrar alertas de bonos con servicios disponibles
+        if (tieneServiciosDisponibles && bono.alertas && bono.alertas.length > 0) {
             const cliente = @json(isset($cita) ? $cita->cliente : (isset($citas) && $citas->isNotEmpty() ? $citas->first()->cliente : null));
             
             const datosAlerta = {
@@ -1502,6 +1608,8 @@ document.getElementById('btn-entendido')?.addEventListener('click', cerrarAlerta
                 mostrarAlertaBono(datosAlerta);
                 console.log('✅ Modal de alerta mostrado');
             }, 500);
+        } else if (!tieneServiciosDisponibles) {
+            console.log('⏭️ Bono sin servicios disponibles, alerta omitida:', bono.plantilla.nombre);
         }
     });
 @else
