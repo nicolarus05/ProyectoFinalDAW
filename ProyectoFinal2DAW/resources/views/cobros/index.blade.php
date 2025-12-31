@@ -180,7 +180,14 @@
                             <td class="p-2 border">{{ number_format($cobro->coste, 2) }} €</td>
                             <td class="p-2 border">{{ $cobro->descuento_porcentaje ?? 0 }}%</td>
                             <td class="p-2 border">{{ number_format($cobro->descuento_euro ?? 0, 2) }} €</td>
-                            <td class="p-2 border font-semibold">{{ number_format($cobro->total_final, 2) }} €</td>
+                            <td class="p-2 border font-semibold">
+                                {{ number_format($cobro->total_final + ($cobro->total_bonos_vendidos ?? 0), 2) }} €
+                                @if(($cobro->total_bonos_vendidos ?? 0) > 0)
+                                    <div class="text-xs text-gray-600 mt-1">
+                                        (Servicios: €{{ number_format($cobro->total_final, 2) }} + Bono: €{{ number_format($cobro->total_bonos_vendidos, 2) }})
+                                    </div>
+                                @endif
+                            </td>
                             <td class="p-2 border">{{ number_format($cobro->dinero_cliente, 2) }} €</td>
                             <td class="p-2 border">{{ number_format($cobro->cambio, 2) }} €</td>
                             <td class="p-2 border capitalize">
@@ -223,7 +230,7 @@
                     <tr>
                         <td colspan="8" class="p-3 text-right border">TOTALES DEL DÍA:</td>
                         <td class="p-3 border text-center text-green-700 text-lg">
-                            {{ number_format($cobros->sum('total_final'), 2) }} €
+                            {{ number_format($cobros->sum('total_final') + $cobros->sum('total_bonos_vendidos'), 2) }} €
                         </td>
                         <td colspan="4" class="p-3 border text-sm">
                             <div class="flex gap-4 justify-center">

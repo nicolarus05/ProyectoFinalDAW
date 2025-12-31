@@ -4,445 +4,563 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Caja del día</title>
-    {!! vite_asset(['resources/css/app.css', 'resources/css/caja.css', 'resources/js/app.js']) !!}
+    {!! vite_asset(['resources/css/app.css', 'resources/js/app.js']) !!}
+    <script>
+        // Sistema de modo oscuro - modo claro por defecto
+        if (localStorage.theme === 'dark') {
+            document.documentElement.classList.add('dark')
+        } else {
+            document.documentElement.classList.remove('dark')
+            // Establecer modo claro por defecto
+            if (!('theme' in localStorage)) {
+                localStorage.theme = 'light'
+            }
+        }
+        
+        function toggleDarkMode() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark')
+                localStorage.theme = 'light'
+            } else {
+                document.documentElement.classList.add('dark')
+                localStorage.theme = 'dark'
+            }
+        }
+    </script>
 </head>
-<body class="bg-gray-100 p-6">
-    <div class="w-full max-w-none mx-auto">
-        <div class="mb-6 flex justify-between items-center">
-            <h1 class="text-4xl font-bold text-gray-800">💰 Caja del día: {{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</h1>
-            <a href="{{ route('dashboard') }}" class="inline-block bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-semibold">← Volver</a>
-        </div>
-
-        <div class="total-box">
-            <h2 class="text-2xl font-bold mb-4">📊 TOTALES GENERALES DEL DÍA</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <div class="total-item"><span>💵 Efectivo (Servicios):</span><span class="font-bold">€{{ number_format($totalEfectivo, 2) }}</span></div>
-                    <div class="total-item"><span>💳 Tarjeta (Servicios):</span><span class="font-bold">€{{ number_format($totalTarjeta, 2) }}</span></div>
-                    <div class="total-item"><span>🎫 Bono (Servicios):</span><span class="font-bold">€{{ number_format($totalBono, 2) }}</span></div>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors duration-200">
+    <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+        
+        <!-- Header -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6 border border-gray-200 dark:border-gray-700">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div class="flex-1">
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-1">Caja del Día</h1>
+                    <p class="text-gray-600 dark:text-gray-400 text-sm">
+                        {{ \Carbon\Carbon::parse($fecha)->locale('es')->isoFormat('dddd, D [de] MMMM [de] YYYY') }}
+                    </p>
                 </div>
-                <div>
-                    <div class="total-item"><span>💵 Efectivo (Bonos vendidos):</span><span class="font-bold">€{{ number_format($totalBonosEfectivo, 2) }}</span></div>
-                    <div class="total-item"><span>💳 Tarjeta (Bonos vendidos):</span><span class="font-bold">€{{ number_format($totalBonosTarjeta, 2) }}</span></div>
-                    <div class="total-item"><span>❌ Deudas generadas:</span><span class="font-bold text-red-300">€{{ number_format($totalDeuda, 2) }}</span></div>
+                <div class="flex gap-3">
+                    <!-- Botón modo oscuro -->
+                    <button onclick="toggleDarkMode()" class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 transition-colors">
+                        <svg class="w-5 h-5 hidden dark:block" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"></path>
+                        </svg>
+                        <svg class="w-5 h-5 block dark:hidden" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+                        </svg>
+                    </button>
+                    <!-- Botón volver -->
+                    <a href="{{ route('dashboard') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                        Volver
+                    </a>
                 </div>
             </div>
-            <div class="total-item"><span>💰 TOTAL INGRESADO:</span><span>€{{ number_format($totalPagado, 2) }}</span></div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <!-- PELUQUERÍA -->
-            <div class="seccion-caja" style="border-left: 4px solid #3b82f6;">
-                <h3 class="titulo-seccion text-blue-700">💇 PELUQUERÍA</h3>
-                
-                <!-- Totales por método de pago -->
-                <div class="space-y-2 mb-4 pb-4 border-b-2 border-blue-100">
-                    <div class="flex justify-between"><span class="text-gray-600">💵 Efectivo:</span><span class="font-bold">€{{ number_format($totalPeluqueriaEfectivo, 2) }}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-600">💳 Tarjeta:</span><span class="font-bold">€{{ number_format($totalPeluqueriaTarjeta, 2) }}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-600">🎫 Bono:</span><span class="font-bold">€{{ number_format($totalPeluqueriaBono, 2) }}</span></div>
-                    <div class="flex justify-between pt-2 border-t-2 border-blue-200"><span class="font-bold text-blue-700">TOTAL:</span><span class="font-bold text-blue-700 text-xl">€{{ number_format($totalPeluqueria, 2) }}</span></div>
+        <!-- Resumen General -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6 border border-gray-200 dark:border-gray-700">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Resumen General</h2>
+            
+            <!-- Grid de estadísticas principales -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <!-- Total Ingresado -->
+                <div class="relative overflow-hidden rounded-lg bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/30 dark:to-emerald-800/30 p-5 border border-emerald-200 dark:border-emerald-700">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-emerald-700 dark:text-emerald-300 mb-1">Total Ingresado</p>
+                            <p class="text-2xl font-bold text-emerald-900 dark:text-emerald-100">€{{ number_format($totalPagado, 2) }}</p>
+                        </div>
+                        <div class="text-3xl">💰</div>
+                    </div>
                 </div>
+                
+                <!-- Efectivo -->
+                <div class="relative overflow-hidden rounded-lg bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 p-5 border border-green-200 dark:border-green-700">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <p class="text-sm font-medium text-green-700 dark:text-green-300 mb-1">Efectivo Total</p>
+                            <p class="text-2xl font-bold text-green-900 dark:text-green-100">€{{ number_format($totalEfectivo + $totalBonosEfectivo, 2) }}</p>
+                        </div>
+                        <div class="text-3xl">💵</div>
+                    </div>
+                    <div class="text-xs text-green-700/70 dark:text-green-300/70 space-y-0.5">
+                        <div>Servicios: €{{ number_format($totalEfectivo, 2) }}</div>
+                        <div>Bonos: €{{ number_format($totalBonosEfectivo, 2) }}</div>
+                    </div>
+                </div>
+                
+                <!-- Tarjeta -->
+                <div class="relative overflow-hidden rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 p-5 border border-blue-200 dark:border-blue-700">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <p class="text-sm font-medium text-blue-700 dark:text-blue-300 mb-1">Tarjeta Total</p>
+                            <p class="text-2xl font-bold text-blue-900 dark:text-blue-100">€{{ number_format($totalTarjeta + $totalBonosTarjeta, 2) }}</p>
+                        </div>
+                        <div class="text-3xl">💳</div>
+                    </div>
+                    <div class="text-xs text-blue-700/70 dark:text-blue-300/70 space-y-0.5">
+                        <div>Servicios: €{{ number_format($totalTarjeta, 2) }}</div>
+                        <div>Bonos: €{{ number_format($totalBonosTarjeta, 2) }}</div>
+                    </div>
+                </div>
+                
+                <!-- Deudas -->
+                <div class="relative overflow-hidden rounded-lg bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/30 dark:to-red-800/30 p-5 border border-red-200 dark:border-red-700">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-red-700 dark:text-red-300 mb-1">Deudas Generadas</p>
+                            <p class="text-2xl font-bold text-red-900 dark:text-red-100">€{{ number_format($totalDeuda, 2) }}</p>
+                        </div>
+                        <div class="text-3xl">⚠️</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Desglose adicional -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div class="flex items-center gap-3 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-100 dark:border-purple-800">
+                    <div class="text-2xl">🎫</div>
+                    <div>
+                        <p class="text-lg font-bold text-purple-900 dark:text-purple-100">€{{ number_format($totalBono, 2) }}</p>
+                        <p class="text-xs text-purple-700 dark:text-purple-300">Servicios con Bono</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800">
+                    <div class="text-2xl">🎁</div>
+                    <div>
+                        <p class="text-lg font-bold text-indigo-900 dark:text-indigo-100">€{{ number_format($totalBonosVendidos, 2) }}</p>
+                        <p class="text-xs text-indigo-700 dark:text-indigo-300">Bonos Vendidos</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-100 dark:border-amber-800">
+                    <div class="text-2xl">💼</div>
+                    <div>
+                        <p class="text-lg font-bold text-amber-900 dark:text-amber-100">€{{ number_format($totalServicios, 2) }}</p>
+                        <p class="text-xs text-amber-700 dark:text-amber-300">Total Servicios</p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                <!-- Servicios de Peluquería -->
-                <div class="mb-3">
-                    <h4 class="font-semibold text-blue-600 text-sm mb-2">Servicios:</h4>
-                    @php
-                        $serviciosPeluqueria = [];
-                        $serviciosPeluqueriaBono = [];
-                        
-                        foreach($detalleServicios as $cobro) {
-                            $yaContados = false;
-                            $esBono = $cobro->metodo_pago === 'bono';
+        <!-- Peluquería y Estética -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            
+            <!-- PELUQUERÍA -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div class="bg-gradient-to-r from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 px-6 py-4">
+                    <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                        <span class="text-2xl">💇</span>
+                        Peluquería
+                    </h3>
+                </div>
+                
+                <div class="p-6">
+                    <!-- Totales -->
+                    <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-5 border border-blue-100 dark:border-blue-800">
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <div class="text-center">
+                                <div class="text-xl mb-1">💵</div>
+                                <div class="text-lg font-bold text-green-600 dark:text-green-400">€{{ number_format($totalPeluqueriaEfectivo, 2) }}</div>
+                                <div class="text-xs text-gray-600 dark:text-gray-400">Efectivo</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-xl mb-1">💳</div>
+                                <div class="text-lg font-bold text-blue-600 dark:text-blue-400">€{{ number_format($totalPeluqueriaTarjeta, 2) }}</div>
+                                <div class="text-xs text-gray-600 dark:text-gray-400">Tarjeta</div>
+                            </div>
+                        </div>
+                        <div class="text-center pt-3 border-t border-blue-200 dark:border-blue-700">
+                            <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">🎫 Bono: €{{ number_format($totalPeluqueriaBono, 2) }}</div>
+                            <div class="text-2xl font-bold text-blue-700 dark:text-blue-300">€{{ number_format($totalPeluqueria, 2) }}</div>
+                            <div class="text-xs text-gray-600 dark:text-gray-400">Total</div>
+                        </div>
+                    </div>
+
+                    <!-- Servicios -->
+                    <div class="mb-4">
+                        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Servicios</h4>
+                        @php
+                            $serviciosPeluqueria = [];
+                            $serviciosPeluqueriaBono = [];
                             
-                            // PRIORIDAD 1: Servicios de cita individual
-                            if ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
-                                foreach($cobro->cita->servicios as $servicio) {
-                                    if ($servicio->categoria === 'peluqueria') {
-                                        $precio = $servicio->pivot->precio ?? $servicio->precio;
-                                        $nombre = $servicio->nombre;
-                                        
-                                        if ($esBono) {
-                                            // Servicios con bono: usar clave con _bono
-                                            $clave = $nombre . '_bono';
-                                            if (!isset($serviciosPeluqueriaBono[$clave])) {
-                                                $serviciosPeluqueriaBono[$clave] = [
-                                                    'nombre' => $nombre,
-                                                    'cantidad' => 0
-                                                ];
+                            foreach($detalleServicios as $cobro) {
+                                $yaContados = false;
+                                $esBono = $cobro->metodo_pago === 'bono';
+                                
+                                if ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
+                                    foreach($cobro->cita->servicios as $servicio) {
+                                        if ($servicio->categoria === 'peluqueria') {
+                                            $precio = $servicio->pivot->precio ?? $servicio->precio;
+                                            $nombre = $servicio->nombre;
+                                            
+                                            if ($esBono) {
+                                                $clave = $nombre . '_bono';
+                                                if (!isset($serviciosPeluqueriaBono[$clave])) {
+                                                    $serviciosPeluqueriaBono[$clave] = ['nombre' => $nombre, 'cantidad' => 0];
+                                                }
+                                                $serviciosPeluqueriaBono[$clave]['cantidad']++;
+                                            } else {
+                                                $clave = $nombre . '_' . $precio;
+                                                if (!isset($serviciosPeluqueria[$clave])) {
+                                                    $serviciosPeluqueria[$clave] = ['nombre' => $nombre, 'precio_unitario' => $precio, 'cantidad' => 0, 'precio_total' => 0];
+                                                }
+                                                $serviciosPeluqueria[$clave]['cantidad']++;
+                                                $serviciosPeluqueria[$clave]['precio_total'] += $precio;
                                             }
-                                            $serviciosPeluqueriaBono[$clave]['cantidad']++;
-                                        } else {
-                                            // Servicios normales
-                                            $clave = $nombre . '_' . $precio;
-                                            if (!isset($serviciosPeluqueria[$clave])) {
-                                                $serviciosPeluqueria[$clave] = [
-                                                    'nombre' => $nombre,
-                                                    'precio_unitario' => $precio,
-                                                    'cantidad' => 0,
-                                                    'precio_total' => 0
-                                                ];
-                                            }
-                                            $serviciosPeluqueria[$clave]['cantidad']++;
-                                            $serviciosPeluqueria[$clave]['precio_total'] += $precio;
                                         }
                                     }
+                                    $yaContados = true;
                                 }
-                                $yaContados = true;
-                            }
-                            
-                            // PRIORIDAD 2: Servicios de citas agrupadas (solo si no tiene cita individual)
-                            if (!$yaContados && $cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
-                                foreach($cobro->citasAgrupadas as $citaGrupo) {
-                                    if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
-                                        foreach($citaGrupo->servicios as $servicio) {
-                                            if ($servicio->categoria === 'peluqueria') {
-                                                $precio = $servicio->pivot->precio ?? $servicio->precio;
-                                                $nombre = $servicio->nombre;
-                                                
-                                                if ($esBono) {
-                                                    $clave = $nombre . '_bono';
-                                                    if (!isset($serviciosPeluqueriaBono[$clave])) {
-                                                        $serviciosPeluqueriaBono[$clave] = [
-                                                            'nombre' => $nombre,
-                                                            'cantidad' => 0
-                                                        ];
+                                
+                                if (!$yaContados && $cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                                    foreach($cobro->citasAgrupadas as $citaGrupo) {
+                                        if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
+                                            foreach($citaGrupo->servicios as $servicio) {
+                                                if ($servicio->categoria === 'peluqueria') {
+                                                    $precio = $servicio->pivot->precio ?? $servicio->precio;
+                                                    $nombre = $servicio->nombre;
+                                                    
+                                                    if ($esBono) {
+                                                        $clave = $nombre . '_bono';
+                                                        if (!isset($serviciosPeluqueriaBono[$clave])) {
+                                                            $serviciosPeluqueriaBono[$clave] = ['nombre' => $nombre, 'cantidad' => 0];
+                                                        }
+                                                        $serviciosPeluqueriaBono[$clave]['cantidad']++;
+                                                    } else {
+                                                        $clave = $nombre . '_' . $precio;
+                                                        if (!isset($serviciosPeluqueria[$clave])) {
+                                                            $serviciosPeluqueria[$clave] = ['nombre' => $nombre, 'precio_unitario' => $precio, 'cantidad' => 0, 'precio_total' => 0];
+                                                        }
+                                                        $serviciosPeluqueria[$clave]['cantidad']++;
+                                                        $serviciosPeluqueria[$clave]['precio_total'] += $precio;
                                                     }
-                                                    $serviciosPeluqueriaBono[$clave]['cantidad']++;
-                                                } else {
-                                                    $clave = $nombre . '_' . $precio;
-                                                    if (!isset($serviciosPeluqueria[$clave])) {
-                                                        $serviciosPeluqueria[$clave] = [
-                                                            'nombre' => $nombre,
-                                                            'precio_unitario' => $precio,
-                                                            'cantidad' => 0,
-                                                            'precio_total' => 0
-                                                        ];
-                                                    }
-                                                    $serviciosPeluqueria[$clave]['cantidad']++;
-                                                    $serviciosPeluqueria[$clave]['precio_total'] += $precio;
                                                 }
                                             }
                                         }
                                     }
+                                    $yaContados = true;
                                 }
-                                $yaContados = true;
-                            }
-                            
-                            // PRIORIDAD 3: Servicios directos (solo si no tiene citas)
-                            if (!$yaContados && $cobro->servicios && $cobro->servicios->count() > 0) {
-                                foreach($cobro->servicios as $servicio) {
-                                    if ($servicio->categoria === 'peluqueria') {
-                                        $precio = $servicio->pivot->precio ?? $servicio->precio;
-                                        $nombre = $servicio->nombre;
-                                        
-                                        if ($esBono) {
-                                            $clave = $nombre . '_bono';
-                                            if (!isset($serviciosPeluqueriaBono[$clave])) {
-                                                $serviciosPeluqueriaBono[$clave] = [
-                                                    'nombre' => $nombre,
-                                                    'cantidad' => 0
-                                                ];
+                                
+                                if (!$yaContados && $cobro->servicios && $cobro->servicios->count() > 0) {
+                                    foreach($cobro->servicios as $servicio) {
+                                        if ($servicio->categoria === 'peluqueria') {
+                                            $precio = $servicio->pivot->precio ?? $servicio->precio;
+                                            $nombre = $servicio->nombre;
+                                            
+                                            if ($esBono) {
+                                                $clave = $nombre . '_bono';
+                                                if (!isset($serviciosPeluqueriaBono[$clave])) {
+                                                    $serviciosPeluqueriaBono[$clave] = ['nombre' => $nombre, 'cantidad' => 0];
+                                                }
+                                                $serviciosPeluqueriaBono[$clave]['cantidad']++;
+                                            } else {
+                                                $clave = $nombre . '_' . $precio;
+                                                if (!isset($serviciosPeluqueria[$clave])) {
+                                                    $serviciosPeluqueria[$clave] = ['nombre' => $nombre, 'precio_unitario' => $precio, 'cantidad' => 0, 'precio_total' => 0];
+                                                }
+                                                $serviciosPeluqueria[$clave]['cantidad']++;
+                                                $serviciosPeluqueria[$clave]['precio_total'] += $precio;
                                             }
-                                            $serviciosPeluqueriaBono[$clave]['cantidad']++;
-                                        } else {
-                                            $clave = $nombre . '_' . $precio;
-                                            if (!isset($serviciosPeluqueria[$clave])) {
-                                                $serviciosPeluqueria[$clave] = [
-                                                    'nombre' => $nombre,
-                                                    'precio_unitario' => $precio,
-                                                    'cantidad' => 0,
-                                                    'precio_total' => 0
-                                                ];
-                                            }
-                                            $serviciosPeluqueria[$clave]['cantidad']++;
-                                            $serviciosPeluqueria[$clave]['precio_total'] += $precio;
                                         }
                                     }
                                 }
                             }
-                        }
-                    @endphp
-                    @if(count($serviciosPeluqueria) > 0 || count($serviciosPeluqueriaBono) > 0)
-                        <div class="space-y-1 text-sm">
-                            @foreach($serviciosPeluqueria as $datos)
-                                <div class="flex justify-between text-gray-700">
-                                    <span>• {{ $datos['nombre'] }} @if($datos['cantidad'] > 1)<span class="text-blue-600 font-semibold">(x{{ $datos['cantidad'] }})</span>@endif</span>
-                                    <span>€{{ number_format($datos['precio_total'], 2) }}</span>
-                                </div>
-                            @endforeach
-                            @foreach($serviciosPeluqueriaBono as $datos)
-                                <div class="flex justify-between text-gray-700">
-                                    <span>• {{ $datos['nombre'] }} @if($datos['cantidad'] > 1)<span class="text-purple-600 font-semibold">(x{{ $datos['cantidad'] }})</span>@endif <span class="text-purple-600 text-xs italic">(Bono)</span></span>
-                                    <span class="text-purple-600">€0.00</span>
-                                </div>
-                            @endforeach
-                        </div>
-                    @else
-                        <p class="text-gray-500 text-xs italic">Sin servicios</p>
-                    @endif
-                </div>
+                        @endphp
+                        
+                        @if(count($serviciosPeluqueria) > 0 || count($serviciosPeluqueriaBono) > 0)
+                            <div class="space-y-2">
+                                @foreach($serviciosPeluqueria as $datos)
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $datos['nombre'] }}</span>
+                                        <div class="flex items-center gap-2">
+                                            @if($datos['cantidad'] > 1)
+                                                <span class="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full text-xs font-semibold">x{{ $datos['cantidad'] }}</span>
+                                            @endif
+                                            <span class="text-sm font-bold text-blue-600 dark:text-blue-400">€{{ number_format($datos['precio_total'], 2) }}</span>
+                                        </div>
+                                    </div>
+                                @endforeach
+                                @foreach($serviciosPeluqueriaBono as $datos)
+                                    <div class="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-900/30 rounded-lg border border-purple-200 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors">
+                                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $datos['nombre'] }}</span>
+                                        <div class="flex items-center gap-2">
+                                            <span class="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded-full text-xs font-semibold">🎫 Bono</span>
+                                            @if($datos['cantidad'] > 1)
+                                                <span class="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded-full text-xs font-semibold">x{{ $datos['cantidad'] }}</span>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="text-sm text-gray-400 dark:text-gray-500 text-center py-4">Sin servicios registrados</p>
+                        @endif
+                    </div>
 
-                <!-- Productos de Peluquería -->
-                <div>
-                    <h4 class="font-semibold text-blue-600 text-sm mb-2">Productos:</h4>
-                    @php
-                        $productosPeluqueria = [];
-                        foreach($detalleServicios as $cobro) {
-                            if ($cobro->productos) {
-                                foreach($cobro->productos as $producto) {
-                                    if ($producto->categoria === 'peluqueria') {
-                                        $cantidad = $producto->pivot->cantidad ?? 1;
-                                        $subtotal = $producto->pivot->subtotal ?? 0;
-                                        $nombre = $producto->nombre;
-                                        
-                                        if (!isset($productosPeluqueria[$nombre])) {
-                                            $productosPeluqueria[$nombre] = [
-                                                'cantidad' => 0,
-                                                'precio_total' => 0
-                                            ];
+                    <!-- Productos -->
+                    <div>
+                        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Productos</h4>
+                        @php
+                            $productosPeluqueria = [];
+                            foreach($detalleServicios as $cobro) {
+                                if ($cobro->productos) {
+                                    foreach($cobro->productos as $producto) {
+                                        if ($producto->categoria === 'peluqueria') {
+                                            $cantidad = $producto->pivot->cantidad ?? 1;
+                                            $subtotal = $producto->pivot->subtotal ?? 0;
+                                            $nombre = $producto->nombre;
+                                            
+                                            if (!isset($productosPeluqueria[$nombre])) {
+                                                $productosPeluqueria[$nombre] = ['cantidad' => 0, 'precio_total' => 0];
+                                            }
+                                            $productosPeluqueria[$nombre]['cantidad'] += $cantidad;
+                                            $productosPeluqueria[$nombre]['precio_total'] += $subtotal;
                                         }
-                                        $productosPeluqueria[$nombre]['cantidad'] += $cantidad;
-                                        $productosPeluqueria[$nombre]['precio_total'] += $subtotal;
                                     }
                                 }
                             }
-                        }
-                    @endphp
-                    @if(count($productosPeluqueria) > 0)
-                        <div class="space-y-1 text-sm">
-                            @foreach($productosPeluqueria as $nombre => $datos)
-                                <div class="flex justify-between text-gray-700">
-                                    <span>• {{ $nombre }} <span class="text-blue-600 font-semibold">(x{{ $datos['cantidad'] }})</span></span>
-                                    <span>€{{ number_format($datos['precio_total'], 2) }}</span>
-                                </div>
-                            @endforeach
-                        </div>
-                    @else
-                        <p class="text-gray-500 text-xs italic">Sin productos</p>
-                    @endif
+                        @endphp
+                        
+                        @if(count($productosPeluqueria) > 0)
+                            <div class="space-y-1.5">
+                                @foreach($productosPeluqueria as $nombre => $datos)
+                                    <div class="flex justify-between items-center text-sm text-gray-700 dark:text-gray-300">
+                                        <span>• {{ $nombre }} <span class="text-blue-600 dark:text-blue-400 font-semibold">(x{{ $datos['cantidad'] }})</span></span>
+                                        <span class="font-medium">€{{ number_format($datos['precio_total'], 2) }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="text-xs text-gray-400 dark:text-gray-500 italic">Sin productos</p>
+                        @endif
+                    </div>
                 </div>
             </div>
 
             <!-- ESTÉTICA -->
-            <div class="seccion-caja" style="border-left: 4px solid #ec4899;">
-                <h3 class="titulo-seccion text-pink-700">💅 ESTÉTICA</h3>
-                
-                <!-- Totales por método de pago -->
-                <div class="space-y-2 mb-4 pb-4 border-b-2 border-pink-100">
-                    <div class="flex justify-between"><span class="text-gray-600">💵 Efectivo:</span><span class="font-bold">€{{ number_format($totalEsteticaEfectivo, 2) }}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-600">💳 Tarjeta:</span><span class="font-bold">€{{ number_format($totalEsteticaTarjeta, 2) }}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-600">🎫 Bono:</span><span class="font-bold">€{{ number_format($totalEsteticaBono, 2) }}</span></div>
-                    <div class="flex justify-between pt-2 border-t-2 border-pink-200"><span class="font-bold text-pink-700">TOTAL:</span><span class="font-bold text-pink-700 text-xl">€{{ number_format($totalEstetica, 2) }}</span></div>
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div class="bg-gradient-to-r from-pink-500 to-pink-600 dark:from-pink-600 dark:to-pink-700 px-6 py-4">
+                    <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                        <span class="text-2xl">💅</span>
+                        Estética
+                    </h3>
                 </div>
+                
+                <div class="p-6">
+                    <!-- Totales -->
+                    <div class="bg-pink-50 dark:bg-pink-900/20 rounded-lg p-4 mb-5 border border-pink-100 dark:border-pink-800">
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <div class="text-center">
+                                <div class="text-xl mb-1">💵</div>
+                                <div class="text-lg font-bold text-green-600 dark:text-green-400">€{{ number_format($totalEsteticaEfectivo, 2) }}</div>
+                                <div class="text-xs text-gray-600 dark:text-gray-400">Efectivo</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-xl mb-1">💳</div>
+                                <div class="text-lg font-bold text-blue-600 dark:text-blue-400">€{{ number_format($totalEsteticaTarjeta, 2) }}</div>
+                                <div class="text-xs text-gray-600 dark:text-gray-400">Tarjeta</div>
+                            </div>
+                        </div>
+                        <div class="text-center pt-3 border-t border-pink-200 dark:border-pink-700">
+                            <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">🎫 Bono: €{{ number_format($totalEsteticaBono, 2) }}</div>
+                            <div class="text-2xl font-bold text-pink-700 dark:text-pink-300">€{{ number_format($totalEstetica, 2) }}</div>
+                            <div class="text-xs text-gray-600 dark:text-gray-400">Total</div>
+                        </div>
+                    </div>
 
-                <!-- Servicios de Estética -->
-                <div class="mb-3">
-                    <h4 class="font-semibold text-pink-600 text-sm mb-2">Servicios:</h4>
-                    @php
-                        $serviciosEstetica = [];
-                        $serviciosEsteticaBono = [];
-                        
-                        foreach($detalleServicios as $cobro) {
-                            $yaContados = false;
-                            $esBono = $cobro->metodo_pago === 'bono';
+                    <!-- Servicios -->
+                    <div class="mb-4">
+                        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Servicios</h4>
+                        @php
+                            $serviciosEstetica = [];
+                            $serviciosEsteticaBono = [];
                             
-                            // PRIORIDAD 1: Servicios de cita individual
-                            if ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
-                                foreach($cobro->cita->servicios as $servicio) {
-                                    if ($servicio->categoria === 'estetica') {
-                                        $precio = $servicio->pivot->precio ?? $servicio->precio;
-                                        $nombre = $servicio->nombre;
-                                        
-                                        if ($esBono) {
-                                            $clave = $nombre . '_bono';
-                                            if (!isset($serviciosEsteticaBono[$clave])) {
-                                                $serviciosEsteticaBono[$clave] = [
-                                                    'nombre' => $nombre,
-                                                    'cantidad' => 0
-                                                ];
+                            foreach($detalleServicios as $cobro) {
+                                $yaContados = false;
+                                $esBono = $cobro->metodo_pago === 'bono';
+                                
+                                if ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
+                                    foreach($cobro->cita->servicios as $servicio) {
+                                        if ($servicio->categoria === 'estetica') {
+                                            $precio = $servicio->pivot->precio ?? $servicio->precio;
+                                            $nombre = $servicio->nombre;
+                                            
+                                            if ($esBono) {
+                                                $clave = $nombre . '_bono';
+                                                if (!isset($serviciosEsteticaBono[$clave])) {
+                                                    $serviciosEsteticaBono[$clave] = ['nombre' => $nombre, 'cantidad' => 0];
+                                                }
+                                                $serviciosEsteticaBono[$clave]['cantidad']++;
+                                            } else {
+                                                $clave = $nombre . '_' . $precio;
+                                                if (!isset($serviciosEstetica[$clave])) {
+                                                    $serviciosEstetica[$clave] = ['nombre' => $nombre, 'precio_unitario' => $precio, 'cantidad' => 0, 'precio_total' => 0];
+                                                }
+                                                $serviciosEstetica[$clave]['cantidad']++;
+                                                $serviciosEstetica[$clave]['precio_total'] += $precio;
                                             }
-                                            $serviciosEsteticaBono[$clave]['cantidad']++;
-                                        } else {
-                                            $clave = $nombre . '_' . $precio;
-                                            if (!isset($serviciosEstetica[$clave])) {
-                                                $serviciosEstetica[$clave] = [
-                                                    'nombre' => $nombre,
-                                                    'precio_unitario' => $precio,
-                                                    'cantidad' => 0,
-                                                    'precio_total' => 0
-                                                ];
-                                            }
-                                            $serviciosEstetica[$clave]['cantidad']++;
-                                            $serviciosEstetica[$clave]['precio_total'] += $precio;
                                         }
                                     }
+                                    $yaContados = true;
                                 }
-                                $yaContados = true;
-                            }
-                            
-                            // PRIORIDAD 2: Servicios de citas agrupadas (solo si no tiene cita individual)
-                            if (!$yaContados && $cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
-                                foreach($cobro->citasAgrupadas as $citaGrupo) {
-                                    if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
-                                        foreach($citaGrupo->servicios as $servicio) {
-                                            if ($servicio->categoria === 'estetica') {
-                                                $precio = $servicio->pivot->precio ?? $servicio->precio;
-                                                $nombre = $servicio->nombre;
-                                                
-                                                if ($esBono) {
-                                                    $clave = $nombre . '_bono';
-                                                    if (!isset($serviciosEsteticaBono[$clave])) {
-                                                        $serviciosEsteticaBono[$clave] = [
-                                                            'nombre' => $nombre,
-                                                            'cantidad' => 0
-                                                        ];
+                                
+                                if (!$yaContados && $cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                                    foreach($cobro->citasAgrupadas as $citaGrupo) {
+                                        if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
+                                            foreach($citaGrupo->servicios as $servicio) {
+                                                if ($servicio->categoria === 'estetica') {
+                                                    $precio = $servicio->pivot->precio ?? $servicio->precio;
+                                                    $nombre = $servicio->nombre;
+                                                    
+                                                    if ($esBono) {
+                                                        $clave = $nombre . '_bono';
+                                                        if (!isset($serviciosEsteticaBono[$clave])) {
+                                                            $serviciosEsteticaBono[$clave] = ['nombre' => $nombre, 'cantidad' => 0];
+                                                        }
+                                                        $serviciosEsteticaBono[$clave]['cantidad']++;
+                                                    } else {
+                                                        $clave = $nombre . '_' . $precio;
+                                                        if (!isset($serviciosEstetica[$clave])) {
+                                                            $serviciosEstetica[$clave] = ['nombre' => $nombre, 'precio_unitario' => $precio, 'cantidad' => 0, 'precio_total' => 0];
+                                                        }
+                                                        $serviciosEstetica[$clave]['cantidad']++;
+                                                        $serviciosEstetica[$clave]['precio_total'] += $precio;
                                                     }
-                                                    $serviciosEsteticaBono[$clave]['cantidad']++;
-                                                } else {
-                                                    $clave = $nombre . '_' . $precio;
-                                                    if (!isset($serviciosEstetica[$clave])) {
-                                                        $serviciosEstetica[$clave] = [
-                                                            'nombre' => $nombre,
-                                                            'precio_unitario' => $precio,
-                                                            'cantidad' => 0,
-                                                            'precio_total' => 0
-                                                        ];
-                                                    }
-                                                    $serviciosEstetica[$clave]['cantidad']++;
-                                                    $serviciosEstetica[$clave]['precio_total'] += $precio;
                                                 }
                                             }
                                         }
                                     }
+                                    $yaContados = true;
                                 }
-                                $yaContados = true;
-                            }
-                            
-                            // PRIORIDAD 3: Servicios directos (solo si no tiene citas)
-                            if (!$yaContados && $cobro->servicios && $cobro->servicios->count() > 0) {
-                                foreach($cobro->servicios as $servicio) {
-                                    if ($servicio->categoria === 'estetica') {
-                                        $precio = $servicio->pivot->precio ?? $servicio->precio;
-                                        $nombre = $servicio->nombre;
-                                        
-                                        if ($esBono) {
-                                            $clave = $nombre . '_bono';
-                                            if (!isset($serviciosEsteticaBono[$clave])) {
-                                                $serviciosEsteticaBono[$clave] = [
-                                                    'nombre' => $nombre,
-                                                    'cantidad' => 0
-                                                ];
+                                
+                                if (!$yaContados && $cobro->servicios && $cobro->servicios->count() > 0) {
+                                    foreach($cobro->servicios as $servicio) {
+                                        if ($servicio->categoria === 'estetica') {
+                                            $precio = $servicio->pivot->precio ?? $servicio->precio;
+                                            $nombre = $servicio->nombre;
+                                            
+                                            if ($esBono) {
+                                                $clave = $nombre . '_bono';
+                                                if (!isset($serviciosEsteticaBono[$clave])) {
+                                                    $serviciosEsteticaBono[$clave] = ['nombre' => $nombre, 'cantidad' => 0];
+                                                }
+                                                $serviciosEsteticaBono[$clave]['cantidad']++;
+                                            } else {
+                                                $clave = $nombre . '_' . $precio;
+                                                if (!isset($serviciosEstetica[$clave])) {
+                                                    $serviciosEstetica[$clave] = ['nombre' => $nombre, 'precio_unitario' => $precio, 'cantidad' => 0, 'precio_total' => 0];
+                                                }
+                                                $serviciosEstetica[$clave]['cantidad']++;
+                                                $serviciosEstetica[$clave]['precio_total'] += $precio;
                                             }
-                                            $serviciosEsteticaBono[$clave]['cantidad']++;
-                                        } else {
-                                            $clave = $nombre . '_' . $precio;
-                                            if (!isset($serviciosEstetica[$clave])) {
-                                                $serviciosEstetica[$clave] = [
-                                                    'nombre' => $nombre,
-                                                    'precio_unitario' => $precio,
-                                                    'cantidad' => 0,
-                                                    'precio_total' => 0
-                                                ];
-                                            }
-                                            $serviciosEstetica[$clave]['cantidad']++;
-                                            $serviciosEstetica[$clave]['precio_total'] += $precio;
                                         }
                                     }
                                 }
                             }
-                        }
-                    @endphp
-                    @if(count($serviciosEstetica) > 0 || count($serviciosEsteticaBono) > 0)
-                        <div class="space-y-1 text-sm">
-                            @foreach($serviciosEstetica as $datos)
-                                <div class="flex justify-between text-gray-700">
-                                    <span>• {{ $datos['nombre'] }} @if($datos['cantidad'] > 1)<span class="text-pink-600 font-semibold">(x{{ $datos['cantidad'] }})</span>@endif</span>
-                                    <span>€{{ number_format($datos['precio_total'], 2) }}</span>
-                                </div>
-                            @endforeach
-                            @foreach($serviciosEsteticaBono as $datos)
-                                <div class="flex justify-between text-gray-700">
-                                    <span>• {{ $datos['nombre'] }} @if($datos['cantidad'] > 1)<span class="text-purple-600 font-semibold">(x{{ $datos['cantidad'] }})</span>@endif <span class="text-purple-600 text-xs italic">(Bono)</span></span>
-                                    <span class="text-purple-600">€0.00</span>
-                                </div>
-                            @endforeach
-                        </div>
-                    @else
-                        <p class="text-gray-500 text-xs italic">Sin servicios</p>
-                    @endif
-                </div>
+                        @endphp
+                        
+                        @if(count($serviciosEstetica) > 0 || count($serviciosEsteticaBono) > 0)
+                            <div class="space-y-2">
+                                @foreach($serviciosEstetica as $datos)
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $datos['nombre'] }}</span>
+                                        <div class="flex items-center gap-2">
+                                            @if($datos['cantidad'] > 1)
+                                                <span class="px-2 py-0.5 bg-pink-100 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300 rounded-full text-xs font-semibold">x{{ $datos['cantidad'] }}</span>
+                                            @endif
+                                            <span class="text-sm font-bold text-pink-600 dark:text-pink-400">€{{ number_format($datos['precio_total'], 2) }}</span>
+                                        </div>
+                                    </div>
+                                @endforeach
+                                @foreach($serviciosEsteticaBono as $datos)
+                                    <div class="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-900/30 rounded-lg border border-purple-200 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors">
+                                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $datos['nombre'] }}</span>
+                                        <div class="flex items-center gap-2">
+                                            <span class="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded-full text-xs font-semibold">🎫 Bono</span>
+                                            @if($datos['cantidad'] > 1)
+                                                <span class="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded-full text-xs font-semibold">x{{ $datos['cantidad'] }}</span>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="text-sm text-gray-400 dark:text-gray-500 text-center py-4">Sin servicios registrados</p>
+                        @endif
+                    </div>
 
-                <!-- Productos de Estética -->
-                <div>
-                    <h4 class="font-semibold text-pink-600 text-sm mb-2">Productos:</h4>
-                    @php
-                        $productosEstetica = [];
-                        foreach($detalleServicios as $cobro) {
-                            if ($cobro->productos) {
-                                foreach($cobro->productos as $producto) {
-                                    if ($producto->categoria === 'estetica') {
-                                        $cantidad = $producto->pivot->cantidad ?? 1;
-                                        $subtotal = $producto->pivot->subtotal ?? 0;
-                                        $nombre = $producto->nombre;
-                                        
-                                        if (!isset($productosEstetica[$nombre])) {
-                                            $productosEstetica[$nombre] = [
-                                                'cantidad' => 0,
-                                                'precio_total' => 0
-                                            ];
+                    <!-- Productos -->
+                    <div>
+                        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Productos</h4>
+                        @php
+                            $productosEstetica = [];
+                            foreach($detalleServicios as $cobro) {
+                                if ($cobro->productos) {
+                                    foreach($cobro->productos as $producto) {
+                                        if ($producto->categoria === 'estetica') {
+                                            $cantidad = $producto->pivot->cantidad ?? 1;
+                                            $subtotal = $producto->pivot->subtotal ?? 0;
+                                            $nombre = $producto->nombre;
+                                            
+                                            if (!isset($productosEstetica[$nombre])) {
+                                                $productosEstetica[$nombre] = ['cantidad' => 0, 'precio_total' => 0];
+                                            }
+                                            $productosEstetica[$nombre]['cantidad'] += $cantidad;
+                                            $productosEstetica[$nombre]['precio_total'] += $subtotal;
                                         }
-                                        $productosEstetica[$nombre]['cantidad'] += $cantidad;
-                                        $productosEstetica[$nombre]['precio_total'] += $subtotal;
                                     }
                                 }
                             }
-                        }
-                    @endphp
-                    @if(count($productosEstetica) > 0)
-                        <div class="space-y-1 text-sm">
-                            @foreach($productosEstetica as $nombre => $datos)
-                                <div class="flex justify-between text-gray-700">
-                                    <span>• {{ $nombre }} <span class="text-pink-600 font-semibold">(x{{ $datos['cantidad'] }})</span></span>
-                                    <span>€{{ number_format($datos['precio_total'], 2) }}</span>
-                                </div>
-                            @endforeach
-                        </div>
-                    @else
-                        <p class="text-gray-500 text-xs italic">Sin productos</p>
-                    @endif
+                        @endphp
+                        
+                        @if(count($productosEstetica) > 0)
+                            <div class="space-y-1.5">
+                                @foreach($productosEstetica as $nombre => $datos)
+                                    <div class="flex justify-between items-center text-sm text-gray-700 dark:text-gray-300">
+                                        <span>• {{ $nombre }} <span class="text-pink-600 dark:text-pink-400 font-semibold">(x{{ $datos['cantidad'] }})</span></span>
+                                        <span class="font-medium">€{{ number_format($datos['precio_total'], 2) }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="text-xs text-gray-400 dark:text-gray-500 italic">Sin productos</p>
+                        @endif
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="seccion-caja">
-            <h3 class="titulo-seccion text-green-700">✅ SERVICIOS REALIZADOS</h3>
+        <!-- Servicios Realizados -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6 border border-gray-200 dark:border-gray-700">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Servicios Realizados</h2>
+            
             @if($detalleServicios->count() > 0)
-                <div style="overflow-x: auto;">
-                    <table class="tabla-caja">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
                         <thead>
-                            <tr>
-                                <th>Hora</th>
-                                <th>Cliente</th>
-                                <th>Servicio(s)</th>
-                                <th>Empleado</th>
-                                <th>Método</th>
-                                <th>Total</th>
-                                <th>Deuda</th>
+                            <tr class="border-b border-gray-200 dark:border-gray-700">
+                                <th class="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Hora</th>
+                                <th class="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Cliente</th>
+                                <th class="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Servicios</th>
+                                <th class="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Empleado</th>
+                                <th class="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Método</th>
+                                <th class="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Total</th>
+                                <th class="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Deuda</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                             @foreach($detalleServicios as $item)
-                                <tr>
-                                    <td class="font-semibold">
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                    <td class="py-3 px-4 font-medium text-gray-900 dark:text-gray-100">
                                         @php
                                             $horaCita = null;
-                                            
-                                            // Intentar obtener la hora de la cita principal
                                             if ($item->cita && $item->cita->fecha_hora) {
                                                 $horaCita = \Carbon\Carbon::parse($item->cita->fecha_hora)->format('H:i');
-                                            }
-                                            // Si no, intentar de citas agrupadas
-                                            elseif ($item->citasAgrupadas && $item->citasAgrupadas->count() > 0) {
+                                            } elseif ($item->citasAgrupadas && $item->citasAgrupadas->count() > 0) {
                                                 $primeraCita = $item->citasAgrupadas->first();
                                                 if ($primeraCita && $primeraCita->fecha_hora) {
                                                     $horaCita = \Carbon\Carbon::parse($primeraCita->fecha_hora)->format('H:i');
@@ -451,7 +569,7 @@
                                         @endphp
                                         {{ $horaCita ?? '-' }}
                                     </td>
-                                    <td>
+                                    <td class="py-3 px-4 text-gray-700 dark:text-gray-300">
                                         @if($item->cliente && $item->cliente->user)
                                             {{ $item->cliente->user->nombre }} {{ $item->cliente->user->apellidos }}
                                         @elseif($item->cita && $item->cita->cliente && $item->cita->cliente->user)
@@ -460,33 +578,31 @@
                                             -
                                         @endif
                                     </td>
-                                    <td>
+                                    <td class="py-3 px-4">
                                         @php
                                             $serviciosMostrados = false;
                                             $yaContados = false;
                                             
-                                            // PRIORIDAD 1: Servicios de cita individual
                                             if ($item->cita && $item->cita->servicios && $item->cita->servicios->count() > 0) {
                                                 foreach($item->cita->servicios as $servicio) {
                                                     if($servicio->categoria === 'peluqueria') {
-                                                        echo '<span class="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs mr-1 mb-1">💇 ' . $servicio->nombre . '</span>';
+                                                        echo '<span class="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded text-xs mr-1 mb-1">💇 ' . $servicio->nombre . '</span>';
                                                     } elseif($servicio->categoria === 'estetica') {
-                                                        echo '<span class="inline-block px-2 py-1 bg-pink-100 text-pink-700 rounded text-xs mr-1 mb-1">💅 ' . $servicio->nombre . '</span>';
+                                                        echo '<span class="inline-flex items-center px-2 py-1 bg-pink-100 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300 rounded text-xs mr-1 mb-1">💅 ' . $servicio->nombre . '</span>';
                                                     }
                                                     $serviciosMostrados = true;
                                                 }
                                                 $yaContados = true;
                                             }
                                             
-                                            // PRIORIDAD 2: Servicios de citas agrupadas (solo si no tiene cita individual)
                                             if (!$yaContados && $item->citasAgrupadas && $item->citasAgrupadas->count() > 0) {
                                                 foreach($item->citasAgrupadas as $citaGrupo) {
                                                     if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
                                                         foreach($citaGrupo->servicios as $servicio) {
                                                             if($servicio->categoria === 'peluqueria') {
-                                                                echo '<span class="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs mr-1 mb-1">💇 ' . $servicio->nombre . '</span>';
+                                                                echo '<span class="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded text-xs mr-1 mb-1">💇 ' . $servicio->nombre . '</span>';
                                                             } elseif($servicio->categoria === 'estetica') {
-                                                                echo '<span class="inline-block px-2 py-1 bg-pink-100 text-pink-700 rounded text-xs mr-1 mb-1">💅 ' . $servicio->nombre . '</span>';
+                                                                echo '<span class="inline-flex items-center px-2 py-1 bg-pink-100 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300 rounded text-xs mr-1 mb-1">💅 ' . $servicio->nombre . '</span>';
                                                             }
                                                             $serviciosMostrados = true;
                                                         }
@@ -495,33 +611,30 @@
                                                 $yaContados = true;
                                             }
                                             
-                                            // PRIORIDAD 3: Servicios directos (solo si no tiene citas)
                                             if (!$yaContados && $item->servicios && $item->servicios->count() > 0) {
                                                 foreach($item->servicios as $servicio) {
                                                     if($servicio->categoria === 'peluqueria') {
-                                                        echo '<span class="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs mr-1 mb-1">💇 ' . $servicio->nombre . '</span>';
+                                                        echo '<span class="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded text-xs mr-1 mb-1">💇 ' . $servicio->nombre . '</span>';
                                                     } elseif($servicio->categoria === 'estetica') {
-                                                        echo '<span class="inline-block px-2 py-1 bg-pink-100 text-pink-700 rounded text-xs mr-1 mb-1">💅 ' . $servicio->nombre . '</span>';
+                                                        echo '<span class="inline-flex items-center px-2 py-1 bg-pink-100 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300 rounded text-xs mr-1 mb-1">💅 ' . $servicio->nombre . '</span>';
                                                     }
                                                     $serviciosMostrados = true;
                                                 }
                                             }
                                             
-                                            // Productos
                                             if ($item->productos && $item->productos->count() > 0) {
                                                 foreach($item->productos as $producto) {
-                                                    echo '<span class="inline-block px-2 py-1 bg-green-100 text-green-700 rounded text-xs mr-1 mb-1">🛍️ ' . $producto->nombre . ' (x' . $producto->pivot->cantidad . ')</span>';
+                                                    echo '<span class="inline-flex items-center px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded text-xs mr-1 mb-1">🛍️ ' . $producto->nombre . ' (x' . $producto->pivot->cantidad . ')</span>';
                                                     $serviciosMostrados = true;
                                                 }
                                             }
                                             
-                                            // Si no hay nada, mostrar guion
                                             if (!$serviciosMostrados) {
-                                                echo '<span class="text-gray-400">-</span>';
+                                                echo '<span class="text-gray-400 dark:text-gray-500">-</span>';
                                             }
                                         @endphp
                                     </td>
-                                    <td>
+                                    <td class="py-3 px-4 text-gray-700 dark:text-gray-300">
                                         @if($item->empleado && $item->empleado->user)
                                             {{ $item->empleado->user->nombre }}
                                         @elseif($item->cita && $item->cita->empleado && $item->cita->empleado->user)
@@ -530,140 +643,156 @@
                                             -
                                         @endif
                                     </td>
-                                    <td>
+                                    <td class="py-3 px-4">
                                         @if($item->metodo_pago === 'efectivo')
-                                            <span class="text-green-600 font-semibold">💵 Efectivo</span>
+                                            <span class="inline-flex items-center px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">💵 Efectivo</span>
                                         @elseif($item->metodo_pago === 'tarjeta')
-                                            <span class="text-blue-600 font-semibold">💳 Tarjeta</span>
+                                            <span class="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full text-xs font-semibold">💳 Tarjeta</span>
                                         @elseif($item->metodo_pago === 'bono')
-                                            <span class="text-purple-600 font-semibold">🎫 Bono</span>
+                                            <span class="inline-flex items-center px-2 py-1 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded-full text-xs font-semibold">🎫 Bono</span>
                                         @endif
                                     </td>
-                                    <td class="font-bold text-green-600">€{{ number_format($item->total_final, 2) }}</td>
-                                    <td class="font-bold {{ $item->deuda > 0 ? 'text-red-600' : 'text-gray-400' }}">€{{ number_format($item->deuda ?? 0, 2) }}</td>
+                                    <td class="py-3 px-4 text-right font-bold text-green-600 dark:text-green-400">€{{ number_format($item->total_final, 2) }}</td>
+                                    <td class="py-3 px-4 text-right font-bold {{ $item->deuda > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400 dark:text-gray-500' }}">€{{ number_format($item->deuda ?? 0, 2) }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
                     </table>
                 </div>
             @else
-                <p class="text-gray-500 text-center py-4">No se realizaron servicios este día.</p>
+                <div class="text-center py-12">
+                    <p class="text-gray-400 dark:text-gray-500">No se realizaron servicios este día</p>
+                </div>
             @endif
         </div>
 
-        <div class="seccion-caja">
-            <h3 class="titulo-seccion text-purple-700">🎫 BONOS VENDIDOS</h3>
-            @if($bonosVendidos->count() > 0)
-                <div style="overflow-x: auto;">
-                    <table class="tabla-caja">
-                        <thead>
-                            <tr>
-                                <th>Hora</th>
-                                <th>Cliente</th>
-                                <th>Bono</th>
-                                <th>Empleado</th>
-                                <th>Método</th>
-                                <th>Precio</th>
-                                <th>Dinero</th>
-                                <th>Cambio</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+        <!-- Bonos Vendidos y Deudas -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- BONOS VENDIDOS -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div class="bg-gradient-to-r from-purple-500 to-purple-600 dark:from-purple-600 dark:to-purple-700 px-6 py-4">
+                    <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                        <span class="text-2xl">🎫</span>
+                        Bonos Vendidos
+                    </h3>
+                </div>
+                
+                <div class="p-6">
+                    @if($bonosVendidos->count() > 0)
+                        <div class="space-y-3">
                             @foreach($bonosVendidos as $bono)
-                                <tr>
-                                    <td class="font-semibold">{{ \Carbon\Carbon::parse($bono->created_at)->format('H:i') }}</td>
-                                    <td>
-                                        @if($bono->cliente && $bono->cliente->user)
-                                            {{ $bono->cliente->user->nombre }} {{ $bono->cliente->user->apellidos }}
-                                        @else
-                                            -
-                                        @endif
-                                    </td>
-                                    <td>
-                                        <span class="font-semibold text-purple-700">🎫 {{ $bono->plantilla->nombre }}</span>
+                                <div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors border border-purple-200 dark:border-purple-800">
+                                    <div class="flex justify-between items-start mb-3">
+                                        <div class="flex-1">
+                                            <div class="font-bold text-gray-900 dark:text-gray-100 mb-1">{{ $bono->plantilla->nombre }}</div>
+                                            <div class="text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
+                                                @if($bono->cliente && $bono->cliente->user)
+                                                    <div>👤 {{ $bono->cliente->user->nombre }} {{ $bono->cliente->user->apellidos }}</div>
+                                                @endif
+                                                @if($bono->empleado && $bono->empleado->user)
+                                                    <div>👨‍💼 {{ $bono->empleado->user->nombre }}</div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <div class="text-right ml-4">
+                                            <div class="text-xl font-bold text-purple-700 dark:text-purple-300">€{{ number_format($bono->precio_pagado, 2) }}</div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::parse($bono->created_at)->format('H:i') }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex justify-between items-center pt-3 border-t border-purple-200 dark:border-purple-700">
+                                        <div>
+                                            @if($bono->metodo_pago === 'efectivo')
+                                                <span class="inline-flex items-center px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">💵 Efectivo</span>
+                                            @elseif($bono->metodo_pago === 'tarjeta')
+                                                <span class="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full text-xs font-semibold">💳 Tarjeta</span>
+                                            @endif
+                                        </div>
                                         @if($bono->plantilla->duracion_dias)
-                                            <span class="text-xs text-gray-500">({{ $bono->plantilla->duracion_dias }} días)</span>
+                                            <span class="text-xs text-gray-500 dark:text-gray-400">⏰ {{ $bono->plantilla->duracion_dias }} días</span>
                                         @else
-                                            <span class="text-xs text-purple-500">(Sin límite)</span>
+                                            <span class="text-xs text-purple-600 dark:text-purple-400 font-semibold">♾️ Sin límite</span>
                                         @endif
-                                    </td>
-                                    <td>
-                                        @if($bono->empleado && $bono->empleado->user)
-                                            {{ $bono->empleado->user->nombre }}
-                                        @else
-                                            -
-                                        @endif
-                                    </td>
-                                    <td>
-                                        @if($bono->metodo_pago === 'efectivo')
-                                            <span class="text-green-600 font-semibold">💵 Efectivo</span>
-                                        @elseif($bono->metodo_pago === 'tarjeta')
-                                            <span class="text-blue-600 font-semibold">💳 Tarjeta</span>
-                                        @endif
-                                    </td>
-                                    <td class="font-bold text-purple-600">€{{ number_format($bono->precio_pagado, 2) }}</td>
-                                    <td class="font-semibold">€{{ number_format($bono->dinero_cliente, 2) }}</td>
-                                    <td class="font-semibold {{ $bono->cambio > 0 ? 'text-orange-600' : 'text-gray-400' }}">€{{ number_format($bono->cambio, 2) }}</td>
-                                </tr>
+                                    </div>
+                                </div>
                             @endforeach
-                        </tbody>
-                    </table>
+                        </div>
+                    @else
+                        <div class="text-center py-12">
+                            <div class="text-5xl mb-3">🎫</div>
+                            <p class="text-gray-400 dark:text-gray-500">No se vendieron bonos este día</p>
+                        </div>
+                    @endif
                 </div>
-            @else
-                <p class="text-gray-500 text-center py-4">No se vendieron bonos este día.</p>
-            @endif
-        </div>
+            </div>
 
-        <div class="seccion-caja">
-            <h3 class="titulo-seccion text-red-700">💰 DEUDAS GENERADAS</h3>
-            @if($deudas->count() > 0)
-                <div style="overflow-x: auto;">
-                    <table class="tabla-caja">
-                        <thead>
-                            <tr>
-                                <th>Cliente</th>
-                                <th>Servicio</th>
-                                <th>Total Servicio</th>
-                                <th>Pagado</th>
-                                <th>Deuda</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($deudas as $deuda)
-                                <tr>
-                                    <td>
-                                        @if($deuda->cliente && $deuda->cliente->user)
-                                            {{ $deuda->cliente->user->nombre }} {{ $deuda->cliente->user->apellidos }}
-                                        @elseif($deuda->cita && $deuda->cita->cliente && $deuda->cita->cliente->user)
-                                            {{ $deuda->cita->cliente->user->nombre }} {{ $deuda->cita->cliente->user->apellidos }}
-                                        @else
-                                            -
-                                        @endif
-                                    </td>
-                                    <td>
-                                        @if($deuda->cita && $deuda->cita->servicios)
-                                            @foreach($deuda->cita->servicios as $servicio)
-                                                <span class="inline-block px-2 py-1 bg-gray-100 rounded text-xs mr-1">{{ $servicio->nombre }}</span>
-                                            @endforeach
-                                        @else
-                                            <span class="text-gray-400">-</span>
-                                        @endif
-                                    </td>
-                                    <td class="font-semibold">€{{ number_format($deuda->total_final + $deuda->deuda, 2) }}</td>
-                                    <td class="font-semibold text-green-600">€{{ number_format($deuda->total_final, 2) }}</td>
-                                    <td class="font-bold text-red-600">€{{ number_format($deuda->deuda, 2) }}</td>
-                                </tr>
-                            @endforeach
-                            <tr class="bg-red-50">
-                                <td colspan="4" class="text-right font-bold">TOTAL DEUDA DEL DÍA:</td>
-                                <td class="font-bold text-red-700 text-lg">€{{ number_format($totalDeuda, 2) }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <!-- DEUDAS GENERADAS -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div class="bg-gradient-to-r from-red-500 to-red-600 dark:from-red-600 dark:to-red-700 px-6 py-4">
+                    <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                        <span class="text-2xl">⚠️</span>
+                        Deudas Generadas
+                    </h3>
                 </div>
-            @else
-                <p class="text-gray-500 text-center py-4">✅ No se generaron deudas este día.</p>
-            @endif
+                
+                <div class="p-6">
+                    @if($deudas->count() > 0)
+                        <div class="space-y-3">
+                            @foreach($deudas as $deuda)
+                                <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors border border-red-200 dark:border-red-800">
+                                    <div class="flex justify-between items-start mb-3">
+                                        <div class="flex-1">
+                                            <div class="font-bold text-gray-900 dark:text-gray-100 mb-2">
+                                                @if($deuda->cliente && $deuda->cliente->user)
+                                                    {{ $deuda->cliente->user->nombre }} {{ $deuda->cliente->user->apellidos }}
+                                                @elseif($deuda->cita && $deuda->cita->cliente && $deuda->cita->cliente->user)
+                                                    {{ $deuda->cita->cliente->user->nombre }} {{ $deuda->cita->cliente->user->apellidos }}
+                                                @else
+                                                    Cliente desconocido
+                                                @endif
+                                            </div>
+                                            <div class="flex flex-wrap gap-1">
+                                                @if($deuda->cita && $deuda->cita->servicios && $deuda->cita->servicios->count() > 0)
+                                                    @foreach($deuda->cita->servicios as $servicio)
+                                                        <span class="inline-flex items-center px-2 py-0.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-xs border border-red-200 dark:border-red-700">{{ $servicio->nombre }}</span>
+                                                    @endforeach
+                                                @else
+                                                    <span class="text-xs text-gray-400 dark:text-gray-500 italic">Sin servicios</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <div class="text-right ml-4">
+                                            <div class="text-xl font-bold text-red-600 dark:text-red-400">€{{ number_format($deuda->deuda, 2) }}</div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">Deuda</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex justify-between items-center pt-3 border-t border-red-200 dark:border-red-700 text-sm">
+                                        <div class="text-gray-600 dark:text-gray-400">
+                                            Total: <span class="font-semibold text-gray-900 dark:text-gray-100">€{{ number_format($deuda->total_final + $deuda->deuda, 2) }}</span>
+                                        </div>
+                                        <div class="font-semibold text-green-600 dark:text-green-400">
+                                            Pagado: €{{ number_format($deuda->total_final, 2) }}
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                            
+                            <!-- Total de deudas -->
+                            <div class="bg-red-100 dark:bg-red-900/40 rounded-lg p-4 border-2 border-red-300 dark:border-red-700">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-red-800 dark:text-red-300 font-bold">Total Deuda del Día</span>
+                                    <span class="text-2xl font-bold text-red-700 dark:text-red-400">€{{ number_format($totalDeuda, 2) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    @else
+                        <div class="text-center py-12">
+                            <div class="text-5xl mb-3">✅</div>
+                            <p class="text-emerald-600 dark:text-emerald-400 font-semibold">No se generaron deudas este día</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
         </div>
     </div>
 </body>

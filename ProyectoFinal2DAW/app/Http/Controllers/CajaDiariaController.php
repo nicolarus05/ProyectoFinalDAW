@@ -31,28 +31,66 @@ class CajaDiariaController extends Controller{
         
         // Calculamos totales por método de pago considerando productos también
         foreach($cobrosDelDia as $cobro) {
-            $montoPagado = $cobro->total_final - $cobro->deuda;
+            // Monto de servicios/productos pagado (restando deuda)
+            $montoPagadoServicios = $cobro->total_final - $cobro->deuda;
+            
+            // Monto de bonos vendidos en este cobro
+            $montoBonosVendidos = $cobro->total_bonos_vendidos ?? 0;
             
             if ($cobro->metodo_pago === 'efectivo') {
-                $totalEfectivo += $montoPagado;
+                $totalEfectivo += $montoPagadoServicios;
             } elseif ($cobro->metodo_pago === 'tarjeta') {
-                $totalTarjeta += $montoPagado;
+                $totalTarjeta += $montoPagadoServicios;
             } elseif ($cobro->metodo_pago === 'mixto') {
                 $totalEfectivo += $cobro->pago_efectivo;
                 $totalTarjeta += $cobro->pago_tarjeta;
             } elseif ($cobro->metodo_pago === 'bono') {
                 $totalBono += $cobro->coste;
+            } elseif ($cobro->metodo_pago === 'deuda') {
+                // Si es deuda, no sumamos nada porque no se recibió dinero
+                continue;
             }
         }
 
-        // Bonos vendidos ese día
-        $totalBonosEfectivo = BonoCliente::whereDate('fecha_compra', $fecha)
+        // Bonos vendidos ese día - Usar el nuevo campo total_bonos_vendidos
+        // Solo contar los bonos que se pagaron (no los que quedaron a deber)
+        $totalBonosEfectivo = RegistroCobro::whereDate('created_at', $fecha)
             ->where('metodo_pago', 'efectivo')
-            ->sum('precio_pagado');
+            ->where('deuda', '=', 0) // Solo contar si no hay deuda
+            ->sum('total_bonos_vendidos');
 
-        $totalBonosTarjeta = BonoCliente::whereDate('fecha_compra', $fecha)
+        $totalBonosTarjeta = RegistroCobro::whereDate('created_at', $fecha)
             ->where('metodo_pago', 'tarjeta')
-            ->sum('precio_pagado');
+            ->where('deuda', '=', 0) // Solo contar si no hay deuda
+            ->sum('total_bonos_vendidos');
+            
+        // Para métodos mixtos, necesitamos calcular proporcionalmente
+        $cobrosMixtos = RegistroCobro::whereDate('created_at', $fecha)
+            ->where('metodo_pago', 'mixto')
+            ->get();
+            
+        foreach($cobrosMixtos as $cobro) {
+            if ($cobro->total_bonos_vendidos > 0) {
+                // Calcular cuánto del pago se destinó al bono
+                $totalConBonos = $cobro->total_final + $cobro->total_bonos_vendidos;
+                $dineroPagado = $cobro->pago_efectivo + $cobro->pago_tarjeta;
+                
+                // Si hay deuda, calcular cuánto se pagó del bono
+                if ($cobro->deuda > 0) {
+                    // Prioridad: primero se pagan servicios, luego bonos
+                    $dineroParaBono = max(0, $dineroPagado - $cobro->total_final);
+                    $proporcionPagada = $cobro->total_bonos_vendidos > 0 ? ($dineroParaBono / $cobro->total_bonos_vendidos) : 0;
+                } else {
+                    $proporcionPagada = 1; // Se pagó todo
+                }
+                
+                $bonoPagadoEfectivo = $cobro->total_bonos_vendidos * ($cobro->pago_efectivo / $dineroPagado) * $proporcionPagada;
+                $bonoPagadoTarjeta = $cobro->total_bonos_vendidos * ($cobro->pago_tarjeta / $dineroPagado) * $proporcionPagada;
+                
+                $totalBonosEfectivo += $bonoPagadoEfectivo;
+                $totalBonosTarjeta += $bonoPagadoTarjeta;
+            }
+        }
 
         $totalBonosVendidos = $totalBonosEfectivo + $totalBonosTarjeta;
 

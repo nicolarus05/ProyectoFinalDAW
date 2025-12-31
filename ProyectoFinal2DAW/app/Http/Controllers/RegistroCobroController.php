@@ -597,8 +597,38 @@ class RegistroCobroController extends Controller{
         // NOTA: El total_final que viene del frontend YA tiene descontados los servicios cubiertos por bonos activos
         // No debemos ajustarlo de nuevo. Solo marcamos los servicios como usados en el bono (ya hecho arriba)
 
-        // --- Calcular deuda si el dinero del cliente es menor que el total ---
-        $deuda = max(0, $data['total_final'] - ($data['dinero_cliente'] ?? 0));
+        // --- SEPARAR BONOS VENDIDOS DEL TOTAL ---
+        $totalBonosVendidos = 0;
+        $totalFinalServicios = $data['total_final'];
+        
+        // Si se vendió un bono, su precio está incluido en total_final
+        // Debemos separarlo para tener el total real de servicios/productos
+        if (!empty($data['bono_plantilla_id'])) {
+            $bonoPlantilla = \App\Models\BonoPlantilla::find($data['bono_plantilla_id']);
+            if ($bonoPlantilla) {
+                $totalBonosVendidos = $bonoPlantilla->precio;
+                // Restar el precio del bono del total_final para obtener solo servicios/productos
+                $totalFinalServicios = $data['total_final'] - $totalBonosVendidos;
+            }
+        }
+
+        // --- Calcular deuda considerando solo servicios/productos ---
+        // La deuda del bono se manejará por separado al crear el BonoCliente
+        $deudaServicios = max(0, $totalFinalServicios - ($data['dinero_cliente'] ?? 0));
+        
+        // Si hay deuda en servicios y además se vendió un bono, todo el dinero va a servicios
+        // y el bono queda completamente a deber
+        $deudaBonos = 0;
+        if ($deudaServicios > 0 && $totalBonosVendidos > 0) {
+            // Si el dinero no alcanza ni para los servicios, el bono queda completamente a deber
+            $deudaBonos = $totalBonosVendidos;
+        } elseif ($totalBonosVendidos > 0) {
+            // Si el dinero cubre los servicios, ver cuánto queda para el bono
+            $dineroRestante = ($data['dinero_cliente'] ?? 0) - $totalFinalServicios;
+            $deudaBonos = max(0, $totalBonosVendidos - $dineroRestante);
+        }
+        
+        $deuda = $deudaServicios + $deudaBonos;
 
         // --- Determinar id_empleado (nunca debe ser null) ---
         $empleadoId = $data['id_empleado'] ?? null;
@@ -626,7 +656,8 @@ class RegistroCobroController extends Controller{
             'descuento_servicios_euro' => $data['descuento_servicios_euro'] ?? 0,
             'descuento_productos_porcentaje' => $data['descuento_productos_porcentaje'] ?? 0,
             'descuento_productos_euro' => $data['descuento_productos_euro'] ?? 0,
-            'total_final' => $data['total_final'], // Usar el total_final original del frontend
+            'total_final' => $totalFinalServicios, // Solo servicios y productos (sin bonos vendidos)
+            'total_bonos_vendidos' => $totalBonosVendidos, // Bonos vendidos separado
             'dinero_cliente' => $data['dinero_cliente'] ?? 0,
             'pago_efectivo' => $data['metodo_pago'] === 'mixto' ? ($data['pago_efectivo'] ?? 0) : null,
             'pago_tarjeta' => $data['metodo_pago'] === 'mixto' ? ($data['pago_tarjeta'] ?? 0) : null,
@@ -658,6 +689,9 @@ class RegistroCobroController extends Controller{
             $bonoPlantilla = \App\Models\BonoPlantilla::with('servicios')->find($data['bono_plantilla_id']);
             
             if ($bonoPlantilla) {
+                // Calcular cuánto se pagó del bono
+                $dineroPagadoBono = max(0, $totalBonosVendidos - $deudaBonos);
+                
                 // Crear el bono del cliente
                 $bonoCliente = \App\Models\BonoCliente::create([
                     'cliente_id' => $clienteId,
@@ -665,8 +699,8 @@ class RegistroCobroController extends Controller{
                     'fecha_compra' => Carbon::now(),
                     'fecha_expiracion' => Carbon::now()->addDays($bonoPlantilla->duracion_dias),
                     'estado' => 'activo',
-                    'metodo_pago' => $data['metodo_pago'],
-                    'precio_pagado' => $bonoPlantilla->precio,
+                    'metodo_pago' => $deudaBonos > 0 ? 'deuda' : $data['metodo_pago'],
+                    'precio_pagado' => $dineroPagadoBono,
                     'dinero_cliente' => 0,
                     'cambio' => 0,
                     'id_empleado' => $empleadoId,

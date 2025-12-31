@@ -22,6 +22,7 @@ class RegistroCobro extends Model {
         'descuento_productos_porcentaje',
         'descuento_productos_euro',
         'total_final',
+        'total_bonos_vendidos',
         'metodo_pago',
         'dinero_cliente',
         'pago_efectivo',
