@@ -146,6 +146,7 @@ Route::middleware([
 
         // Cobros
         Route::get('cobros/direct/create', [RegistroCobroController::class, 'createDirect'])->name('cobros.create.direct');
+        Route::get('cobros/cliente/{cliente}/bonos', [RegistroCobroController::class, 'getBonosCliente'])->name('cobros.cliente.bonos');
         Route::resource('cobros', RegistroCobroController::class)->names('cobros')->middleware('throttle:30,1');
         
         // Deudas (admin y empleado)

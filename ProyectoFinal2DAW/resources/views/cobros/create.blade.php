@@ -375,5 +375,29 @@
   </div>
 </div>
 
-</body>
-</html>
+<script>
+// Datos de servicios y bonos por cita
+window.citasData = {
+    @foreach($citas as $cita)
+    {{ $cita->id }}: {
+        servicios: @json($cita->servicios->map(function($servicio) {
+            return ['id' => $servicio->id, 'nombre' => $servicio->nombre, 'precio' => $servicio->precio];
+        })),
+        bonos: @json($cita->cliente->bonosActivos->map(function($bono) {
+            return [
+                'id' => $bono->id,
+                'servicios' => $bono->servicios->map(function($servicio) use ($bono) {
+                    $pivot = $bono->servicios->find($servicio->id)->pivot;
+                    return [
+                        'id' => $servicio->id,
+                        'nombre' => $servicio->nombre,
+                        'disponibles' => $pivot->cantidad_total - $pivot->cantidad_usada
+                    ];
+                })
+            ];
+        }))
+    },
+    @endforeach
+};
+</script>
+

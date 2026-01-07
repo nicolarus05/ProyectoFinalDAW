@@ -8,6 +8,7 @@ use App\Http\Resources\ServicioResource;
 use App\Traits\HasFlashMessages;
 use App\Traits\HasCrudMessages;
 use App\Traits\HasJsonResponses;
+use App\Services\CacheService;
 
 class ServicioController extends Controller{
     use HasFlashMessages, HasCrudMessages, HasJsonResponses;
@@ -45,6 +46,10 @@ class ServicioController extends Controller{
 
 
         Servicio::create($data);
+        
+        // Limpiar caché de servicios
+        CacheService::clearServiciosCache();
+        
         return redirect()->route('servicios.index');
     }
 
@@ -77,6 +82,10 @@ class ServicioController extends Controller{
 
 
         $servicio->update($data);
+        
+        // Limpiar caché de servicios
+        CacheService::clearServiciosCache();
+        
         return redirect()->route('servicios.index');
     }
 
@@ -85,6 +94,10 @@ class ServicioController extends Controller{
      */
     public function destroy(Servicio $servicio){
         $servicio->delete();
+        
+        // Limpiar caché de servicios
+        CacheService::clearServiciosCache();
+        
         return $this->redirectWithSuccess('servicios.index', $this->getDeletedMessage());
     }
 

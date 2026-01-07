@@ -117,18 +117,19 @@ class BonoController extends Controller
             $clienteId = $request->cliente_id;
             $metodoPago = $request->metodo_pago;
 
-            // Verificar que no tenga un bono activo con los mismos servicios
+            // Verificar que no tenga un bono activo con los mismos servicios Y que tenga usos disponibles
             $serviciosIds = $plantilla->servicios->pluck('id')->toArray();
             
             $bonoExistente = BonoCliente::where('cliente_id', $clienteId)
                 ->where('estado', 'activo')
                 ->whereHas('servicios', function($query) use ($serviciosIds) {
-                    $query->whereIn('servicio_id', $serviciosIds);
+                    $query->whereIn('servicio_id', $serviciosIds)
+                          ->whereRaw('cantidad_usada < cantidad_total'); // Solo si tiene usos disponibles
                 })
                 ->first();
 
             if ($bonoExistente) {
-                return redirect()->back()->withErrors(['error' => 'El cliente ya tiene un bono activo con alguno de estos servicios.']);
+                return redirect()->back()->withErrors(['error' => 'El cliente ya tiene un bono activo con alguno de estos servicios que aún no ha usado completamente.']);
             }
 
             // Calcular pago
@@ -202,6 +203,7 @@ class BonoController extends Controller
         $cliente = Cliente::with('user')->findOrFail($clienteId);
         $bonos = BonoCliente::with(['plantilla', 'servicios', 'usoDetalles.cita', 'usoDetalles.servicio'])
             ->where('cliente_id', $clienteId)
+            ->orderByRaw("FIELD(estado, 'activo', 'expirado', 'usado')") // Primero activos, luego expirados, luego usados
             ->orderBy('created_at', 'desc')
             ->get();
 

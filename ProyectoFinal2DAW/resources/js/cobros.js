@@ -195,12 +195,34 @@ document.addEventListener('DOMContentLoaded', function() {
       const dineroCliente = parseFloat(document.getElementById('dinero_cliente').value) || 0;
       const productosTotal = parseFloat(totalCell.textContent) || 0;
       
+      // Calcular descuentos por bonos activos
+      let descuentoBonosActivos = 0;
+      const select = document.getElementById('id_cita');
+      const citaId = select.value;
+      
+      if (window.citasData && citaId && window.citasData[citaId]) {
+        const citaData = window.citasData[citaId];
+        const serviciosCita = citaData.servicios || [];
+        const bonosCliente = citaData.bonos || [];
+        
+        // Calcular qué servicios están cubiertos por bonos
+        serviciosCita.forEach(servicio => {
+          for (let bono of bonosCliente) {
+            const servicioEnBono = bono.servicios.find(s => s.id === servicio.id);
+            if (servicioEnBono && servicioEnBono.disponibles > 0) {
+              descuentoBonosActivos += servicio.precio;
+              break; // Este servicio está cubierto, pasar al siguiente
+            }
+          }
+        });
+      }
+      
       // Calcular descuentos separados
       const descuentoServicios = (coste * (descServiciosPor / 100)) + descServiciosEur;
       const descuentoProductos = (productosTotal * (descProductosPor / 100)) + descProductosEur;
       
-      // Total con descuentos aplicados
-      const totalServicios = Math.max(coste - descuentoServicios, 0);
+      // Total con descuentos aplicados (incluyendo bonos)
+      const totalServicios = Math.max(coste - descuentoServicios - descuentoBonosActivos, 0);
       const totalProductos = Math.max(productosTotal - descuentoProductos, 0);
       const totalFinal = totalServicios + totalProductos;
       

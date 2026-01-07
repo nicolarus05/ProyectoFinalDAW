@@ -476,6 +476,7 @@
                         <span>TOTAL:</span>
                         <span id="total-final">€0.00</span>
                     </div>
+                    <div id="info-bonos-activos"></div>
                 </div>
 
                 <input type="hidden" name="coste" id="coste" value="0">
@@ -824,10 +825,37 @@ window.eliminarBono = function() {
 window.calcularDescuentoBono = function() {
     if (!bonoSeleccionado) return;
     
-    // Calcular si hay servicios de la cita en el bono
+    // Primero marcar qué servicios están cubiertos por bonos ACTIVOS del cliente
+    const serviciosCubiertosporBonosActivos = new Set();
+    
+    if (bonosActivosCliente && bonosActivosCliente.length > 0) {
+        serviciosSeleccionados.forEach(servicio => {
+            for (let bono of bonosActivosCliente) {
+                if (!bono.servicios || bono.servicios.length === 0) continue;
+                
+                const servicioEnBono = bono.servicios.find(s => 
+                    s.id === servicio.id && 
+                    (s.pivot.cantidad_usada < s.pivot.cantidad_total)
+                );
+                
+                if (servicioEnBono) {
+                    serviciosCubiertosporBonosActivos.add(servicio.id);
+                    break;
+                }
+            }
+        });
+    }
+    
+    console.log('🎫 Servicios ya cubiertos por bonos activos:', Array.from(serviciosCubiertosporBonosActivos));
+    
+    // Ahora calcular servicios que coinciden con el NUEVO bono a vender
+    // EXCLUYENDO los que ya están cubiertos por bonos activos
     let serviciosCoincidentes = serviciosSeleccionados.filter(s => 
-        bonoSeleccionado.servicios.includes(s.id)
+        bonoSeleccionado.servicios.includes(s.id) && 
+        !serviciosCubiertosporBonosActivos.has(s.id) // IMPORTANTE: Excluir los ya cubiertos
     );
+    
+    console.log('🆕 Servicios que se cubrirán con el NUEVO bono:', serviciosCoincidentes);
     
     descuentoPorBono = serviciosCoincidentes.reduce((sum, s) => sum + s.precio, 0);
     
@@ -844,25 +872,39 @@ window.calcularDescuentoBono = function() {
 // NUEVA FUNCIÓN: Detectar y aplicar automáticamente bonos activos del cliente
 window.detectarBonosActivos = function() {
     if (!bonosActivosCliente || bonosActivosCliente.length === 0) {
+        console.log('❌ No hay bonos activos del cliente');
         return 0;
     }
+    
+    console.log('🎫 Bonos activos del cliente:', bonosActivosCliente);
+    console.log('🛒 Servicios seleccionados:', serviciosSeleccionados);
     
     let totalDescuentoBonosActivos = 0;
     
     // Por cada servicio seleccionado, buscar si hay un bono activo que lo cubra
     serviciosSeleccionados.forEach(servicio => {
+        console.log(`\n🔍 Verificando servicio: ${servicio.nombre} (ID: ${servicio.id}, Precio: €${servicio.precio})`);
+        
         // Buscar si algún bono activo incluye este servicio
         for (let bono of bonosActivosCliente) {
-            if (!bono.servicios || bono.servicios.length === 0) continue;
+            if (!bono.servicios || bono.servicios.length === 0) {
+                console.log(`  ⚠️ Bono ${bono.id} no tiene servicios`);
+                continue;
+            }
+            
+            console.log(`  🎫 Revisando bono ${bono.id} con ${bono.servicios.length} servicios`);
             
             // Verificar si el servicio está en el bono y tiene usos disponibles
-            const servicioEnBono = bono.servicios.find(s => 
-                s.id === servicio.id && 
-                (s.pivot.cantidad_usada < s.pivot.cantidad_total)
-            );
+            const servicioEnBono = bono.servicios.find(s => {
+                const coincide = s.id === servicio.id;
+                const disponible = s.pivot.cantidad_usada < s.pivot.cantidad_total;
+                console.log(`    - Servicio "${s.nombre}" (ID: ${s.id}): coincide=${coincide}, disponible=${disponible} (${s.pivot.cantidad_total - s.pivot.cantidad_usada} restantes)`);
+                return coincide && disponible;
+            });
             
             if (servicioEnBono) {
                 // Este servicio está cubierto por un bono activo
+                console.log(`  ✅ Servicio cubierto por bono! Descuento: €${servicio.precio}`);
                 totalDescuentoBonosActivos += servicio.precio;
                 servicio.pagadoConBono = true; // Marcar el servicio
                 break; // No buscar en más bonos para este servicio
@@ -870,6 +912,7 @@ window.detectarBonosActivos = function() {
         }
     });
     
+    console.log(`\n💰 Total descuento por bonos activos: €${totalDescuentoBonosActivos}`);
     return totalDescuentoBonosActivos;
 }
 
@@ -895,7 +938,7 @@ window.actualizarDeudaCliente = function() {
 }
 
 // Mostrar panel de bonos del cliente y actualizar badges
-window.mostrarPanelBonos = function() {
+window.mostrarPanelBonos = async function() {
     const clienteId = document.getElementById('id_cliente').value;
     const panelBonos = document.getElementById('panel-bonos-cliente');
     const listaBonos = document.getElementById('lista-bonos-cliente');
@@ -904,88 +947,107 @@ window.mostrarPanelBonos = function() {
     if (!clienteId) {
         panelBonos.classList.add('hidden');
         ocultarTodosBadges();
+        bonosActivosCliente = [];
         return;
     }
     
-    // Buscar bonos del cliente
-    const bonosData = @json($bonosCliente ?? collect());
-    
-    // Filtrar bonos del cliente actual
-    const bonosCliente = bonosData.filter(bono => bono.cliente_id == clienteId);
-    
-    if (bonosCliente.length === 0) {
-        panelBonos.classList.add('hidden');
-        ocultarTodosBadges();
-        return;
-    }
-    
-    // Mostrar panel
-    panelBonos.classList.remove('hidden');
-    
-    // Construir contenido del panel
-    let html = '';
-    bonosCliente.forEach(bono => {
-        const plantilla = bono.plantilla;
-        const servicios = bono.servicios || [];
-        
-        // Verificar si el bono tiene al menos un servicio disponible
-        let tieneServiciosDisponibles = false;
-        let serviciosHTML = '';
-        
-        servicios.forEach(servicio => {
-            const usado = servicio.pivot.cantidad_usada;
-            const total = servicio.pivot.cantidad_total;
-            const restante = total - usado;
-            
-            // Solo incluir servicios con cantidad disponible > 0
-            if (restante > 0) {
-                tieneServiciosDisponibles = true;
-                
-                let colorTexto = 'text-green-600';
-                if (restante <= 2 && restante > 0) {
-                    colorTexto = 'text-yellow-600';
-                }
-                
-                serviciosHTML += '<div class="bono-servicio-item">';
-                serviciosHTML += '<span>• ' + servicio.nombre + '</span>';
-                serviciosHTML += '<span class="font-semibold ' + colorTexto + '">' + restante + '/' + total + ' disponibles</span>';
-                serviciosHTML += '</div>';
+    try {
+        // Cargar bonos del cliente via AJAX
+        const response = await fetch(`/cobros/cliente/${clienteId}/bonos`, {
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
             }
         });
         
-        // Solo mostrar el bono si tiene servicios disponibles
-        if (tieneServiciosDisponibles) {
-            // Calcular fecha de vencimiento
-            const fechaExp = new Date(bono.fecha_expiracion);
-            const hoy = new Date();
-            const diasRestantes = Math.ceil((fechaExp - hoy) / (1000 * 60 * 60 * 24));
-            
-            // Determinar color de alerta
-            let alertaVencimiento = '';
-            if (diasRestantes <= 7 && diasRestantes > 0) {
-                alertaVencimiento = '<span class="text-red-600 font-semibold">⚠️ Vence en ' + diasRestantes + ' días</span>';
-            } else if (diasRestantes <= 0) {
-                alertaVencimiento = '<span class="text-red-700 font-bold">❌ VENCIDO</span>';
-            } else {
-                alertaVencimiento = '<span class="text-gray-600">⏰ Vence: ' + fechaExp.toLocaleDateString('es-ES') + '</span>';
-            }
-            
-            html += '<div class="bono-card">';
-            html += '<div class="flex justify-between items-start mb-2">';
-            html += '<h4 class="font-bold text-purple-700">' + plantilla.nombre + '</h4>';
-            html += '<span class="text-xs">' + alertaVencimiento + '</span>';
-            html += '</div>';
-            html += '<div class="text-sm text-gray-600 space-y-1">';
-            html += serviciosHTML;
-            html += '</div>';
-            html += '</div>';
+        if (!response.ok) {
+            throw new Error('Error al cargar bonos del cliente');
         }
-    });
-    
-    listaBonos.innerHTML = html;
-    
-    // Actualizar badges en servicios
-    actualizarBadgesBonos(bonosCliente);
+        
+        const bonosCliente = await response.json();
+        
+        // Actualizar variable global
+        bonosActivosCliente = bonosCliente;
+        
+        if (bonosCliente.length === 0) {
+            panelBonos.classList.add('hidden');
+            ocultarTodosBadges();
+            return;
+        }
+        
+        // Mostrar panel
+        panelBonos.classList.remove('hidden');
+        
+        // Construir contenido del panel
+        let html = '';
+        bonosCliente.forEach(bono => {
+            const plantilla = bono.plantilla;
+            const servicios = bono.servicios || [];
+            
+            // Verificar si el bono tiene al menos un servicio disponible
+            let tieneServiciosDisponibles = false;
+            let serviciosHTML = '';
+            
+            servicios.forEach(servicio => {
+                const usado = servicio.pivot.cantidad_usada;
+                const total = servicio.pivot.cantidad_total;
+                const restante = total - usado;
+                
+                // Solo incluir servicios con cantidad disponible > 0
+                if (restante > 0) {
+                    tieneServiciosDisponibles = true;
+                    
+                    let colorTexto = 'text-green-600';
+                    if (restante <= 2 && restante > 0) {
+                        colorTexto = 'text-yellow-600';
+                    }
+                    
+                    serviciosHTML += '<div class="bono-servicio-item">';
+                    serviciosHTML += '<span>• ' + servicio.nombre + '</span>';
+                    serviciosHTML += '<span class="font-semibold ' + colorTexto + '">' + restante + '/' + total + ' disponibles</span>';
+                    serviciosHTML += '</div>';
+                }
+            });
+            
+            // Solo mostrar el bono si tiene servicios disponibles
+            if (tieneServiciosDisponibles) {
+                // Calcular fecha de vencimiento
+                const fechaExp = new Date(bono.fecha_expiracion);
+                const hoy = new Date();
+                const diasRestantes = Math.ceil((fechaExp - hoy) / (1000 * 60 * 60 * 24));
+                
+                // Determinar color de alerta
+                let alertaVencimiento = '';
+                if (diasRestantes <= 7 && diasRestantes > 0) {
+                    alertaVencimiento = '<span class="text-red-600 font-semibold">⚠️ Vence en ' + diasRestantes + ' días</span>';
+                } else if (diasRestantes <= 0) {
+                    alertaVencimiento = '<span class="text-red-700 font-bold">❌ VENCIDO</span>';
+                } else {
+                    alertaVencimiento = '<span class="text-gray-600">⏰ Vence: ' + fechaExp.toLocaleDateString('es-ES') + '</span>';
+                }
+                
+                html += '<div class="bono-card">';
+                html += '<div class="flex justify-between items-start mb-2">';
+                html += '<h4 class="font-bold text-purple-700">' + plantilla.nombre + '</h4>';
+                html += '<span class="text-xs">' + alertaVencimiento + '</span>';
+                html += '</div>';
+                html += '<div class="text-sm text-gray-600 space-y-1">';
+                html += serviciosHTML;
+                html += '</div>';
+                html += '</div>';
+            }
+        });
+        
+        listaBonos.innerHTML = html;
+        
+        // Actualizar badges en servicios
+        actualizarBadgesBonos(bonosCliente);
+    } catch (error) {
+        console.error('Error al cargar bonos:', error);
+        panelBonos.classList.add('hidden');
+        ocultarTodosBadges();
+        bonosActivosCliente = [];
+    }
 }
 
 // Actualizar badges de bonos disponibles en servicios
@@ -1368,28 +1430,55 @@ window.calcularTotales = function() {
 
     document.getElementById('descuentos-total').textContent = `-€${totalDescuentos.toFixed(2)}`;
 
-    // Total final
-    // 1. Servicios sin bonos activos (restar primero los servicios cubiertos por bonos activos del cliente)
+    // Total final: El backend espera que el total_final YA tenga los bonos activos restados
+    
+    console.log('\n💰 CALCULANDO TOTALES:');
+    console.log('  📊 Total servicios:', totalServicios.toFixed(2));
+    console.log('  🎫 Descuento bonos activos:', descuentoBonosActivos.toFixed(2));
+    console.log('  🆕 Descuento nuevo bono:', descuentoPorBono.toFixed(2));
+    console.log('  💳 Precio bono vendido:', (bonoSeleccionado ? bonoSeleccionado.precio : 0));
+    
+    // 1. Servicios: primero restar bonos activos del cliente
     let serviciosSinBonosActivos = totalServicios - descuentoBonosActivos;
+    console.log('  ➡️ Servicios sin bonos activos:', serviciosSinBonosActivos.toFixed(2));
     
     // 2. Si hay bono VENDIDO, restar también los servicios coincidentes con ese bono
     if (bonoSeleccionado) {
         serviciosSinBonosActivos -= descuentoPorBono;
+        console.log('  ➡️ Servicios sin bonos activos - nuevo bono:', serviciosSinBonosActivos.toFixed(2));
     }
     
+    // 3. Ahora aplicar los descuentos manuales (% y €) sobre lo que queda
     let totalServiciosFinal = Math.max(0, serviciosSinBonosActivos - descuentoServicios);
+    console.log('  ➡️ Total servicios final (con descuentos manuales):', totalServiciosFinal.toFixed(2));
     
-    // 3. Productos con su descuento
+    // 4. Productos con su descuento
     let totalProductosFinal = Math.max(0, totalProductos - descuentoProductos);
     
-    // 4. Si hay bono vendido, sumar el precio del bono (es un ingreso adicional)
+    // 5. Si hay bono vendido, sumar el precio del bono (es un ingreso adicional)
     let precioBonoVendido = bonoSeleccionado ? bonoSeleccionado.precio : 0;
     
-    // Total final = servicios (sin los que están cubiertos por bonos) + productos + precio del bono vendido
+    // Total final = servicios (ya con bonos activos restados y descuentos aplicados) + productos + precio del bono vendido
     let totalFinal = totalServiciosFinal + totalProductosFinal + precioBonoVendido;
+    
+    console.log('  ✅ TOTAL FINAL:', totalFinal.toFixed(2));
+    console.log('     = Servicios finales (' + totalServiciosFinal.toFixed(2) + ') + Productos (' + totalProductosFinal.toFixed(2) + ') + Bono vendido (' + precioBonoVendido.toFixed(2) + ')');
     
     document.getElementById('total-final').textContent = `€${totalFinal.toFixed(2)}`;
     document.getElementById('total_final_input').value = totalFinal.toFixed(2);
+    
+    // Si hay descuento por bonos activos, mostrar un mensaje informativo
+    if (descuentoBonosActivos > 0) {
+        const infoBonosEl = document.getElementById('info-bonos-activos');
+        if (infoBonosEl) {
+            infoBonosEl.innerHTML = `<div class="text-sm text-purple-700 mt-2">🎫 Bonos activos aplicados: -€${descuentoBonosActivos.toFixed(2)}</div>`;
+        }
+    } else {
+        const infoBonosEl = document.getElementById('info-bonos-activos');
+        if (infoBonosEl) {
+            infoBonosEl.innerHTML = '';
+        }
+    }
 
     // Mantener compatibilidad: actualizar campos ocultos de descuento total
     const descTotalPor = (descServPor || 0) + (descProdPor || 0);

@@ -59,13 +59,17 @@ class RegistroCobroController extends Controller{
      */
     public function create(Request $request){
         $citas = Cita::whereDoesntHave('cobro')
-            ->with(['cliente.user', 'cliente.deuda', 'servicios'])
+            ->with(['cliente.user', 'cliente.deuda', 'servicios', 'cliente.bonosActivos.plantilla.servicios', 'cliente.bonosActivos.servicios' => function($query) {
+                $query->withPivot('cantidad_total', 'cantidad_usada');
+            }])
             ->get();
         
         // Si viene un parámetro cita_id, precargar esa cita
         $citaSeleccionada = null;
         if ($request->has('cita_id')) {
-            $citaSeleccionada = Cita::with(['cliente.user', 'cliente.deuda', 'servicios', 'empleado'])
+            $citaSeleccionada = Cita::with(['cliente.user', 'cliente.deuda', 'servicios', 'empleado', 'cliente.bonosActivos.plantilla.servicios', 'cliente.bonosActivos.servicios' => function($query) {
+                $query->withPivot('cantidad_total', 'cantidad_usada');
+            }])
                 ->find($request->cita_id);
         }
         
@@ -127,6 +131,28 @@ class RegistroCobroController extends Controller{
         }
         
         return view('cobros.create-direct', compact('clientes', 'empleados', 'servicios', 'cita', 'citas', 'bonosPlantilla', 'bonosCliente'));
+    }
+
+    /**
+     * Obtener bonos activos de un cliente (para AJAX)
+     */
+    public function getBonosCliente($clienteId)
+    {
+        $bonos = \App\Models\BonoCliente::with(['plantilla.servicios', 'servicios' => function($query) {
+            $query->withPivot('cantidad_total', 'cantidad_usada');
+        }])
+            ->where('cliente_id', $clienteId)
+            ->where('estado', 'activo')
+            ->whereHas('servicios', function($query) {
+                $query->whereRaw('cantidad_usada < cantidad_total');
+            })
+            ->get()
+            ->map(function($bono) {
+                $bono->alertas = $bono->obtenerEstadoAlerta();
+                return $bono;
+            });
+
+        return response()->json($bonos);
     }
 
     /**
@@ -364,15 +390,18 @@ class RegistroCobroController extends Controller{
         $descuentoServiciosTotal = ($totalServiciosCalculado * ($descServiciosPor / 100)) + $descServiciosEur;
         $descuentoProductosTotal = ($totalProductosCalculado * ($descProductosPor / 100)) + $descProductosEur;
         
-        // Total de servicios SIN contar los cubiertos por el bono
-        $totalServiciosSinBono = $totalServiciosCalculado - $totalServiciosCubiertosporBono;
-        $totalServiciosConDescuento = max(0, $totalServiciosSinBono - $descuentoServiciosTotal);
+        // VALIDACIÓN 2: El total_final debe ser igual a (servicios - desc_servicios - bonos_activos) + (productos - desc_productos) + bonos_vendidos
+        // IMPORTANTE: El frontend YA resta los bonos activos del total_final, así que NO debemos restarlos de nuevo aquí
+        // Solo verificamos que el cálculo sea correcto CON los bonos ya restados
+        
+        $totalServiciosConDescuento = max(0, $totalServiciosCalculado - $descuentoServiciosTotal);
         $totalProductosConDescuento = max(0, $totalProductosCalculado - $descuentoProductosTotal);
         
         // Usar el precio del bono ya calculado arriba
         $totalBonosVendidos = $precioBonoVendido;
         
-        $totalFinalCalculado = $totalServiciosConDescuento + $totalProductosConDescuento + $totalBonosVendidos;
+        // IMPORTANTE: Para la validación, debemos restar los bonos activos porque el frontend los envió ya restados
+        $totalFinalCalculado = max(0, $totalServiciosConDescuento - $totalServiciosCubiertosporBono) + $totalProductosConDescuento + $totalBonosVendidos;
         
         $totalFinalRecibido = (float) $data['total_final'];
         $diferenciaTotalFinal = abs($totalFinalCalculado - $totalFinalRecibido);
@@ -383,14 +412,13 @@ class RegistroCobroController extends Controller{
             $mensajeError .= "🧮 Total final calculado: €" . number_format($totalFinalCalculado, 2) . "\n\n";
             $mensajeError .= "📊 Desglose del cálculo:\n";
             $mensajeError .= "   Servicios totales: €" . number_format($totalServiciosCalculado, 2) . "\n";
+            $mensajeError .= "   - Descuento servicios (" . number_format($descServiciosPor, 2) . "% + €" . number_format($descServiciosEur, 2) . "): -€" . number_format($descuentoServiciosTotal, 2) . "\n";
             
             if ($totalServiciosCubiertosporBono > 0) {
                 $mensajeError .= "   - Servicios cubiertos por bono: -€" . number_format($totalServiciosCubiertosporBono, 2) . "\n";
-                $mensajeError .= "   = Servicios a cobrar: €" . number_format($totalServiciosSinBono, 2) . "\n";
             }
             
-            $mensajeError .= "   - Descuento servicios (" . number_format($descServiciosPor, 2) . "% + €" . number_format($descServiciosEur, 2) . "): -€" . number_format($descuentoServiciosTotal, 2) . "\n";
-            $mensajeError .= "   = Subtotal servicios: €" . number_format($totalServiciosConDescuento, 2) . "\n\n";
+            $mensajeError .= "   = Subtotal servicios: €" . number_format(max(0, $totalServiciosConDescuento - $totalServiciosCubiertosporBono), 2) . "\n\n";
             $mensajeError .= "   Productos: €" . number_format($totalProductosCalculado, 2) . "\n";
             $mensajeError .= "   - Descuento productos (" . number_format($descProductosPor, 2) . "% + €" . number_format($descProductosEur, 2) . "): -€" . number_format($descuentoProductosTotal, 2) . "\n";
             $mensajeError .= "   = Subtotal productos: €" . number_format($totalProductosConDescuento, 2) . "\n\n";
@@ -646,6 +674,36 @@ class RegistroCobroController extends Controller{
                 ->withInput();
         }
 
+        // --- DETERMINAR SI EL PAGO FUE COMPLETAMENTE CON BONO ---
+        // Si todos los servicios fueron cubiertos por bonos y no hay productos con costo, cambiar método de pago a 'bono'
+        $metodoPagoFinal = $data['metodo_pago'];
+        if ($descuentoBonos > 0 && !$seVendeBono) {
+            // Calcular el costo real de servicios (sin descuentos porcentuales ni productos)
+            $costoServicios = 0;
+            
+            if ($citasAProcesar->isNotEmpty()) {
+                foreach ($citasAProcesar as $cita) {
+                    if ($cita && $cita->servicios) {
+                        $costoServicios += $cita->servicios->sum('precio');
+                    }
+                }
+            } elseif ($request->has('servicios_data') && !empty($data['servicios_data'])) {
+                $serviciosData = json_decode($data['servicios_data'], true);
+                if (is_array($serviciosData)) {
+                    foreach ($serviciosData as $servicio) {
+                        $costoServicios += (float) ($servicio['precio'] ?? 0);
+                    }
+                }
+            }
+            
+            // Si el descuento por bonos cubre todos los servicios (con margen de 0.01 por redondeos)
+            if ($costoServicios > 0 && abs($descuentoBonos - $costoServicios) < 0.01) {
+                $metodoPagoFinal = 'bono';
+                $data['dinero_cliente'] = 0;
+                $data['cambio'] = 0;
+            }
+        }
+
         // --- Crear el registro principal ---
         $cobro = RegistroCobro::create([
             'id_cita' => $data['id_cita'] ?? null,
@@ -659,10 +717,10 @@ class RegistroCobroController extends Controller{
             'total_final' => $totalFinalServicios, // Solo servicios y productos (sin bonos vendidos)
             'total_bonos_vendidos' => $totalBonosVendidos, // Bonos vendidos separado
             'dinero_cliente' => $data['dinero_cliente'] ?? 0,
-            'pago_efectivo' => $data['metodo_pago'] === 'mixto' ? ($data['pago_efectivo'] ?? 0) : null,
-            'pago_tarjeta' => $data['metodo_pago'] === 'mixto' ? ($data['pago_tarjeta'] ?? 0) : null,
+            'pago_efectivo' => $metodoPagoFinal === 'mixto' ? ($data['pago_efectivo'] ?? 0) : null,
+            'pago_tarjeta' => $metodoPagoFinal === 'mixto' ? ($data['pago_tarjeta'] ?? 0) : null,
             'cambio' => $data['cambio'] ?? 0,
-            'metodo_pago' => $data['metodo_pago'], // Usar el método de pago original
+            'metodo_pago' => $metodoPagoFinal, // Usar el método de pago determinado (puede ser 'bono' si todo fue cubierto)
             'id_cliente' => $clienteId,
             'id_empleado' => $empleadoId,
             'deuda' => $deuda,
