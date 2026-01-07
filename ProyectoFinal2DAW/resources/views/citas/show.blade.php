@@ -91,13 +91,13 @@
                     
                     <textarea name="notas_adicionales" 
                               rows="4" 
-                              maxlength="1000"
+                              maxlength="5000"
                               placeholder="Escribe aquí una nueva nota sobre el cliente (se añadirá a las notas existentes)"
                               class="w-full border border-blue-300 rounded-md p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700 resize-none"
                     >{{ old('notas_adicionales') }}</textarea>
                     
                     <p class="text-xs text-blue-600 text-right">
-                        <span id="contador-notas">0</span>/1000 caracteres
+                        <span id="contador-notas">0</span>/5000 caracteres
                     </p>
                 </form>
             </div>

@@ -710,7 +710,7 @@ class CitaController extends Controller{
      */
     public function actualizarNotas(Request $request, Cita $cita){
         $request->validate([
-            'notas_adicionales' => 'nullable|string|max:1000',
+            'notas_adicionales' => 'nullable|string|max:5000',
         ]);
 
         if (!$cita->cliente) {

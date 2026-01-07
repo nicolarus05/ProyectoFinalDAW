@@ -27,7 +27,7 @@ class RegisterClienteController extends Controller
             'genero' => 'required|in:Hombre,Mujer,Otro',
             'edad' => 'required|integer|min:0|max:120',
             'direccion' => 'required|string|max:255',
-            'notas_adicionales' => 'nullable|string|max:1000',
+            'notas_adicionales' => 'nullable|string|max:5000',
         ]);
 
         // Asignar fecha de registro automáticamente

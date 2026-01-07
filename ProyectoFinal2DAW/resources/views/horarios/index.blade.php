@@ -110,14 +110,14 @@
                                 <select name="mes" id="mes_gen" class="border rounded px-2 py-1 text-sm">
                                     @for($m = 1; $m <= 12; $m++)
                                         <option value="{{ $m }}" {{ $m == now()->month ? 'selected' : '' }}>
-                                            {{ \Carbon\Carbon::create(2025, $m, 1)->locale('es')->translatedFormat('F') }}
+                                            {{ \Carbon\Carbon::create(now()->year, $m, 1)->locale('es')->translatedFormat('F') }}
                                         </option>
                                     @endfor
                                 </select>
                                 <select name="anio" id="anio_gen" class="border rounded px-2 py-1 text-sm">
-                                    <option value="2024">2024</option>
-                                    <option value="2025" selected>2025</option>
-                                    <option value="2026">2026</option>
+                                    <option value="{{ now()->year - 1 }}">{{ now()->year - 1 }}</option>
+                                    <option value="{{ now()->year }}" selected>{{ now()->year }}</option>
+                                    <option value="{{ now()->year + 1 }}">{{ now()->year + 1 }}</option>
                                 </select>
                             </div>
                             <button type="button" onclick="irAConfiguracion('mes')" class="btn-green w-full text-white px-4 py-2 rounded hover:bg-green-700 font-semibold">
@@ -130,9 +130,9 @@
                             <h3 class="font-bold text-purple-700 mb-2">🗓️ Generar Año Completo</h3>
                             <p class="text-sm text-gray-600 mb-3">Horario normal + verano (Jul-Ago)</p>
                             <select name="anio_completo" id="anio_completo" class="w-full border rounded px-2 py-1 mb-2 text-sm">
-                                <option value="2024">2024</option>
-                                <option value="2025" selected>2025</option>
-                                <option value="2026">2026</option>
+                                <option value="{{ now()->year - 1 }}">{{ now()->year - 1 }}</option>
+                                <option value="{{ now()->year }}" selected>{{ now()->year }}</option>
+                                <option value="{{ now()->year + 1 }}">{{ now()->year + 1 }}</option>
                             </select>
                             <button type="button" onclick="irAConfiguracion('anual')" class="btn-purple w-full text-white px-4 py-2 rounded hover:bg-purple-700 font-semibold">
                                 Configurar y Generar

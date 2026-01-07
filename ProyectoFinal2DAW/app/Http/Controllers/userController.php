@@ -44,7 +44,7 @@ class userController extends Controller
             'categoria' => 'required_if:rol,empleado|nullable|in:peluqueria,estetica',
             'fecha_registro' => 'required_if:rol,cliente|nullable|date',
             'direccion' => 'required_if:rol,cliente|nullable|string|max:255',
-            'notas_adicionales' => 'nullable|string|max:1000',
+            'notas_adicionales' => 'nullable|string|max:5000',
         ]);
 
         // Encriptar la contraseña

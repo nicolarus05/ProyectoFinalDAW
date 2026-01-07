@@ -130,24 +130,30 @@ class Empleado extends Model{
         $mes = $carbon->month;
         $esVerano = in_array($mes, [7, 8]); // Julio y Agosto
         
-        // Mapeo de día numérico a nombre
-        $dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-        $nombreDia = $dias[$diaSemana];
-        
         // Seleccionar horario según temporada
         $horarios = $esVerano ? $this->horario_verano : $this->horario_invierno;
         
         // Si el empleado tiene configuración personalizada para este día
         if ($horarios && is_array($horarios)) {
-            // Buscar por nombre del día
-            $horarioDia = $horarios[$nombreDia] ?? null;
+            // Buscar primero por número de día (formato del formulario)
+            $horarioDia = $horarios[$diaSemana] ?? null;
+            
+            // Si no se encuentra por número, buscar por nombre (compatibilidad)
+            if (!$horarioDia) {
+                $dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                $nombreDia = $dias[$diaSemana];
+                $horarioDia = $horarios[$nombreDia] ?? null;
+            }
             
             if ($horarioDia && is_array($horarioDia) && isset($horarioDia['inicio']) && isset($horarioDia['fin'])) {
-                return [
-                    'inicio' => $horarioDia['inicio'],
-                    'fin' => $horarioDia['fin'],
-                    'tipo' => $esVerano ? 'verano_personalizado' : 'invierno_personalizado'
-                ];
+                // Verificar que las horas no estén vacías
+                if (!empty($horarioDia['inicio']) && !empty($horarioDia['fin'])) {
+                    return [
+                        'inicio' => $horarioDia['inicio'],
+                        'fin' => $horarioDia['fin'],
+                        'tipo' => $esVerano ? 'verano_personalizado' : 'invierno_personalizado'
+                    ];
+                }
             }
         }
         

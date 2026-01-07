@@ -29,7 +29,7 @@ class StoreClienteRequest extends FormRequest
             'genero' => ['required', 'string', 'in:Hombre,Mujer,Otro'],
             'edad' => ['required', 'integer', 'min:16', 'max:120'],
             'direccion' => ['required', 'string', 'max:255'],
-            'notas_adicionales' => ['nullable', 'string', 'max:1000'],
+            'notas_adicionales' => ['nullable', 'string', 'max:5000'],
         ];
     }
 
