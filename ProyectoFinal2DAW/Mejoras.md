@@ -2,6 +2,48 @@
 
 **Resumen:** Revisión exhaustiva del proyecto multi-tenant SaaS para salones de belleza con recomendaciones organizadas por estado de implementación y prioridad.
 
+**Última actualización:** 10 de enero de 2026
+
+---
+
+## 🚨 CORRECCIONES CRÍTICAS RECIENTES
+
+### ✅ Sistema de Recordatorios de Citas (Enero 2026)
+
+**Problema identificado:** Los recordatorios de citas NO se estaban enviando
+
+**Causas raíz:**
+1. ❌ Comando `citas:enviar-recordatorios` NO adaptado para multi-tenancy
+2. ❌ Cron job NO configurado para ejecutar el scheduler
+3. ⚠️ Falta de logging en el scheduler
+
+**Solución implementada:**
+- ✅ Comando reescrito para iterar por todos los tenants automáticamente
+- ✅ Manejo correcto de contexto de tenant (initialize/end)
+- ✅ Callbacks de éxito/error en scheduler
+- ✅ Scripts de configuración automática creados
+- ✅ Documentación completa con troubleshooting
+
+**Archivos modificados:**
+- `app/Console/Commands/EnviarRecordatoriosCitas.php` - Multi-tenancy completo
+- `routes/console.php` - Callbacks de logging
+
+**Archivos creados:**
+- `iniciar_scheduler.sh` - Configuración automática del scheduler
+- `setup_scheduler_sail.sh` - Script interno de configuración
+- `test_recordatorios.sh` - Script de pruebas
+- `SOLUCION_RECORDATORIOS_EMAIL.md` - Documentación completa
+- `RESUMEN_RECORDATORIOS.md` - Resumen ejecutivo
+
+**Acción requerida:**
+```bash
+./iniciar_scheduler.sh  # Configurar cron job automáticamente
+```
+
+**Referencias:**
+- Ver [RESUMEN_RECORDATORIOS.md](RESUMEN_RECORDATORIOS.md) para guía rápida
+- Ver [SOLUCION_RECORDATORIOS_EMAIL.md](SOLUCION_RECORDATORIOS_EMAIL.md) para detalles completos
+
 ---
 
 ## 🎯 POR IMPLEMENTAR - ORDENADAS POR PRIORIDAD
@@ -15,7 +57,7 @@
 
 ### 🥇 TIER 1 - Alto Impacto + Baja/Media Dificultad 
 
-**✅ COMPLETADO Y VERIFICADO - Fecha: Enero 2025**
+**✅ COMPLETADO Y VERIFICADO - Fecha: Enero 2025-2026**
 
 #### 1. ✅ Sanitización XSS en Blade (⚡ Baja | 🔥🔥🔥 Seguridad Crítica)
 *   **Estado:** COMPLETADO - Implementado en Form Requests con `strip_tags()`.
@@ -48,6 +90,14 @@
 *   **Archivos modificados:** profile/edit.blade.php, dashboard.blade.php, deudas/index.blade.php, update-profile-information-form.blade.php
 *   **Beneficio:** Mejora tiempo de carga inicial ~40%, mejor experiencia móvil.
 *   **ROI:** Muy alto - implementación trivial, impacto grande.
+
+#### 6. ✅ Sistema de Recordatorios Multi-Tenant (⚡ Media | 🔥🔥🔥 Funcionalidad Crítica)
+*   **Estado:** COMPLETADO Y VERIFICADO - Sistema completamente funcional para multi-tenancy.
+*   **Problema resuelto:** Recordatorios no se enviaban por falta de contexto tenant y cron.
+*   **Mejoras:** Comando multi-tenant, logging completo, scripts de configuración.
+*   **Beneficio:** Funcionalidad core del negocio ahora operativa.
+*   **ROI:** Máximo - funcionalidad esencial para el negocio.
+*   **Tiempo real:** 3 horas (diagnóstico, corrección, documentación, scripts).
 *   **Tiempo real:** 30 minutos.
 
 #### 6. ✅ Health Checks Mejorados (⚡ Media | 🔥🔥 DevOps)

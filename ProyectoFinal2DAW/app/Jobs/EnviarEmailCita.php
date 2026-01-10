@@ -84,12 +84,12 @@ class EnviarEmailCita implements ShouldQueue
         ]);
         
         try {
-            // Buscar la cita en el contexto del tenant
-            $cita = Cita::with(['cliente', 'servicio', 'empleado'])
+            // Buscar la cita en el contexto del tenant con todas las relaciones necesarias
+            $cita = Cita::with(['cliente.user', 'servicios', 'empleado.user'])
                 ->findOrFail($this->citaId);
             
             // Verificar que la cita tiene un cliente con email
-            if (!$cita->cliente || !$cita->cliente->email) {
+            if (!$cita->cliente || !$cita->cliente->user || !$cita->cliente->user->email) {
                 Log::warning('EnviarEmailCita: Cliente sin email', [
                     'cita_id' => $this->citaId,
                     'tenant_id' => $this->tenantId
@@ -97,20 +97,22 @@ class EnviarEmailCita implements ShouldQueue
                 return;
             }
             
+            $clienteEmail = $cita->cliente->user->email;
+            
             // Enviar el email correspondiente
             switch ($this->tipoEmail) {
                 case 'confirmacion':
-                    Mail::to($cita->cliente->email)
-                        ->send(new \App\Mail\CitaConfirmada($cita));
+                    Mail::to($clienteEmail)
+                        ->send(new \App\Mail\CitaConfirmada($this->citaId));
                     break;
                     
                 case 'cancelacion':
-                    Mail::to($cita->cliente->email)
+                    Mail::to($clienteEmail)
                         ->send(new \App\Mail\CitaCancelada($cita, $this->motivo));
                     break;
                     
                 case 'recordatorio':
-                    Mail::to($cita->cliente->email)
+                    Mail::to($clienteEmail)
                         ->send(new \App\Mail\CitaRecordatorio($cita));
                     break;
                     
@@ -124,7 +126,7 @@ class EnviarEmailCita implements ShouldQueue
             Log::info('EnviarEmailCita: Email enviado exitosamente', [
                 'cita_id' => $this->citaId,
                 'tipo_email' => $this->tipoEmail,
-                'destinatario' => $cita->cliente->email,
+                'destinatario' => $clienteEmail,
                 'tenant_id' => $this->tenantId
             ]);
             
