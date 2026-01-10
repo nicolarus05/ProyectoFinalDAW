@@ -36,7 +36,7 @@ class CitaRecordatorio extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: '⏰ Recordatorio de Cita - Mañana a las ' . \Carbon\Carbon::parse($this->cita->fecha_hora)->format('H:i'),
+            subject: 'Recordatorio de Cita - Manana a las ' . \Carbon\Carbon::parse($this->cita->fecha_hora)->format('H:i'),
         );
     }
 

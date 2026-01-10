@@ -54,7 +54,7 @@ class CitaConfirmada extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: '✅ Confirmación de Cita - Salón de Belleza',
+            subject: 'Confirmacion de Cita - Salon de Belleza',
         );
     }
 

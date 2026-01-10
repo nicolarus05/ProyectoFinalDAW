@@ -38,7 +38,7 @@ class CitaCancelada extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: '❌ Cita Cancelada - Salón de Belleza',
+            subject: 'Cancelacion de Cita - Salon de Belleza',
         );
     }
 
