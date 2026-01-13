@@ -215,6 +215,20 @@
                 </div>
             </div>
 
+            <!-- Cajas Diarias -->
+            <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">📅 Cajas Diarias</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                    @foreach($cajasDiarias as $fecha => $total)
+                        <div class="p-4 rounded-lg text-center {{ $total > 0 ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-200 opacity-60' }}">
+                            <div class="text-xs text-gray-500 mb-1 uppercase">{{ \Carbon\Carbon::parse($fecha)->translatedFormat('D d') }}</div>
+                            <div class="font-bold {{ $total > 0 ? 'text-green-700' : 'text-gray-400' }}">
+                                €{{ number_format($total, 2) }}
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
         </div>
     </div>
 </body>

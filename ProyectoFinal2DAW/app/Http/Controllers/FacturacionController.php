@@ -15,6 +15,8 @@ class FacturacionController extends Controller
      */
     public function index(Request $request)
     {
+        Carbon::setLocale('es');
+        
         // Obtener mes y año (por defecto el mes actual)
         $mes = $request->get('mes', now()->month);
         $anio = $request->get('anio', now()->year);
@@ -33,10 +35,27 @@ class FacturacionController extends Controller
         $productosPeluqueria = 0;
         $productosEstetica = 0;
         
+        // Initializar array de cajas diarias
+        $cajasDiarias = [];
+        $diasDelMes = $fechaFin->day;
+        
+        for ($i = 1; $i <= $diasDelMes; $i++) {
+            $fecha = Carbon::create($anio, $mes, $i)->format('Y-m-d');
+            $cajasDiarias[$fecha] = 0;
+        }
+
         // Procesar cada cobro con sistema de prioridades
         foreach($cobros as $cobro) {
             $yaContados = false;
             
+            // Sumar a la caja diaria si no es pago con bono
+             if ($cobro->metodo_pago !== 'bono') {
+                $fechaCobro = $cobro->created_at->format('Y-m-d');
+                if (isset($cajasDiarias[$fechaCobro])) {
+                    $cajasDiarias[$fechaCobro] += $cobro->total_final;
+                }
+            }
+
             // PRIORIDAD 1: Servicios de cita individual
             if ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
                 foreach($cobro->cita->servicios as $servicio) {
@@ -121,9 +140,20 @@ class FacturacionController extends Controller
         }
         
         // BONOS - Desde bonos_clientes
-        $bonosVendidos = DB::table('bonos_clientes')
+        $bonosVenta = DB::table('bonos_clientes')
             ->whereBetween('fecha_compra', [$fechaInicio, $fechaFin])
-            ->sum('precio_pagado');
+            ->get();
+            
+        $bonosVendidos = 0;
+        foreach($bonosVenta as $bono) {
+            $bonosVendidos += $bono->precio_pagado;
+            
+            // Sumar a la caja diaria (la venta de bono es ingreso)
+            $fechaBono = Carbon::parse($bono->fecha_compra)->format('Y-m-d');
+            if (isset($cajasDiarias[$fechaBono])) {
+                $cajasDiarias[$fechaBono] += $bono->precio_pagado;
+            }
+        }
         
         // Calcular totales
         $totalServicios = $serviciosPeluqueria + $serviciosEstetica;
@@ -150,7 +180,8 @@ class FacturacionController extends Controller
             'anio',
             'meses',
             'fechaInicio',
-            'fechaFin'
+            'fechaFin',
+            'cajasDiarias'
         ));
     }
 }
