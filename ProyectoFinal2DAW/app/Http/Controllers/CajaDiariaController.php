@@ -29,7 +29,7 @@ class CajaDiariaController extends Controller{
             ->whereDate('created_at', $fecha)
             ->get();
         
-        // Calculamos totales por método de pago considerando productos también
+        // Calculamos totales por método de pago considerando productos Y bonos vendidos
         foreach($cobrosDelDia as $cobro) {
             // Monto de servicios/productos pagado (restando deuda)
             $montoPagadoServicios = $cobro->total_final - $cobro->deuda;
@@ -37,13 +37,29 @@ class CajaDiariaController extends Controller{
             // Monto de bonos vendidos en este cobro
             $montoBonosVendidos = $cobro->total_bonos_vendidos ?? 0;
             
+            // Total completo = servicios/productos + bonos vendidos
+            $totalCompleto = $montoPagadoServicios + $montoBonosVendidos;
+            
             if ($cobro->metodo_pago === 'efectivo') {
-                $totalEfectivo += $montoPagadoServicios;
+                $totalEfectivo += $totalCompleto;
             } elseif ($cobro->metodo_pago === 'tarjeta') {
-                $totalTarjeta += $montoPagadoServicios;
+                $totalTarjeta += $totalCompleto;
             } elseif ($cobro->metodo_pago === 'mixto') {
-                $totalEfectivo += $cobro->pago_efectivo;
-                $totalTarjeta += $cobro->pago_tarjeta;
+                // Para pagos mixtos, distribuir bonos proporcionalmente
+                $efectivoServicios = $cobro->pago_efectivo ?? 0;
+                $tarjetaServicios = $cobro->pago_tarjeta ?? 0;
+                $totalPagadoServicios = $efectivoServicios + $tarjetaServicios;
+                
+                if ($montoBonosVendidos > 0 && $totalPagadoServicios > 0) {
+                    $proporcionEfectivo = $efectivoServicios / $totalPagadoServicios;
+                    $proporcionTarjeta = $tarjetaServicios / $totalPagadoServicios;
+                    
+                    $totalEfectivo += $efectivoServicios + ($montoBonosVendidos * $proporcionEfectivo);
+                    $totalTarjeta += $tarjetaServicios + ($montoBonosVendidos * $proporcionTarjeta);
+                } else {
+                    $totalEfectivo += $efectivoServicios;
+                    $totalTarjeta += $tarjetaServicios;
+                }
             } elseif ($cobro->metodo_pago === 'bono') {
                 $totalBono += $cobro->coste;
             } elseif ($cobro->metodo_pago === 'deuda') {
@@ -52,50 +68,34 @@ class CajaDiariaController extends Controller{
             }
         }
 
-        // Bonos vendidos ese día - Usar el nuevo campo total_bonos_vendidos
-        // Solo contar los bonos que se pagaron (no los que quedaron a deber)
-        $totalBonosEfectivo = RegistroCobro::whereDate('created_at', $fecha)
-            ->where('metodo_pago', 'efectivo')
-            ->where('deuda', '=', 0) // Solo contar si no hay deuda
-            ->sum('total_bonos_vendidos');
-
-        $totalBonosTarjeta = RegistroCobro::whereDate('created_at', $fecha)
-            ->where('metodo_pago', 'tarjeta')
-            ->where('deuda', '=', 0) // Solo contar si no hay deuda
-            ->sum('total_bonos_vendidos');
-            
-        // Para métodos mixtos, necesitamos calcular proporcionalmente
-        $cobrosMixtos = RegistroCobro::whereDate('created_at', $fecha)
-            ->where('metodo_pago', 'mixto')
-            ->get();
-            
-        foreach($cobrosMixtos as $cobro) {
-            if ($cobro->total_bonos_vendidos > 0) {
-                // Calcular cuánto del pago se destinó al bono
-                $totalConBonos = $cobro->total_final + $cobro->total_bonos_vendidos;
-                $dineroPagado = $cobro->pago_efectivo + $cobro->pago_tarjeta;
-                
-                // Si hay deuda, calcular cuánto se pagó del bono
-                if ($cobro->deuda > 0) {
-                    // Prioridad: primero se pagan servicios, luego bonos
-                    $dineroParaBono = max(0, $dineroPagado - $cobro->total_final);
-                    $proporcionPagada = $cobro->total_bonos_vendidos > 0 ? ($dineroParaBono / $cobro->total_bonos_vendidos) : 0;
-                } else {
-                    $proporcionPagada = 1; // Se pagó todo
+        // Los bonos ya están incluidos en los totales de efectivo y tarjeta calculados arriba
+        // Ya no necesitamos procesamiento adicional de bonos
+        $totalBonosVendidos = $cobrosDelDia->sum('total_bonos_vendidos');
+        $totalBonosEfectivo = 0;
+        $totalBonosTarjeta = 0;
+        
+        // Calcular desglose de bonos vendidos para mostrar en la vista (solo informativo)
+        foreach($cobrosDelDia as $cobro) {
+            $montoBonosVendidos = $cobro->total_bonos_vendidos ?? 0;
+            if ($montoBonosVendidos > 0) {
+                if ($cobro->metodo_pago === 'efectivo') {
+                    $totalBonosEfectivo += $montoBonosVendidos;
+                } elseif ($cobro->metodo_pago === 'tarjeta') {
+                    $totalBonosTarjeta += $montoBonosVendidos;
+                } elseif ($cobro->metodo_pago === 'mixto') {
+                    $efectivo = $cobro->pago_efectivo ?? 0;
+                    $tarjeta = $cobro->pago_tarjeta ?? 0;
+                    $total = $efectivo + $tarjeta;
+                    if ($total > 0) {
+                        $totalBonosEfectivo += $montoBonosVendidos * ($efectivo / $total);
+                        $totalBonosTarjeta += $montoBonosVendidos * ($tarjeta / $total);
+                    }
                 }
-                
-                $bonoPagadoEfectivo = $cobro->total_bonos_vendidos * ($cobro->pago_efectivo / $dineroPagado) * $proporcionPagada;
-                $bonoPagadoTarjeta = $cobro->total_bonos_vendidos * ($cobro->pago_tarjeta / $dineroPagado) * $proporcionPagada;
-                
-                $totalBonosEfectivo += $bonoPagadoEfectivo;
-                $totalBonosTarjeta += $bonoPagadoTarjeta;
             }
         }
 
-        $totalBonosVendidos = $totalBonosEfectivo + $totalBonosTarjeta;
-
-        // Total pagado: lo que realmente ingresó en caja + bonos vendidos
-        $totalPagado = $totalEfectivo + $totalTarjeta + $totalBonosVendidos;
+        // Total pagado: lo que realmente ingresó en caja (ya incluye bonos vendidos)
+        $totalPagado = $totalEfectivo + $totalTarjeta;
 
         // Total de servicios realizados (incluye todo, pagado y no pagado)
         $totalServicios = $cobrosDelDia->sum('total_final');

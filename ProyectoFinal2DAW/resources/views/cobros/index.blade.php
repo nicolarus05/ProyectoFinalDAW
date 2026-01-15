@@ -233,10 +233,50 @@
                             {{ number_format($cobros->sum('total_final') + $cobros->sum('total_bonos_vendidos'), 2) }} €
                         </td>
                         <td colspan="4" class="p-3 border text-sm">
+                            @php
+                                // Calcular efectivo: servicios/productos + bonos vendidos en efectivo
+                                $totalEfectivo = $cobros->where('metodo_pago', 'efectivo')->sum(function($c) {
+                                    return $c->total_final + ($c->total_bonos_vendidos ?? 0);
+                                }) + $cobros->where('metodo_pago', 'mixto')->sum('pago_efectivo');
+                                
+                                // Para mixtos, distribuir bonos proporcionalmente
+                                foreach($cobros->where('metodo_pago', 'mixto') as $cobro) {
+                                    $totalBonos = $cobro->total_bonos_vendidos ?? 0;
+                                    if ($totalBonos > 0) {
+                                        $efectivo = $cobro->pago_efectivo ?? 0;
+                                        $tarjeta = $cobro->pago_tarjeta ?? 0;
+                                        $totalPagado = $efectivo + $tarjeta;
+                                        if ($totalPagado > 0) {
+                                            $totalEfectivo += $totalBonos * ($efectivo / $totalPagado);
+                                        }
+                                    }
+                                }
+                                
+                                // Calcular tarjeta: servicios/productos + bonos vendidos en tarjeta
+                                $totalTarjeta = $cobros->where('metodo_pago', 'tarjeta')->sum(function($c) {
+                                    return $c->total_final + ($c->total_bonos_vendidos ?? 0);
+                                }) + $cobros->where('metodo_pago', 'mixto')->sum('pago_tarjeta');
+                                
+                                // Para mixtos, distribuir bonos proporcionalmente
+                                foreach($cobros->where('metodo_pago', 'mixto') as $cobro) {
+                                    $totalBonos = $cobro->total_bonos_vendidos ?? 0;
+                                    if ($totalBonos > 0) {
+                                        $efectivo = $cobro->pago_efectivo ?? 0;
+                                        $tarjeta = $cobro->pago_tarjeta ?? 0;
+                                        $totalPagado = $efectivo + $tarjeta;
+                                        if ($totalPagado > 0) {
+                                            $totalTarjeta += $totalBonos * ($tarjeta / $totalPagado);
+                                        }
+                                    }
+                                }
+                                
+                                // Calcular bonos usados como método de pago (no vendidos)
+                                $totalBonosPago = $cobros->where('metodo_pago', 'bono')->sum('total_final');
+                            @endphp
                             <div class="flex gap-4 justify-center">
-                                <span class="text-green-700">💵 Efectivo: €{{ number_format($cobros->where('metodo_pago', 'efectivo')->sum('total_final') + $cobros->where('metodo_pago', 'mixto')->sum('pago_efectivo'), 2) }}</span>
-                                <span class="text-blue-700">💳 Tarjeta: €{{ number_format($cobros->where('metodo_pago', 'tarjeta')->sum('total_final') + $cobros->where('metodo_pago', 'mixto')->sum('pago_tarjeta'), 2) }}</span>
-                                <span class="text-purple-700">🎫 Bonos: €{{ number_format($cobros->where('metodo_pago', 'bono')->sum('total_final'), 2) }}</span>
+                                <span class="text-green-700">💵 Efectivo: €{{ number_format($totalEfectivo, 2) }}</span>
+                                <span class="text-blue-700">💳 Tarjeta: €{{ number_format($totalTarjeta, 2) }}</span>
+                                <span class="text-purple-700">🎫 Bonos: €{{ number_format($totalBonosPago, 2) }}</span>
                             </div>
                         </td>
                     </tr>

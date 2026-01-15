@@ -71,7 +71,8 @@
                                 <strong>Ubicacion:</strong><br>
                                 Salon de Belleza Lola Hernandez<br>
                                 C. Romero Civantos, 3<br>
-                                18600 Motril, Granada
+                                18600 Motril, Granada<br>
+                                📞 Telefono: <strong>858 10 53 99</strong>
                             </p>
                             
                             <p style="color: #666666;">

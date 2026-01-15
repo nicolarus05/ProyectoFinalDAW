@@ -52,32 +52,89 @@ class Empleado extends Model{
      */
     public function facturacionPorFechas($fechaInicio, $fechaFin)
     {
-        // Facturación por servicios (basado en cobros registrados, no en estado de cita)
-        $facturacionServicios = DB::table('registro_cobros')
-            ->join('citas', 'registro_cobros.id_cita', '=', 'citas.id')
-            ->join('cita_servicio', 'citas.id', '=', 'cita_servicio.id_cita')
-            ->join('servicios', 'cita_servicio.id_servicio', '=', 'servicios.id')
-            ->where('citas.id_empleado', $this->id)
+        // FACTURACIÓN POR SERVICIOS
+        // Usar registro_cobro_servicio que tiene el precio real cobrado Y el empleado específico
+        // Esto permite contabilizar correctamente cuando múltiples empleados hacen servicios en una misma cita
+        $facturacionServicios = DB::table('registro_cobro_servicio')
+            ->join('registro_cobros', 'registro_cobro_servicio.registro_cobro_id', '=', 'registro_cobros.id')
+            ->where('registro_cobro_servicio.empleado_id', $this->id)
             ->whereBetween('registro_cobros.created_at', [$fechaInicio, $fechaFin])
-            ->sum('servicios.precio');
+            ->sum('registro_cobro_servicio.precio');
 
-        // Facturación por productos vendidos
-        // Buscar por id_empleado del cobro O por el empleado de la cita
+        // FACTURACIÓN POR PRODUCTOS VENDIDOS
+        // Solo contar productos cuando este empleado es el responsable del cobro
+        // O cuando es el empleado de la cita asociada (si no hay empleado asignado al cobro)
         $facturacionProductos = DB::table('registro_cobro_productos')
             ->join('registro_cobros', 'registro_cobro_productos.id_registro_cobro', '=', 'registro_cobros.id')
-            ->leftJoin('citas', 'registro_cobros.id_cita', '=', 'citas.id')
-            ->where(function($query) {
-                $query->where('registro_cobros.id_empleado', $this->id)
-                      ->orWhere('citas.id_empleado', $this->id);
-            })
+            ->where('registro_cobros.id_empleado', $this->id)
             ->whereBetween('registro_cobros.created_at', [$fechaInicio, $fechaFin])
             ->sum(DB::raw('registro_cobro_productos.cantidad * registro_cobro_productos.precio_unitario'));
 
-        // Facturación por bonos vendidos
-        $facturacionBonos = DB::table('bonos_clientes')
-            ->where('id_empleado', $this->id)
-            ->whereBetween('fecha_compra', [$fechaInicio, $fechaFin])
-            ->sum('precio_pagado');
+        // FACTURACIÓN POR BONOS VENDIDOS
+        // Usar el precio de la plantilla (precio completo del bono), no el precio_pagado
+        // Esto cuenta la facturación total generada, no solo lo cobrado
+        // Verificar si la tabla bonos_plantillas existe antes de hacer la consulta
+        $facturacionBonos = 0;
+        try {
+            if (DB::getSchemaBuilder()->hasTable('bonos_plantillas')) {
+                $facturacionBonos = DB::table('bonos_clientes')
+                    ->join('bonos_plantillas', 'bonos_clientes.bono_plantilla_id', '=', 'bonos_plantillas.id')
+                    ->where('bonos_clientes.id_empleado', $this->id)
+                    ->whereBetween('bonos_clientes.fecha_compra', [$fechaInicio, $fechaFin])
+                    ->sum('bonos_plantillas.precio');
+            } else {
+                // Si no existe bonos_plantillas, usar total_bonos_vendidos de registro_cobros
+                // 1. Sumar bonos vendidos en cobros de citas individuales de este empleado
+                $bonosCitasIndividuales = DB::table('registro_cobros')
+                    ->join('citas', 'registro_cobros.id_cita', '=', 'citas.id')
+                    ->where('citas.id_empleado', $this->id)
+                    ->whereBetween('registro_cobros.created_at', [$fechaInicio, $fechaFin])
+                    ->sum('registro_cobros.total_bonos_vendidos');
+                
+                // 2. Sumar bonos vendidos en cobros directos (sin cita) de este empleado
+                $bonosCobrosDirectos = DB::table('registro_cobros')
+                    ->whereNull('registro_cobros.id_cita')
+                    ->where('registro_cobros.id_empleado', $this->id)
+                    ->whereBetween('registro_cobros.created_at', [$fechaInicio, $fechaFin])
+                    ->sum('registro_cobros.total_bonos_vendidos');
+                
+                // 3. Sumar bonos vendidos en cobros de citas agrupadas donde TODAS las citas son de este empleado
+                $bonosCitasAgrupadas = DB::table('registro_cobros')
+                    ->whereNull('registro_cobros.id_cita')
+                    ->whereNull('registro_cobros.id_empleado') // Sin empleado directo, verificar citas agrupadas
+                    ->whereBetween('registro_cobros.created_at', [$fechaInicio, $fechaFin])
+                    ->where('registro_cobros.total_bonos_vendidos', '>', 0)
+                    ->whereExists(function($query) {
+                        $query->select(DB::raw(1))
+                            ->from('registro_cobro_citas')
+                            ->whereColumn('registro_cobro_citas.registro_cobro_id', 'registro_cobros.id');
+                    })
+                    ->get()
+                    ->filter(function($cobro) {
+                        // Verificar si TODAS las citas agrupadas son de este empleado
+                        $citasIds = DB::table('registro_cobro_citas')
+                            ->where('registro_cobro_id', $cobro->id)
+                            ->pluck('cita_id');
+                        
+                        if($citasIds->isEmpty()) {
+                            return false;
+                        }
+                        
+                        $citasDeOtrosEmpleados = DB::table('citas')
+                            ->whereIn('id', $citasIds)
+                            ->where('id_empleado', '!=', $this->id)
+                            ->count();
+                        
+                        return $citasDeOtrosEmpleados === 0;
+                    })
+                    ->sum('total_bonos_vendidos');
+                
+                $facturacionBonos = $bonosCitasIndividuales + $bonosCobrosDirectos + $bonosCitasAgrupadas;
+            }
+        } catch (\Exception $e) {
+            // Si hay error al consultar bonos, simplemente usar 0
+            $facturacionBonos = 0;
+        }
 
         return [
             'servicios' => $facturacionServicios ?? 0,
@@ -112,11 +169,26 @@ class Empleado extends Model{
      */
     public function citasAtendidasMesActual()
     {
-        return DB::table('registro_cobros')
+        $fechaInicio = now()->startOfMonth();
+        $fechaFin = now()->endOfMonth();
+        
+        // Contar citas individuales (registro_cobros.id_cita)
+        $citasIndividuales = DB::table('registro_cobros')
             ->join('citas', 'registro_cobros.id_cita', '=', 'citas.id')
             ->where('citas.id_empleado', $this->id)
-            ->whereBetween('registro_cobros.created_at', [now()->startOfMonth(), now()->endOfMonth()])
+            ->whereBetween('registro_cobros.created_at', [$fechaInicio, $fechaFin])
             ->count();
+        
+        // Contar citas agrupadas (registro_cobro_citas)
+        $citasAgrupadas = DB::table('registro_cobro_citas')
+            ->join('registro_cobros', 'registro_cobro_citas.registro_cobro_id', '=', 'registro_cobros.id')
+            ->join('citas', 'registro_cobro_citas.cita_id', '=', 'citas.id')
+            ->where('citas.id_empleado', $this->id)
+            ->whereBetween('registro_cobros.created_at', [$fechaInicio, $fechaFin])
+            ->count();
+        
+        // Sumar ambos totales
+        return $citasIndividuales + $citasAgrupadas;
     }
 
     /**

@@ -215,16 +215,78 @@
                 </div>
             </div>
 
+            <!-- Resumen y Verificación -->
+            <div class="bg-blue-50 border-2 border-blue-200 rounded-lg shadow-md p-6 mt-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">📊 Resumen de Verificación</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-white p-4 rounded-lg border border-gray-300">
+                        <div class="text-sm text-gray-600 mb-1">Total Facturado</div>
+                        <div class="text-2xl font-bold text-gray-900">€{{ number_format($totalGeneral, 2) }}</div>
+                        <div class="text-xs text-gray-500 mt-1">Servicios + Productos + Bonos</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg border border-red-300">
+                        <div class="text-sm text-gray-600 mb-1">Deuda Pendiente</div>
+                        <div class="text-2xl font-bold text-red-600">€{{ number_format($deudaTotal, 2) }}</div>
+                        <div class="text-xs text-gray-500 mt-1">Pendiente de cobro</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg border border-green-300">
+                        <div class="text-sm text-gray-600 mb-1">Total Cobrado (Cajas)</div>
+                        <div class="text-2xl font-bold text-green-600">€{{ number_format($sumaCajasDiarias, 2) }}</div>
+                        <div class="text-xs text-gray-500 mt-1">Efectivo + Tarjeta recibidos</div>
+                    </div>
+                </div>
+                @php
+                    $diferencia = abs($totalRealmenteCobrado - $sumaCajasDiarias);
+                @endphp
+                @if($diferencia < 0.01)
+                    <div class="mt-4 p-3 bg-green-100 border border-green-300 rounded text-center">
+                        <span class="text-green-800 font-semibold">✓ Los cálculos son correctos</span>
+                        <span class="text-sm text-gray-600 ml-2">(Total Facturado - Deuda = Suma de Cajas)</span>
+                    </div>
+                @else
+                    <div class="mt-4 p-3 bg-yellow-100 border border-yellow-300 rounded text-center">
+                        <span class="text-yellow-800 font-semibold">⚠ Diferencia detectada: €{{ number_format($diferencia, 2) }}</span>
+                    </div>
+                @endif
+            </div>
+
             <!-- Cajas Diarias -->
             <div class="bg-white rounded-lg shadow-md p-6 mt-6">
-                <h2 class="text-2xl font-bold text-gray-800 mb-6">📅 Cajas Diarias</h2>
-                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-                    @foreach($cajasDiarias as $fecha => $total)
-                        <div class="p-4 rounded-lg text-center {{ $total > 0 ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-200 opacity-60' }}">
-                            <div class="text-xs text-gray-500 mb-1 uppercase">{{ \Carbon\Carbon::parse($fecha)->translatedFormat('D d') }}</div>
-                            <div class="font-bold {{ $total > 0 ? 'text-green-700' : 'text-gray-400' }}">
-                                €{{ number_format($total, 2) }}
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">📅 Cajas Diarias</h2>
+                <div class="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-10 gap-2">
+                    @foreach($cajasDiarias as $fecha => $datos)
+                        <div class="p-2 rounded {{ $datos['total'] > 0 ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-200 opacity-60' }}">
+                            <div class="text-[10px] text-gray-500 mb-1 uppercase font-semibold text-center">
+                                {{ \Carbon\Carbon::parse($fecha)->translatedFormat('D d') }}
                             </div>
+                            <div class="text-center mb-1">
+                                <div class="font-bold text-sm {{ $datos['total'] > 0 ? 'text-green-700' : 'text-gray-400' }}">
+                                    €{{ number_format($datos['total'], 2) }}
+                                </div>
+                            </div>
+                            @if($datos['total'] > 0)
+                                <div class="border-t border-green-200 pt-1 space-y-0.5">
+                                    <div class="flex justify-between items-center text-[9px]">
+                                        <span class="text-green-600 flex items-center">
+                                            <svg class="w-2.5 h-2.5 mr-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"/>
+                                                <path fill-rule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clip-rule="evenodd"/>
+                                            </svg>
+                                            Efec.
+                                        </span>
+                                        <span class="font-semibold text-green-700">€{{ number_format($datos['efectivo'], 2) }}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-[9px]">
+                                        <span class="text-blue-600 flex items-center">
+                                            <svg class="w-2.5 h-2.5 mr-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm0 2h12v2H4V6zm0 4h12v4H4v-4z"/>
+                                            </svg>
+                                            Tarj.
+                                        </span>
+                                        <span class="font-semibold text-blue-700">€{{ number_format($datos['tarjeta'], 2) }}</span>
+                                    </div>
+                                </div>
+                            @endif
                         </div>
                     @endforeach
                 </div>

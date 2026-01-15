@@ -731,6 +731,104 @@ class RegistroCobroController extends Controller{
             $cobro->citasAgrupadas()->attach($data['citas_ids']);
         }
 
+        // --- VINCULAR SERVICIOS DE CITAS A registro_cobro_servicio ---
+        // CRÍTICO: Esto permite calcular correctamente la facturación por empleado
+        // y contabilizar servicios realizados por diferentes empleados en una misma cita
+        // SOLO si NO hay servicios_data (para evitar duplicación en cobros directos)
+        // Y SOLO si el método de pago NO es 'bono' (los servicios pagados con bono no generan facturación)
+        if ((!$request->has('servicios_data') || empty($data['servicios_data'])) && $metodoPagoFinal !== 'bono') {
+            if (!empty($data['id_cita'])) {
+                // Caso 1: Cobro de una sola cita
+                $cita = Cita::with('servicios', 'empleado')->find($data['id_cita']);
+                if ($cita && $cita->servicios && $cita->servicios->count() > 0) {
+                    // Calcular costo total de servicios ANTES de descuentos
+                    $costoTotalServicios = $cita->servicios->sum(function($s) {
+                        return $s->pivot->precio ?? $s->precio;
+                    });
+                    
+                    if ($costoTotalServicios > 0) {
+                        // Calcular el total de productos para restar del total_final
+                        $totalProductos = 0;
+                        if (isset($data['productos']) && is_array($data['productos'])) {
+                            foreach ($data['productos'] as $producto) {
+                                if (isset($producto['subtotal'])) {
+                                    $totalProductos += $producto['subtotal'];
+                                }
+                            }
+                        }
+                        
+                        // Calcular proporción de servicios del coste total
+                        $proporcionServicios = $data['coste'] > 0 ? $costoTotalServicios / $data['coste'] : 1;
+                        
+                        // Aplicar proporción al total_final MENOS productos (que ya tiene descuentos aplicados)
+                        $totalServiciosConDescuento = ($totalFinalServicios - $totalProductos) * $proporcionServicios;
+                        
+                        foreach ($cita->servicios as $servicio) {
+                            // Calcular precio proporcional del servicio considerando descuentos
+                            $precioOriginal = $servicio->pivot->precio ?? $servicio->precio;
+                            $proporcion = $precioOriginal / $costoTotalServicios;
+                            $precioConDescuento = $totalServiciosConDescuento * $proporcion;
+                            
+                            $cobro->servicios()->attach($servicio->id, [
+                                'precio' => $precioConDescuento,
+                                'empleado_id' => $cita->id_empleado, // Por defecto, el empleado de la cita
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+                        }
+                    }
+                }
+            } elseif (!empty($data['citas_ids']) && is_array($data['citas_ids'])) {
+                // Caso 2: Cobro de múltiples citas agrupadas
+                $citasAgrupadas = Cita::with('servicios', 'empleado')->whereIn('id', $data['citas_ids'])->get();
+                
+                // Calcular costo total de todos los servicios de todas las citas ANTES de descuentos
+                $costoTotalTodosServicios = 0;
+                foreach ($citasAgrupadas as $citaGrupo) {
+                    if ($citaGrupo->servicios) {
+                        $costoTotalTodosServicios += $citaGrupo->servicios->sum(function($s) {
+                            return $s->pivot->precio ?? $s->precio;
+                        });
+                    }
+                }
+                
+                if ($costoTotalTodosServicios > 0) {
+                    // Calcular el total de productos para restar del total_final
+                    $totalProductos = 0;
+                    if (isset($data['productos']) && is_array($data['productos'])) {
+                        foreach ($data['productos'] as $producto) {
+                            if (isset($producto['subtotal'])) {
+                                $totalProductos += $producto['subtotal'];
+                            }
+                        }
+                    }
+                    
+                    // Calcular proporción de servicios del coste total
+                    $proporcionServicios = $data['coste'] > 0 ? $costoTotalTodosServicios / $data['coste'] : 1;
+                    
+                    // Aplicar proporción al total_final MENOS productos (que ya tiene descuentos aplicados)
+                    $totalServiciosConDescuento = ($totalFinalServicios - $totalProductos) * $proporcionServicios;
+                    
+                    foreach ($citasAgrupadas as $citaGrupo) {
+                        if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
+                            foreach ($citaGrupo->servicios as $servicio) {
+                                $precioOriginal = $servicio->pivot->precio ?? $servicio->precio;
+                                $proporcion = $precioOriginal / $costoTotalTodosServicios;
+                                $precioConDescuento = $totalServiciosConDescuento * $proporcion;
+                                
+                                $cobro->servicios()->attach($servicio->id, [
+                                    'precio' => $precioConDescuento,
+                                    'empleado_id' => $citaGrupo->id_empleado, // Empleado de cada cita individual
+                                    'created_at' => now(),
+                                    'updated_at' => now(),
+                                ]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // --- Si hay deuda, registrarla en el sistema de deudas ---
         if ($deuda > 0 && $clienteId) {
             $cliente = Cliente::find($clienteId);
