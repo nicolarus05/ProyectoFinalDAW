@@ -169,6 +169,9 @@ class RegistroCobroController extends Controller{
                 ->withInput();
         }
 
+        try {
+            DB::beginTransaction();
+
         // --- VALIDACIÓN DE INTEGRIDAD: coste debe coincidir con servicios + productos ---
         $totalServiciosCalculado = 0;
         $totalProductosCalculado = 0;
@@ -290,6 +293,7 @@ class RegistroCobroController extends Controller{
                 }
             }
 
+            DB::rollBack();
             return back()
                 ->withErrors(['coste' => $mensajeError])
                 ->withInput();
@@ -429,6 +433,7 @@ class RegistroCobroController extends Controller{
             
             $mensajeError .= "❌ Diferencia: €" . number_format($diferenciaTotalFinal, 2) . "\n";
 
+            DB::rollBack();
             return back()
                 ->withErrors(['total_final' => $mensajeError])
                 ->withInput();
@@ -443,6 +448,7 @@ class RegistroCobroController extends Controller{
             }
 
             if ($data['dinero_cliente'] < 0) {
+                DB::rollBack();
                 return back()
                     ->withErrors(['dinero_cliente' => 'El dinero del cliente no puede ser negativo.'])
                     ->withInput();
@@ -464,6 +470,7 @@ class RegistroCobroController extends Controller{
             
             // Validar que la suma sea exactamente igual al total
             if (abs($totalPagado - $data['total_final']) > 0.01) {
+                DB::rollBack();
                 return back()
                     ->withErrors(['metodo_pago' => 'El total de efectivo + tarjeta debe ser igual al total a pagar. Total pagado: €' . number_format($totalPagado, 2) . ', Total requerido: €' . number_format($data['total_final'], 2)])
                     ->withInput();
@@ -669,15 +676,18 @@ class RegistroCobroController extends Controller{
 
         // Validar que se haya determinado un empleado
         if (!$empleadoId) {
+            DB::rollBack();
             return back()
                 ->withErrors(['id_empleado' => 'No se pudo determinar el empleado para este cobro. Por favor, seleccione un empleado o asegúrese de que su usuario tiene un empleado asociado.'])
                 ->withInput();
         }
 
         // --- DETERMINAR SI EL PAGO FUE COMPLETAMENTE CON BONO ---
-        // Si todos los servicios fueron cubiertos por bonos y no hay productos con costo, cambiar método de pago a 'bono'
+        // Si todos los servicios fueron cubiertos por bonos, NO hay productos con costo, Y NO se está vendiendo un bono
+        // entonces cambiar método de pago a 'bono'
+        // IMPORTANTE: Si se vende un bono, mantener el método de pago original (efectivo/tarjeta/mixto)
         $metodoPagoFinal = $data['metodo_pago'];
-        if ($descuentoBonos > 0 && !$seVendeBono) {
+        if ($descuentoBonos > 0 && !$seVendeBono && $totalBonosVendidos == 0) {
             // Calcular el costo real de servicios (sin descuentos porcentuales ni productos)
             $costoServicios = 0;
             
@@ -697,10 +707,66 @@ class RegistroCobroController extends Controller{
             }
             
             // Si el descuento por bonos cubre todos los servicios (con margen de 0.01 por redondeos)
+            // Y no hay productos que requieran pago
             if ($costoServicios > 0 && abs($descuentoBonos - $costoServicios) < 0.01) {
                 $metodoPagoFinal = 'bono';
                 $data['dinero_cliente'] = 0;
                 $data['cambio'] = 0;
+            }
+        }
+
+        // --- VALIDAR VENTA DE BONO ANTES DE CREAR EL COBRO ---
+        if (!empty($data['bono_plantilla_id']) && $clienteId) {
+            $bonoPlantilla = \App\Models\BonoPlantilla::with('servicios')->find($data['bono_plantilla_id']);
+            
+            if ($bonoPlantilla) {
+                // VALIDACIÓN: Verificar que no tenga un bono activo con exactamente los mismos servicios Y que tenga usos disponibles
+                // 1. Obtener los servicios del bono que se intenta vender
+                $serviciosNuevoBono = $bonoPlantilla->servicios->map(function($servicio) {
+                    return [
+                        'servicio_id' => $servicio->id,
+                        'cantidad' => $servicio->pivot->cantidad
+                    ];
+                })->sortBy('servicio_id')->values()->all();
+
+                // 2. Obtener todos los bonos activos del cliente
+                $bonosActivos = \App\Models\BonoCliente::with(['servicios' => function($query) {
+                        $query->withPivot('cantidad_total', 'cantidad_usada');
+                    }])
+                    ->where('cliente_id', $clienteId)
+                    ->where('estado', 'activo')
+                    ->get();
+
+                // 3. Verificar si algún bono activo tiene exactamente los mismos servicios con usos disponibles
+                foreach ($bonosActivos as $bonoActivo) {
+                    $serviciosBonoActivo = $bonoActivo->servicios->map(function($servicio) {
+                        return [
+                            'servicio_id' => $servicio->id,
+                            'cantidad' => $servicio->pivot->cantidad_total
+                        ];
+                    })->sortBy('servicio_id')->values()->all();
+
+                    // Comparar si ambos bonos tienen exactamente los mismos servicios con las mismas cantidades
+                    if ($serviciosNuevoBono == $serviciosBonoActivo) {
+                        // Verificar si el bono activo tiene usos disponibles en al menos un servicio
+                        $tieneUsosDisponibles = false;
+                        foreach ($bonoActivo->servicios as $servicio) {
+                            $disponibles = $servicio->pivot->cantidad_total - $servicio->pivot->cantidad_usada;
+                            if ($disponibles > 0) {
+                                $tieneUsosDisponibles = true;
+                                break;
+                            }
+                        }
+
+                        if ($tieneUsosDisponibles) {
+                            $nombreBono = $bonoPlantilla->nombre;
+                            DB::rollBack();
+                            return redirect()->back()->withErrors([
+                                'error' => "El cliente ya tiene un bono activo '{$nombreBono}' con estos servicios y todavía le quedan usos disponibles. No se puede vender un bono duplicado hasta que el anterior se haya usado completamente."
+                            ])->withInput();
+                        }
+                    }
+                }
             }
         }
 
@@ -841,6 +907,7 @@ class RegistroCobroController extends Controller{
         }
 
         // --- PROCESAR VENTA DE BONO ---
+        // Nota: La validación de bono duplicado ya se hizo ANTES de crear el cobro
         if (!empty($data['bono_plantilla_id']) && $clienteId) {
             $bonoPlantilla = \App\Models\BonoPlantilla::with('servicios')->find($data['bono_plantilla_id']);
             
@@ -995,6 +1062,7 @@ class RegistroCobroController extends Controller{
                     $producto = Productos::find($p['id']);
                     
                     if (!$producto) {
+                        DB::rollBack();
                         return back()
                             ->withErrors(['products' => 'Producto no encontrado: ID ' . $p['id']])
                             ->withInput();
@@ -1002,6 +1070,7 @@ class RegistroCobroController extends Controller{
                     
                     // Verificar stock
                     if ($producto->stock < $cantidad) {
+                        DB::rollBack();
                         return back()
                             ->withErrors(['products' => 'Stock insuficiente para: ' . $producto->nombre])
                             ->withInput();
@@ -1051,6 +1120,7 @@ class RegistroCobroController extends Controller{
                 $producto = Productos::find($p['id']);
                 
                 if (!$producto) {
+                    DB::rollBack();
                     return back()
                         ->withErrors(['products' => 'Producto no encontrado: ID ' . $p['id']])
                         ->withInput();
@@ -1058,6 +1128,7 @@ class RegistroCobroController extends Controller{
 
                 // Verificar que hay suficiente stock
                 if ($producto->stock < $cantidad) {
+                    DB::rollBack();
                     return back()
                         ->withErrors(['products' => 'Stock insuficiente para el producto: ' . $producto->nombre . '. Stock disponible: ' . $producto->stock])
                         ->withInput();
@@ -1090,7 +1161,18 @@ class RegistroCobroController extends Controller{
             $mensaje .= ' Servicios aplicados desde bono activo: ' . implode(', ', $serviciosAplicados) . '.';
         }
 
+        DB::commit();
         return $this->redirectWithSuccess('cobros.index', $mensaje);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al registrar cobro: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return back()
+                ->withErrors(['error' => 'Error al registrar el cobro: ' . $e->getMessage()])
+                ->withInput();
+        }
     }
 
 

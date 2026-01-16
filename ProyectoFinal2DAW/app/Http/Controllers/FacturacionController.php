@@ -25,7 +25,7 @@ class FacturacionController extends Controller
         $fechaFin = Carbon::create($anio, $mes, 1)->endOfMonth();
         
         // Obtener todos los cobros del mes (por fecha de cobro, no fecha de cita)
-        $cobros = RegistroCobro::with(['cita.servicios', 'citasAgrupadas.servicios', 'servicios', 'productos'])
+        $cobros = RegistroCobro::with(['cita.servicios', 'citasAgrupadas.servicios', 'servicios', 'productos', 'bonosVendidos'])
             ->whereBetween('created_at', [$fechaInicio, $fechaFin])
             ->get();
         
@@ -54,39 +54,46 @@ class FacturacionController extends Controller
             if ($cobro->metodo_pago !== 'bono') {
                 $fechaCobro = $cobro->created_at->format('Y-m-d');
                 if (isset($cajasDiarias[$fechaCobro])) {
-                    // Calcular lo que realmente se pagó (servicios/productos - deuda + bonos vendidos)
+                    // Calcular lo que realmente se pagó por servicios/productos (sin bonos)
                     $montoPagadoServicios = $cobro->total_final - $cobro->deuda;
-                    $totalBonos = $cobro->total_bonos_vendidos ?? 0;
-                    $totalRealmentePagado = $montoPagadoServicios + $totalBonos;
                     
-                    // Sumar total
-                    $cajasDiarias[$fechaCobro]['total'] += $totalRealmentePagado;
+                    // Sumar total (servicios/productos sin bonos todavía)
+                    $cajasDiarias[$fechaCobro]['total'] += $montoPagadoServicios;
                     
-                    // Desglosar por método de pago
+                    // Desglosar servicios/productos por método de pago del cobro
                     if ($cobro->metodo_pago === 'efectivo') {
-                        $cajasDiarias[$fechaCobro]['efectivo'] += $totalRealmentePagado;
+                        $cajasDiarias[$fechaCobro]['efectivo'] += $montoPagadoServicios;
                     } elseif ($cobro->metodo_pago === 'tarjeta') {
-                        $cajasDiarias[$fechaCobro]['tarjeta'] += $totalRealmentePagado;
+                        $cajasDiarias[$fechaCobro]['tarjeta'] += $montoPagadoServicios;
                     } elseif ($cobro->metodo_pago === 'mixto') {
-                        // Para pagos mixtos: distribuir proporcionalmente servicios + bonos
                         $efectivoServicios = $cobro->pago_efectivo ?? 0;
                         $tarjetaServicios = $cobro->pago_tarjeta ?? 0;
-                        $totalPagadoServicios = $efectivoServicios + $tarjetaServicios;
                         
-                        if ($totalBonos > 0 && $totalPagadoServicios > 0) {
-                            $proporcionEfectivo = $efectivoServicios / $totalPagadoServicios;
-                            $proporcionTarjeta = $tarjetaServicios / $totalPagadoServicios;
-                            
-                            $cajasDiarias[$fechaCobro]['efectivo'] += $efectivoServicios + ($totalBonos * $proporcionEfectivo);
-                            $cajasDiarias[$fechaCobro]['tarjeta'] += $tarjetaServicios + ($totalBonos * $proporcionTarjeta);
-                        } else {
-                            $cajasDiarias[$fechaCobro]['efectivo'] += $efectivoServicios;
-                            $cajasDiarias[$fechaCobro]['tarjeta'] += $tarjetaServicios;
-                        }
+                        $cajasDiarias[$fechaCobro]['efectivo'] += $efectivoServicios;
+                        $cajasDiarias[$fechaCobro]['tarjeta'] += $tarjetaServicios;
                     } elseif ($cobro->metodo_pago === 'deuda') {
                         // Si tiene deuda pero se pagó algo, sumarlo a efectivo
-                        if ($totalRealmentePagado > 0) {
-                            $cajasDiarias[$fechaCobro]['efectivo'] += $totalRealmentePagado;
+                        if ($montoPagadoServicios > 0) {
+                            $cajasDiarias[$fechaCobro]['efectivo'] += $montoPagadoServicios;
+                        }
+                    }
+                    
+                    // IMPORTANTE: Sumar bonos vendidos por SU PROPIO método de pago (no del cobro)
+                    if ($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0) {
+                        foreach ($cobro->bonosVendidos as $bono) {
+                            $precioBono = $bono->precio_pagado ?? ($bono->pivot->precio ?? 0);
+                            $metodoPagoBono = $bono->metodo_pago; // Método de pago del BONO, no del cobro
+                            
+                            // Sumar al total general
+                            $cajasDiarias[$fechaCobro]['total'] += $precioBono;
+                            
+                            // Sumar al método específico del bono
+                            if ($metodoPagoBono === 'efectivo') {
+                                $cajasDiarias[$fechaCobro]['efectivo'] += $precioBono;
+                            } elseif ($metodoPagoBono === 'tarjeta') {
+                                $cajasDiarias[$fechaCobro]['tarjeta'] += $precioBono;
+                            }
+                            // Si el bono se pagó con deuda, se suma más adelante cuando se pague la deuda
                         }
                     }
                 }

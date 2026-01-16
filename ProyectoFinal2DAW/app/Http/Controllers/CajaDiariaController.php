@@ -24,42 +24,29 @@ class CajaDiariaController extends Controller{
             'servicios',
             'productos',
             'cita.servicios',
-            'citasAgrupadas.servicios'
+            'citasAgrupadas.servicios',
+            'bonosVendidos' // IMPORTANTE: cargar bonos vendidos
         ])
             ->whereDate('created_at', $fecha)
             ->get();
         
         // Calculamos totales por método de pago considerando productos Y bonos vendidos
         foreach($cobrosDelDia as $cobro) {
-            // Monto de servicios/productos pagado (restando deuda)
+            // IMPORTANTE: total_final incluye servicios/productos pero NO los bonos vendidos
+            // Los bonos vendidos están en total_bonos_vendidos
             $montoPagadoServicios = $cobro->total_final - $cobro->deuda;
             
-            // Monto de bonos vendidos en este cobro
-            $montoBonosVendidos = $cobro->total_bonos_vendidos ?? 0;
-            
-            // Total completo = servicios/productos + bonos vendidos
-            $totalCompleto = $montoPagadoServicios + $montoBonosVendidos;
-            
+            // Sumar servicios/productos según método de pago del COBRO
             if ($cobro->metodo_pago === 'efectivo') {
-                $totalEfectivo += $totalCompleto;
+                $totalEfectivo += $montoPagadoServicios;
             } elseif ($cobro->metodo_pago === 'tarjeta') {
-                $totalTarjeta += $totalCompleto;
+                $totalTarjeta += $montoPagadoServicios;
             } elseif ($cobro->metodo_pago === 'mixto') {
-                // Para pagos mixtos, distribuir bonos proporcionalmente
                 $efectivoServicios = $cobro->pago_efectivo ?? 0;
                 $tarjetaServicios = $cobro->pago_tarjeta ?? 0;
-                $totalPagadoServicios = $efectivoServicios + $tarjetaServicios;
                 
-                if ($montoBonosVendidos > 0 && $totalPagadoServicios > 0) {
-                    $proporcionEfectivo = $efectivoServicios / $totalPagadoServicios;
-                    $proporcionTarjeta = $tarjetaServicios / $totalPagadoServicios;
-                    
-                    $totalEfectivo += $efectivoServicios + ($montoBonosVendidos * $proporcionEfectivo);
-                    $totalTarjeta += $tarjetaServicios + ($montoBonosVendidos * $proporcionTarjeta);
-                } else {
-                    $totalEfectivo += $efectivoServicios;
-                    $totalTarjeta += $tarjetaServicios;
-                }
+                $totalEfectivo += $efectivoServicios;
+                $totalTarjeta += $tarjetaServicios;
             } elseif ($cobro->metodo_pago === 'bono') {
                 $totalBono += $cobro->coste;
             } elseif ($cobro->metodo_pago === 'deuda') {
@@ -67,35 +54,26 @@ class CajaDiariaController extends Controller{
                 continue;
             }
         }
-
-        // Los bonos ya están incluidos en los totales de efectivo y tarjeta calculados arriba
-        // Ya no necesitamos procesamiento adicional de bonos
-        $totalBonosVendidos = $cobrosDelDia->sum('total_bonos_vendidos');
-        $totalBonosEfectivo = 0;
-        $totalBonosTarjeta = 0;
         
-        // Calcular desglose de bonos vendidos para mostrar en la vista (solo informativo)
-        foreach($cobrosDelDia as $cobro) {
-            $montoBonosVendidos = $cobro->total_bonos_vendidos ?? 0;
-            if ($montoBonosVendidos > 0) {
-                if ($cobro->metodo_pago === 'efectivo') {
-                    $totalBonosEfectivo += $montoBonosVendidos;
-                } elseif ($cobro->metodo_pago === 'tarjeta') {
-                    $totalBonosTarjeta += $montoBonosVendidos;
-                } elseif ($cobro->metodo_pago === 'mixto') {
-                    $efectivo = $cobro->pago_efectivo ?? 0;
-                    $tarjeta = $cobro->pago_tarjeta ?? 0;
-                    $total = $efectivo + $tarjeta;
-                    if ($total > 0) {
-                        $totalBonosEfectivo += $montoBonosVendidos * ($efectivo / $total);
-                        $totalBonosTarjeta += $montoBonosVendidos * ($tarjeta / $total);
-                    }
-                }
-            }
-        }
+        // PASO SEPARADO: Calcular totales de bonos vendidos del día
+        // IMPORTANTE: Solo contamos bonos que estén asociados a cobros del día
+        // Esto evita contar bonos huérfanos si se eliminan los cobros
+        $idsBonosDelDia = $cobrosDelDia->flatMap(function($cobro) {
+            return $cobro->bonosVendidos->pluck('id');
+        })->unique()->toArray();
+        
+        // Si no hay IDs, crear colección vacía en lugar de hacer query
+        $bonosVendidosDelDia = !empty($idsBonosDelDia) 
+            ? BonoCliente::whereIn('id', $idsBonosDelDia)->get()
+            : collect();
 
-        // Total pagado: lo que realmente ingresó en caja (ya incluye bonos vendidos)
-        $totalPagado = $totalEfectivo + $totalTarjeta;
+        // Calcular totales de bonos para mostrar en la vista
+        $totalBonosVendidos = $bonosVendidosDelDia->sum('precio_pagado');
+        $totalBonosEfectivo = $bonosVendidosDelDia->where('metodo_pago', 'efectivo')->sum('precio_pagado');
+        $totalBonosTarjeta = $bonosVendidosDelDia->where('metodo_pago', 'tarjeta')->sum('precio_pagado');
+
+        // Total pagado: lo que realmente ingresó en caja (servicios + bonos)
+        $totalPagado = $totalEfectivo + $totalTarjeta + $totalBonosVendidos;
 
         // Total de servicios realizados (incluye todo, pagado y no pagado)
         $totalServicios = $cobrosDelDia->sum('total_final');
@@ -127,11 +105,13 @@ class CajaDiariaController extends Controller{
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Detalle de bonos vendidos
-        $bonosVendidos = BonoCliente::with(['cliente.user', 'empleado.user', 'plantilla'])
-            ->whereDate('fecha_compra', $fecha)
-            ->orderBy('fecha_compra', 'desc')
-            ->get();
+        // Detalle de bonos vendidos - Solo los que están asociados a cobros del día
+        $bonosVendidos = !empty($idsBonosDelDia)
+            ? BonoCliente::with(['cliente.user', 'empleado.user', 'plantilla'])
+                ->whereIn('id', $idsBonosDelDia)
+                ->orderBy('fecha_compra', 'desc')
+                ->get()
+            : collect();
 
         // Calcular totales por categoría y método de pago
         $totalPeluqueria = 0;

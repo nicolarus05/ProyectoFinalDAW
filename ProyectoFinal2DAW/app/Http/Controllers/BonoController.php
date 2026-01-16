@@ -117,19 +117,81 @@ class BonoController extends Controller
             $clienteId = $request->cliente_id;
             $metodoPago = $request->metodo_pago;
 
-            // Verificar que no tenga un bono activo con los mismos servicios Y que tenga usos disponibles
-            $serviciosIds = $plantilla->servicios->pluck('id')->toArray();
-            
-            $bonoExistente = BonoCliente::where('cliente_id', $clienteId)
-                ->where('estado', 'activo')
-                ->whereHas('servicios', function($query) use ($serviciosIds) {
-                    $query->whereIn('servicio_id', $serviciosIds)
-                          ->whereRaw('cantidad_usada < cantidad_total'); // Solo si tiene usos disponibles
-                })
-                ->first();
+            // Verificar que no tenga un bono activo con exactamente los mismos servicios Y que tenga usos disponibles
+            // 1. Obtener los servicios del bono que se intenta vender
+            $serviciosNuevoBono = $plantilla->servicios->map(function($servicio) {
+                return [
+                    'servicio_id' => $servicio->id,
+                    'cantidad' => $servicio->pivot->cantidad
+                ];
+            })->sortBy('servicio_id')->values()->all();
 
-            if ($bonoExistente) {
-                return redirect()->back()->withErrors(['error' => 'El cliente ya tiene un bono activo con alguno de estos servicios que aún no ha usado completamente.']);
+            Log::info('Intentando vender bono', [
+                'plantilla_id' => $plantilla->id,
+                'plantilla_nombre' => $plantilla->nombre,
+                'cliente_id' => $clienteId,
+                'servicios_nuevo_bono' => $serviciosNuevoBono
+            ]);
+
+            // 2. Obtener todos los bonos activos del cliente
+            $bonosActivos = BonoCliente::with(['servicios' => function($query) {
+                    $query->withPivot('cantidad_total', 'cantidad_usada');
+                }])
+                ->where('cliente_id', $clienteId)
+                ->where('estado', 'activo')
+                ->get();
+
+            Log::info('Bonos activos del cliente', [
+                'cantidad' => $bonosActivos->count()
+            ]);
+
+            // 3. Verificar si algún bono activo tiene exactamente los mismos servicios con usos disponibles
+            foreach ($bonosActivos as $bonoActivo) {
+                $serviciosBonoActivo = $bonoActivo->servicios->map(function($servicio) {
+                    return [
+                        'servicio_id' => $servicio->id,
+                        'cantidad' => $servicio->pivot->cantidad_total
+                    ];
+                })->sortBy('servicio_id')->values()->all();
+
+                Log::info('Comparando bonos', [
+                    'bono_activo_id' => $bonoActivo->id,
+                    'servicios_bono_activo' => $serviciosBonoActivo,
+                    'servicios_nuevo_bono' => $serviciosNuevoBono,
+                    'son_iguales' => $serviciosNuevoBono == $serviciosBonoActivo
+                ]);
+
+                // Comparar si ambos bonos tienen exactamente los mismos servicios con las mismas cantidades
+                if ($serviciosNuevoBono == $serviciosBonoActivo) {
+                    // Verificar si el bono activo tiene usos disponibles en al menos un servicio
+                    $tieneUsosDisponibles = false;
+                    foreach ($bonoActivo->servicios as $servicio) {
+                        $disponibles = $servicio->pivot->cantidad_total - $servicio->pivot->cantidad_usada;
+                        Log::info('Verificando servicio', [
+                            'servicio_id' => $servicio->id,
+                            'servicio_nombre' => $servicio->nombre,
+                            'cantidad_total' => $servicio->pivot->cantidad_total,
+                            'cantidad_usada' => $servicio->pivot->cantidad_usada,
+                            'disponibles' => $disponibles
+                        ]);
+                        if ($disponibles > 0) {
+                            $tieneUsosDisponibles = true;
+                            break;
+                        }
+                    }
+
+                    Log::info('Resultado validación', [
+                        'tiene_usos_disponibles' => $tieneUsosDisponibles
+                    ]);
+
+                    if ($tieneUsosDisponibles) {
+                        $nombreBono = $plantilla->nombre;
+                        DB::rollBack();
+                        return redirect()->back()->withErrors([
+                            'error' => "El cliente ya tiene un bono activo '{$nombreBono}' con estos servicios y todavía le quedan usos disponibles. No se puede vender un bono duplicado hasta que el anterior se haya usado completamente."
+                        ])->withInput();
+                    }
+                }
             }
 
             // Calcular pago
@@ -139,6 +201,7 @@ class BonoController extends Controller
 
             if ($metodoPago === 'efectivo') {
                 if ($dineroCliente < $precioTotal) {
+                    DB::rollBack();
                     return redirect()->back()->withErrors(['dinero_cliente' => 'El dinero del cliente debe ser al menos €' . number_format($precioTotal, 2)])->withInput();
                 }
                 $cambio = $dineroCliente - $precioTotal;
