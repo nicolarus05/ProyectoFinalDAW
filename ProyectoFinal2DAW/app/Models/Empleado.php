@@ -63,40 +63,14 @@ class Empleado extends Model{
             ->sum('registro_cobro_servicio.precio');
 
         // FACTURACIÓN POR PRODUCTOS VENDIDOS
-        // Calcular productos con descuentos aplicados proporcionalmente
-        // Para que coincida con FacturacionController
-        $facturacionProductos = 0;
-        
-        $cobrosConProductos = DB::table('registro_cobros')
-            ->select('registro_cobros.*')
-            ->join('registro_cobro_productos', 'registro_cobros.id', '=', 'registro_cobro_productos.id_registro_cobro')
+        // Los productos se asocian al cobro, y el cobro tiene id_empleado
+        // NO aplicar proporciones, contar directamente el subtotal de productos
+        $facturacionProductos = DB::table('registro_cobro_productos')
+            ->join('registro_cobros', 'registro_cobro_productos.id_registro_cobro', '=', 'registro_cobros.id')
             ->where('registro_cobros.id_empleado', $this->id)
             ->where('registro_cobros.metodo_pago', '!=', 'bono')
             ->whereBetween('registro_cobros.created_at', [$fechaInicio, $fechaFin])
-            ->groupBy('registro_cobros.id')
-            ->get();
-        
-        foreach ($cobrosConProductos as $cobro) {
-            // Obtener el coste total sin descuentos (servicios + productos)
-            $costeTotal = $cobro->coste ?? 0;
-            
-            if ($costeTotal <= 0) continue;
-            
-            // Calcular cuánto del coste corresponde a productos
-            $costoProductosCobro = DB::table('registro_cobro_productos')
-                ->where('id_registro_cobro', $cobro->id)
-                ->sum(DB::raw('cantidad * precio_unitario'));
-            
-            if ($costoProductosCobro > 0) {
-                // Proporción de productos en el cobro
-                $proporcionProductos = $costoProductosCobro / $costeTotal;
-                
-                // Aplicar proporción al total_final (que ya tiene descuentos)
-                $totalProductosConDescuento = $cobro->total_final * $proporcionProductos;
-                
-                $facturacionProductos += $totalProductosConDescuento;
-            }
-        }
+            ->sum('registro_cobro_productos.subtotal');
 
         // FACTURACIÓN POR BONOS VENDIDOS
         // IMPORTANTE: Usar precio_pagado (lo que realmente se cobró) en lugar del precio de plantilla

@@ -145,9 +145,12 @@ class FacturacionController extends Controller
             
             // PASO 4: DISTRIBUIR total_final ENTRE SERVICIOS Y PRODUCTOS PROPORCIONALMENTE
             // Ahora aplicamos el total_final (que ya tiene descuentos) proporcionalmente
-            if ($cobro->metodo_pago !== 'bono' && $cobro->coste > 0) {
-                $proporcionServicios = $costoServiciosCobro / $cobro->coste;
-                $proporcionProductos = $costoProductosCobro / $cobro->coste;
+            // EXCLUIR cobros pagados con bono (porque eso es consumo, no ingreso)
+            // Procesar si hay servicios O productos (coste es solo servicios, pero puede haber productos sin servicios)
+            $costoTotalCobro = $costoServiciosCobro + $costoProductosCobro;
+            if ($cobro->metodo_pago !== 'bono' && $costoTotalCobro > 0) {
+                $proporcionServicios = $costoServiciosCobro / $costoTotalCobro;
+                $proporcionProductos = $costoProductosCobro / $costoTotalCobro;
                 
                 $totalServiciosCobro = $cobro->total_final * $proporcionServicios;
                 $totalProductosCobro = $cobro->total_final * $proporcionProductos;
