@@ -53,35 +53,61 @@ class Empleado extends Model{
     public function facturacionPorFechas($fechaInicio, $fechaFin)
     {
         // FACTURACIÓN POR SERVICIOS
-        // Usar registro_cobro_servicio que tiene el precio real cobrado Y el empleado específico
+        // Usar registro_cobro_servicio que tiene el precio real cobrado (con descuentos) Y el empleado específico
         // Esto permite contabilizar correctamente cuando múltiples empleados hacen servicios en una misma cita
         $facturacionServicios = DB::table('registro_cobro_servicio')
             ->join('registro_cobros', 'registro_cobro_servicio.registro_cobro_id', '=', 'registro_cobros.id')
             ->where('registro_cobro_servicio.empleado_id', $this->id)
+            ->where('registro_cobros.metodo_pago', '!=', 'bono') // Excluir cobros pagados con bono
             ->whereBetween('registro_cobros.created_at', [$fechaInicio, $fechaFin])
             ->sum('registro_cobro_servicio.precio');
 
         // FACTURACIÓN POR PRODUCTOS VENDIDOS
-        // Solo contar productos cuando este empleado es el responsable del cobro
-        // O cuando es el empleado de la cita asociada (si no hay empleado asignado al cobro)
-        $facturacionProductos = DB::table('registro_cobro_productos')
-            ->join('registro_cobros', 'registro_cobro_productos.id_registro_cobro', '=', 'registro_cobros.id')
+        // Calcular productos con descuentos aplicados proporcionalmente
+        // Para que coincida con FacturacionController
+        $facturacionProductos = 0;
+        
+        $cobrosConProductos = DB::table('registro_cobros')
+            ->select('registro_cobros.*')
+            ->join('registro_cobro_productos', 'registro_cobros.id', '=', 'registro_cobro_productos.id_registro_cobro')
             ->where('registro_cobros.id_empleado', $this->id)
+            ->where('registro_cobros.metodo_pago', '!=', 'bono')
             ->whereBetween('registro_cobros.created_at', [$fechaInicio, $fechaFin])
-            ->sum(DB::raw('registro_cobro_productos.cantidad * registro_cobro_productos.precio_unitario'));
+            ->groupBy('registro_cobros.id')
+            ->get();
+        
+        foreach ($cobrosConProductos as $cobro) {
+            // Obtener el coste total sin descuentos (servicios + productos)
+            $costeTotal = $cobro->coste ?? 0;
+            
+            if ($costeTotal <= 0) continue;
+            
+            // Calcular cuánto del coste corresponde a productos
+            $costoProductosCobro = DB::table('registro_cobro_productos')
+                ->where('id_registro_cobro', $cobro->id)
+                ->sum(DB::raw('cantidad * precio_unitario'));
+            
+            if ($costoProductosCobro > 0) {
+                // Proporción de productos en el cobro
+                $proporcionProductos = $costoProductosCobro / $costeTotal;
+                
+                // Aplicar proporción al total_final (que ya tiene descuentos)
+                $totalProductosConDescuento = $cobro->total_final * $proporcionProductos;
+                
+                $facturacionProductos += $totalProductosConDescuento;
+            }
+        }
 
         // FACTURACIÓN POR BONOS VENDIDOS
-        // Usar el precio de la plantilla (precio completo del bono), no el precio_pagado
-        // Esto cuenta la facturación total generada, no solo lo cobrado
-        // Verificar si la tabla bonos_plantillas existe antes de hacer la consulta
+        // IMPORTANTE: Usar precio_pagado (lo que realmente se cobró) en lugar del precio de plantilla
+        // para que coincida con la facturación mensual general
         $facturacionBonos = 0;
         try {
             if (DB::getSchemaBuilder()->hasTable('bonos_plantillas')) {
                 $facturacionBonos = DB::table('bonos_clientes')
-                    ->join('bonos_plantillas', 'bonos_clientes.bono_plantilla_id', '=', 'bonos_plantillas.id')
                     ->where('bonos_clientes.id_empleado', $this->id)
                     ->whereBetween('bonos_clientes.fecha_compra', [$fechaInicio, $fechaFin])
-                    ->sum('bonos_plantillas.precio');
+                    ->sum('bonos_clientes.precio_pagado');
             } else {
                 // Si no existe bonos_plantillas, usar total_bonos_vendidos de registro_cobros
                 // 1. Sumar bonos vendidos en cobros de citas individuales de este empleado

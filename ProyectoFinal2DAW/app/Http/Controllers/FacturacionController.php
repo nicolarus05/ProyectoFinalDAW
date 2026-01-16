@@ -227,9 +227,9 @@ class FacturacionController extends Controller
             }
         }
         
-        // BONOS - Los bonos ya están incluidos en registro_cobros.total_bonos_vendidos
+        // BONOS - Calcular total de bonos vendidos (excluir cobros pagados con bono)
         // Solo necesitamos calcular el total para estadísticas generales
-        $bonosVendidos = $cobros->sum('total_bonos_vendidos');
+        $bonosVendidos = $cobros->where('metodo_pago', '!=', 'bono')->sum('total_bonos_vendidos');
         
         // YA NO procesamos bonos_clientes aquí porque duplicaría el conteo
         // Los bonos se registran en registro_cobros cuando se venden

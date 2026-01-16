@@ -38,11 +38,15 @@ echo "  MIGRACIÓN DE FACTURACIÓN HISTÓRICA\n";
 echo "=====================================\n\n";
 
 // Configuración
-$DRY_RUN = false; // Cambiar a false para ejecutar realmente
+$DRY_RUN = true; // Cambiar a false para ejecutar realmente
 $LIMITE = null; // null para todos, o número para limitar
 
 if ($DRY_RUN) {
     echo "⚠️  MODO PRUEBA (DRY RUN) - No se guardarán cambios\n\n";
+} else {
+    echo "⚠️  MODO EJECUCIÓN REAL - Los cambios serán permanentes\n";
+    echo "   Presiona CTRL+C para cancelar en los próximos 5 segundos...\n\n";
+    sleep(5);
 }
 
 // Contador de resultados
@@ -102,21 +106,32 @@ try {
                         return $s->pivot->precio ?? $s->precio;
                     });
                     
-                    if ($costoTotalServicios > 0) {
+                    if ($costoTotalServicios > 0 && $cita->id_empleado) {
                         $proporcionServicios = $cobro->coste > 0 ? $costoTotalServicios / $cobro->coste : 1;
                         $totalServiciosConDescuento = $totalFinalServicios * $proporcionServicios;
                         
                         foreach ($cita->servicios as $servicio) {
                             $precioOriginal = $servicio->pivot->precio ?? $servicio->precio;
+                            
+                            // Proteger contra división por cero
+                            if ($costoTotalServicios <= 0) continue;
+                            
                             $proporcion = $precioOriginal / $costoTotalServicios;
                             $precioConDescuento = $totalServiciosConDescuento * $proporcion;
                             
-                            if (!$DRY_RUN) {
+                            // Verificar que no exista ya este registro
+                            $existe = DB::table('registro_cobro_servicio')
+                                ->where('registro_cobro_id', $cobro->id)
+                                ->where('servicio_id', $servicio->id)
+                                ->where('empleado_id', $cita->id_empleado)
+                                ->exists();
+                            
+                            if (!$DRY_RUN && !$existe) {
                                 DB::table('registro_cobro_servicio')->insert([
                                     'registro_cobro_id' => $cobro->id,
                                     'servicio_id' => $servicio->id,
                                     'empleado_id' => $cita->id_empleado,
-                                    'precio' => $precioConDescuento,
+                                    'precio' => round($precioConDescuento, 2),
                                     'created_at' => $cobro->created_at,
                                     'updated_at' => $cobro->updated_at,
                                 ]);
@@ -146,18 +161,29 @@ try {
                     $totalServiciosConDescuento = $totalFinalServicios * $proporcionServicios;
                     
                     foreach ($citasAgrupadas as $citaGrupo) {
-                        if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
+                        if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0 && $citaGrupo->id_empleado) {
                             foreach ($citaGrupo->servicios as $servicio) {
                                 $precioOriginal = $servicio->pivot->precio ?? $servicio->precio;
+                                
+                                // Proteger contra división por cero
+                                if ($costoTotalTodosServicios <= 0) continue;
+                                
                                 $proporcion = $precioOriginal / $costoTotalTodosServicios;
                                 $precioConDescuento = $totalServiciosConDescuento * $proporcion;
                                 
-                                if (!$DRY_RUN) {
+                                // Verificar que no exista ya este registro
+                                $existe = DB::table('registro_cobro_servicio')
+                                    ->where('registro_cobro_id', $cobro->id)
+                                    ->where('servicio_id', $servicio->id)
+                                    ->where('empleado_id', $citaGrupo->id_empleado)
+                                    ->exists();
+                                
+                                if (!$DRY_RUN && !$existe) {
                                     DB::table('registro_cobro_servicio')->insert([
                                         'registro_cobro_id' => $cobro->id,
                                         'servicio_id' => $servicio->id,
                                         'empleado_id' => $citaGrupo->id_empleado,
-                                        'precio' => $precioConDescuento,
+                                        'precio' => round($precioConDescuento, 2),
                                         'created_at' => $cobro->created_at,
                                         'updated_at' => $cobro->updated_at,
                                     ]);
