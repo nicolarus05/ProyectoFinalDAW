@@ -4,11 +4,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Deuda extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $table = 'deudas';
 
@@ -62,6 +61,33 @@ class Deuda extends Model
 
         $this->saldo_pendiente -= $monto;
         $this->save();
+
+        // ACTUALIZAR campo 'deuda' de los cobros originales
+        // Distribuir el pago entre los cobros con deuda, desde el más antiguo
+        $montoPorDistribuir = $monto;
+        
+        $cobrosConDeuda = \App\Models\RegistroCobro::where('id_cliente', $this->id_cliente)
+            ->where('deuda', '>', 0)
+            ->orderBy('created_at', 'asc')
+            ->get();
+        
+        foreach ($cobrosConDeuda as $cobro) {
+            if ($montoPorDistribuir <= 0) {
+                break;
+            }
+            
+            if ($montoPorDistribuir >= $cobro->deuda) {
+                // Pago cubre toda la deuda de este cobro
+                $montoPorDistribuir -= $cobro->deuda;
+                $cobro->deuda = 0;
+            } else {
+                // Pago parcial
+                $cobro->deuda -= $montoPorDistribuir;
+                $montoPorDistribuir = 0;
+            }
+            
+            $cobro->save();
+        }
 
         return $this->movimientos()->create([
             'id_registro_cobro' => $idRegistroCobro,

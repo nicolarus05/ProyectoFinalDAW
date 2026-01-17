@@ -24,7 +24,15 @@ class FacturacionController extends Controller
         $fechaInicio = Carbon::create($anio, $mes, 1)->startOfMonth();
         $fechaFin = Carbon::create($anio, $mes, 1)->endOfMonth();
         
+        // Obtener IDs de cobros que son pagos de deudas (para excluirlos SOLO de facturación)
+        $cobrosDeudas = DB::table('movimientos_deuda')
+            ->where('tipo', 'abono')
+            ->whereBetween('created_at', [$fechaInicio, $fechaFin])
+            ->pluck('id_registro_cobro')
+            ->toArray();
+        
         // Obtener todos los cobros del mes (por fecha de cobro, no fecha de cita)
+        // INCLUIR pagos de deudas para cajas diarias, pero excluirlos de facturación
         $cobros = RegistroCobro::with(['cita.servicios', 'citasAgrupadas.servicios', 'servicios', 'productos', 'bonosVendidos'])
             ->whereBetween('created_at', [$fechaInicio, $fechaFin])
             ->get();
@@ -100,6 +108,11 @@ class FacturacionController extends Controller
             }
             
             // PASO 2: DESGLOSE DE SERVICIOS POR CATEGORÍA
+            // EXCLUIR cobros que son pagos de deudas (no contar servicios duplicados)
+            if (in_array($cobro->id, $cobrosDeudas)) {
+                continue; // Saltar a siguiente cobro sin procesar facturación
+            }
+            
             // Calcular cuánto del cobro corresponde a servicios (antes de descuentos)
             $yaContados = false;
             $costoServiciosCobro = 0;
@@ -143,8 +156,8 @@ class FacturacionController extends Controller
                 }
             }
             
-            // PASO 4: DISTRIBUIR total_final ENTRE SERVICIOS Y PRODUCTOS PROPORCIONALMENTE
-            // Ahora aplicamos el total_final (que ya tiene descuentos) proporcionalmente
+            // PASO 4: DISTRIBUIR TOTAL FACTURADO (total_final + deuda) ENTRE SERVICIOS Y PRODUCTOS PROPORCIONALMENTE
+            // Para facturación mensual queremos el total facturado (cobrado + deuda pendiente)
             // EXCLUIR cobros pagados con bono (porque eso es consumo, no ingreso)
             // Procesar si hay servicios O productos (coste es solo servicios, pero puede haber productos sin servicios)
             $costoTotalCobro = $costoServiciosCobro + $costoProductosCobro;
@@ -152,8 +165,10 @@ class FacturacionController extends Controller
                 $proporcionServicios = $costoServiciosCobro / $costoTotalCobro;
                 $proporcionProductos = $costoProductosCobro / $costoTotalCobro;
                 
-                $totalServiciosCobro = $cobro->total_final * $proporcionServicios;
-                $totalProductosCobro = $cobro->total_final * $proporcionProductos;
+                // Usar el total real facturado = lo que pagó + lo que debe
+                $totalFacturadoCobro = $cobro->total_final + $cobro->deuda;
+                $totalServiciosCobro = $totalFacturadoCobro * $proporcionServicios;
+                $totalProductosCobro = $totalFacturadoCobro * $proporcionProductos;
                 
                 // Ahora desglosar servicios por categoría
                 $yaContados = false;
@@ -237,12 +252,24 @@ class FacturacionController extends Controller
         // YA NO procesamos bonos_clientes aquí porque duplicaría el conteo
         // Los bonos se registran en registro_cobros cuando se venden
         
+        // PAGOS DE DEUDAS - Sumar los pagos de deudas al total facturado
+        // Estos cobros no se desglosan por categoría (para evitar duplicar servicios)
+        // pero SÍ deben contar en el total facturado del mes
+        $totalPagosDeudas = 0;
+        foreach ($cobrosDeudas as $idCobroDeuda) {
+            $cobroDeuda = $cobros->firstWhere('id', $idCobroDeuda);
+            if ($cobroDeuda && $cobroDeuda->metodo_pago !== 'bono') {
+                $totalPagosDeudas += $cobroDeuda->total_final;
+            }
+        }
+        
         // Calcular totales
         $totalServicios = $serviciosPeluqueria + $serviciosEstetica;
         $totalProductos = $productosPeluqueria + $productosEstetica;
-        $totalGeneral = $totalServicios + $totalProductos + $bonosVendidos;
+        $totalGeneral = $totalServicios + $totalProductos + $bonosVendidos + $totalPagosDeudas;
         
-        // Calcular deuda total del mes (para verificación)
+        // Calcular deuda total del mes (solo deudas pendientes)
+        // El campo 'deuda' ahora se actualiza automáticamente cuando se paga
         $deudaTotal = $cobros->where('metodo_pago', '!=', 'bono')->sum('deuda');
         
         // Calcular suma de cajas diarias (debe ser igual a totalGeneral - deudaTotal)
