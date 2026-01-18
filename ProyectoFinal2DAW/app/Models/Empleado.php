@@ -9,16 +9,19 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Auth\Passwords\CanResetPassword;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
+
 use App\Models\Cita;
 use App\Models\Servicio;
+use App\Models\RegistroCobro;
 use App\Services\FacturacionService;
 
-class Empleado extends Model{
+class Empleado extends Model
+{
     use HasFactory, SoftDeletes, Notifiable, CanResetPassword, HasApiTokens;
 
     protected $table = 'empleados';
 
-    // Definición de las columnas de la tabla
     protected $fillable = [
         'id_user',
         'categoria',
@@ -31,131 +34,138 @@ class Empleado extends Model{
         'horario_verano' => 'array',
     ];
 
-    public function user(){
+    public function user()
+    {
         return $this->belongsTo(User::class, 'id_user');
     }
 
-    public function citas(){
+    public function citas()
+    {
         return $this->hasMany(Cita::class, 'id_empleado');
     }
 
-    public function servicios(){
+    public function servicios()
+    {
         return $this->belongsToMany(
             Servicio::class,
             'empleado_servicio',
             'id_empleado',
-            'id_servicio',
+            'id_servicio'
         );
     }
 
     /**
      * Calcular facturación del empleado en un rango de fechas
      */
-    /**
-     * Calcular facturación del empleado en un rango de fechas
-     * 
-     * Usa FacturacionService para aplicar distribución proporcional de descuentos
-     * igual que FacturacionController, garantizando consistencia entre 
-     * facturación mensual general y facturación individual por empleado.
-     * 
-     * @param string|Carbon $fechaInicio
-     * @param string|Carbon $fechaFin
-     * @return array ['servicios' => float, 'productos' => float, 'bonos' => float, 'total' => float]
-     */
-    public function facturacionPorFechas($fechaInicio, $fechaFin)
+    public function facturacionPorFechas($fechaInicio, $fechaFin): array
     {
-        // Convertir fechas si son strings
-        if (is_string($fechaInicio)) {
-            $fechaInicio = \Carbon\Carbon::parse($fechaInicio);
-        }
-        if (is_string($fechaFin)) {
-            $fechaFin = \Carbon\Carbon::parse($fechaFin);
+        $fechaInicio = $fechaInicio instanceof Carbon
+            ? $fechaInicio->startOfDay()
+            : Carbon::parse($fechaInicio)->startOfDay();
+
+        $fechaFin = $fechaFin instanceof Carbon
+            ? $fechaFin->endOfDay()
+            : Carbon::parse($fechaFin)->endOfDay();
+
+        $facturacion = [
+            'servicios' => 0.0,
+            'productos' => 0.0,
+            'bonos'     => 0.0,
+            'total'     => 0.0,
+        ];
+
+        $service = new FacturacionService();
+
+        $cobros = RegistroCobro::with(['servicios', 'productos', 'bonosVendidos', 'cita.servicios', 'citasAgrupadas.servicios'])
+            ->whereBetween('created_at', [$fechaInicio, $fechaFin])
+            ->where('metodo_pago', '!=', 'bono')
+            ->where('contabilizado', true)
+            ->get();
+
+        foreach ($cobros as $cobro) {
+            $desglose = $service->desglosarCobroPorEmpleado($cobro);
+
+            // Sumar servicios, productos y bonos del empleado
+            if (isset($desglose[$this->id])) {
+                $facturacion['servicios'] += $desglose[$this->id]['servicios'] ?? 0;
+                $facturacion['productos'] += $desglose[$this->id]['productos'] ?? 0;
+                $facturacion['bonos'] += $desglose[$this->id]['bonos'] ?? 0;
+            }
         }
         
-        // Usar el servicio centralizado de facturación
-        $service = new FacturacionService();
-        return $service->facturacionPorFechasEmpleado($this, $fechaInicio, $fechaFin);
+        // Calcular total
+        $facturacion['total'] = $facturacion['servicios'] + $facturacion['productos'] + $facturacion['bonos'];
+
+        // Redondeo final
+        foreach ($facturacion as &$valor) {
+            $valor = round($valor, 2);
+        }
+
+        return $facturacion;
     }
 
-    /**
-     * Calcular facturación del mes actual
-     */
     public function facturacionMesActual()
     {
-        $fechaInicio = now()->startOfMonth();
-        $fechaFin = now()->endOfMonth();
-        return $this->facturacionPorFechas($fechaInicio, $fechaFin);
+        return $this->facturacionPorFechas(
+            now()->startOfMonth(),
+            now()->endOfMonth()
+        );
     }
 
-    /**
-     * Calcular facturación del mes anterior
-     */
     public function facturacionMesAnterior()
     {
-        $fechaInicio = now()->subMonth()->startOfMonth();
-        $fechaFin = now()->subMonth()->endOfMonth();
-        return $this->facturacionPorFechas($fechaInicio, $fechaFin);
+        return $this->facturacionPorFechas(
+            now()->subMonth()->startOfMonth(),
+            now()->subMonth()->endOfMonth()
+        );
     }
 
-    /**
-     * Calcular número de citas atendidas en el mes actual
-     */
     public function citasAtendidasMesActual()
     {
-        $fechaInicio = now()->startOfMonth();
-        $fechaFin = now()->endOfMonth();
-        
-        // Contar clientes únicos (una cita puede tener múltiples servicios/bloques pero es 1 cliente)
-        // Agrupamos por cliente y fecha para contar cada visita del cliente como 1 cita
         return DB::table('citas')
             ->where('id_empleado', $this->id)
-            ->whereBetween('fecha_hora', [$fechaInicio, $fechaFin])
+            ->whereBetween('fecha_hora', [
+                now()->startOfMonth(),
+                now()->endOfMonth()
+            ])
             ->select('id_cliente', DB::raw('DATE(fecha_hora) as fecha'))
             ->groupBy('id_cliente', 'fecha')
             ->get()
             ->count();
     }
 
-    /**
-     * Obtener horario personalizado del empleado para una fecha específica
-     * Si no tiene configuración personalizada para ese día, devuelve null
-     */
     public function obtenerHorario($fecha)
     {
-        $carbon = \Carbon\Carbon::parse($fecha);
-        $diaSemana = $carbon->dayOfWeek; // 0=Domingo, 1=Lunes, ..., 6=Sábado
+        $carbon = Carbon::parse($fecha);
+        $diaSemana = $carbon->dayOfWeek;
         $mes = $carbon->month;
-        $esVerano = in_array($mes, [7, 8]); // Julio y Agosto
-        
-        // Seleccionar horario según temporada
-        $horarios = $esVerano ? $this->horario_verano : $this->horario_invierno;
-        
-        // Si el empleado tiene configuración personalizada para este día
+        $esVerano = in_array($mes, [7, 8]);
+
+        $horarios = $esVerano
+            ? $this->horario_verano
+            : $this->horario_invierno;
+
         if ($horarios && is_array($horarios)) {
-            // Buscar primero por número de día (formato del formulario)
             $horarioDia = $horarios[$diaSemana] ?? null;
-            
-            // Si no se encuentra por número, buscar por nombre (compatibilidad)
+
             if (!$horarioDia) {
-                $dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-                $nombreDia = $dias[$diaSemana];
-                $horarioDia = $horarios[$nombreDia] ?? null;
+                $dias = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+                $horarioDia = $horarios[$dias[$diaSemana]] ?? null;
             }
-            
-            if ($horarioDia && is_array($horarioDia) && isset($horarioDia['inicio']) && isset($horarioDia['fin'])) {
-                // Verificar que las horas no estén vacías
-                if (!empty($horarioDia['inicio']) && !empty($horarioDia['fin'])) {
-                    return [
-                        'inicio' => $horarioDia['inicio'],
-                        'fin' => $horarioDia['fin'],
-                        'tipo' => $esVerano ? 'verano_personalizado' : 'invierno_personalizado'
-                    ];
-                }
+
+            if (
+                is_array($horarioDia) &&
+                !empty($horarioDia['inicio']) &&
+                !empty($horarioDia['fin'])
+            ) {
+                return [
+                    'inicio' => $horarioDia['inicio'],
+                    'fin' => $horarioDia['fin'],
+                    'tipo' => $esVerano ? 'verano_personalizado' : 'invierno_personalizado'
+                ];
             }
         }
-        
-        // Si no hay horario personalizado para este día, devolver null
-        // Esto significa que el empleado NO trabaja ese día
+
         return null;
     }
 }

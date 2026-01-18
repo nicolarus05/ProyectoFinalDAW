@@ -12,6 +12,7 @@ use App\Models\BonoCliente;
 use App\Models\BonoUsoDetalle;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Http\Requests\StoreRegistroCobroRequest;
 use App\Services\CacheService;
 use App\Http\Resources\RegistroCobroResource;
@@ -557,6 +558,8 @@ class RegistroCobroController extends Controller{
                                         'cantidad_usada' => 1
                                     ]);
 
+                                    // NOTA: El precio a 0 se aplicará al guardar los servicios en el pivot
+
                                     // Verificar si el bono está completamente usado
                                     if ($bono->estaCompletamenteUsado()) {
                                         $bono->update(['estado' => 'usado']);
@@ -614,6 +617,8 @@ class RegistroCobroController extends Controller{
                                         'servicio_id' => $servicioId,
                                         'cantidad_usada' => 1
                                     ]);
+
+                                    // NOTA: El precio a 0 se aplicará al guardar los servicios en el pivot
 
                                     // Verificar si el bono está completamente usado
                                     if ($bono->estaCompletamenteUsado()) {
@@ -835,6 +840,17 @@ class RegistroCobroController extends Controller{
                             $proporcion = $precioOriginal / $costoTotalServicios;
                             $precioConDescuento = $totalServiciosConDescuento * $proporcion;
                             
+                            // Verificar si este servicio fue pagado con bono
+                            $usoBono = DB::table('bono_uso_detalle')
+                                ->where('servicio_id', $servicio->id)
+                                ->where('cita_id', $cita->id)
+                                ->where('created_at', '>=', now()->subMinutes(5))
+                                ->exists();
+                            
+                            if ($usoBono) {
+                                $precioConDescuento = 0; // Servicio pagado con bono
+                            }
+                            
                             $cobro->servicios()->attach($servicio->id, [
                                 'precio' => $precioConDescuento,
                                 'empleado_id' => $cita->id_empleado, // Por defecto, el empleado de la cita
@@ -881,6 +897,17 @@ class RegistroCobroController extends Controller{
                                 $precioOriginal = $servicio->pivot->precio ?? $servicio->precio;
                                 $proporcion = $precioOriginal / $costoTotalTodosServicios;
                                 $precioConDescuento = $totalServiciosConDescuento * $proporcion;
+                                
+                                // Verificar si este servicio fue pagado con bono
+                                $usoBono = DB::table('bono_uso_detalle')
+                                    ->where('servicio_id', $servicio->id)
+                                    ->where('cita_id', $citaGrupo->id)
+                                    ->where('created_at', '>=', now()->subMinutes(5))
+                                    ->exists();
+                                
+                                if ($usoBono) {
+                                    $precioConDescuento = 0; // Servicio pagado con bono
+                                }
                                 
                                 $cobro->servicios()->attach($servicio->id, [
                                     'precio' => $precioConDescuento,
@@ -1016,6 +1043,22 @@ class RegistroCobroController extends Controller{
                             'servicio_id' => $servicioId,
                             'cantidad_usada' => 1
                         ]);
+
+                        // Actualizar el precio a 0 en registro_cobro_servicio para que no se facture
+                        // Solo actualizar UNO (el primero con precio > 0)
+                        $pivotId = DB::table('registro_cobro_servicio')
+                            ->where('registro_cobro_id', $cobro->id)
+                            ->where('servicio_id', $servicioId)
+                            ->where('precio', '>', 0)
+                            ->orderBy('id')
+                            ->limit(1)
+                            ->value('id');
+                        
+                        if ($pivotId) {
+                            DB::table('registro_cobro_servicio')
+                                ->where('id', $pivotId)
+                                ->update(['precio' => 0]);
+                        }
                     }
                 }
 
@@ -1038,6 +1081,17 @@ class RegistroCobroController extends Controller{
                     // Si no hay empleado_id en el servicio, usar el empleado principal del cobro
                     if (!$empleadoServicio) {
                         $empleadoServicio = $empleadoId; // Usar la variable $empleadoId del cobro
+                    }
+
+                    // Verificar si este servicio fue pagado con bono ANTES de guardarlo
+                    // Si tiene uso de bono reciente, el precio debe ser 0
+                    $usoBono = DB::table('bono_uso_detalle')
+                        ->where('servicio_id', $servicioId)
+                        ->where('created_at', '>=', now()->subMinutes(5))
+                        ->exists();
+                    
+                    if ($usoBono) {
+                        $precio = 0; // Servicio pagado con bono, precio 0
                     }
 
                     $cobro->servicios()->attach($servicioId, [
