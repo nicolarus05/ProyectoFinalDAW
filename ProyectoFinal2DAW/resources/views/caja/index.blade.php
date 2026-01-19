@@ -191,7 +191,34 @@
                                 $yaContados = false;
                                 $esBono = $cobro->metodo_pago === 'bono';
                                 
-                                if ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
+                                // Prioridad 1: Servicios adjuntos directamente al cobro (Fuente de verdad)
+                                if ($cobro->servicios && $cobro->servicios->count() > 0) {
+                                    foreach($cobro->servicios as $servicio) {
+                                        if ($servicio->categoria === 'peluqueria') {
+                                            $precio = $servicio->pivot->precio ?? $servicio->precio;
+                                            $nombre = $servicio->nombre;
+                                            
+                                            if ($esBono) {
+                                                $clave = $nombre . '_bono';
+                                                if (!isset($serviciosPeluqueriaBono[$clave])) {
+                                                    $serviciosPeluqueriaBono[$clave] = ['nombre' => $nombre, 'cantidad' => 0];
+                                                }
+                                                $serviciosPeluqueriaBono[$clave]['cantidad']++;
+                                            } else {
+                                                $clave = $nombre . '_' . $precio;
+                                                if (!isset($serviciosPeluqueria[$clave])) {
+                                                    $serviciosPeluqueria[$clave] = ['nombre' => $nombre, 'precio_unitario' => $precio, 'cantidad' => 0, 'precio_total' => 0];
+                                                }
+                                                $serviciosPeluqueria[$clave]['cantidad']++;
+                                                $serviciosPeluqueria[$clave]['precio_total'] += $precio;
+                                            }
+                                        }
+                                    }
+                                    $yaContados = true;
+                                }
+                                
+                                // Prioridad 2: Cita individual (Fallback para datos antiguos)
+                                if (!$yaContados && $cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
                                     foreach($cobro->cita->servicios as $servicio) {
                                         if ($servicio->categoria === 'peluqueria') {
                                             $precio = $servicio->pivot->precio ?? $servicio->precio;
@@ -216,6 +243,7 @@
                                     $yaContados = true;
                                 }
                                 
+                                // Prioridad 3: Citas agrupadas (Fallback para datos antiguos)
                                 if (!$yaContados && $cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
                                     foreach($cobro->citasAgrupadas as $citaGrupo) {
                                         if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
@@ -243,30 +271,6 @@
                                         }
                                     }
                                     $yaContados = true;
-                                }
-                                
-                                if (!$yaContados && $cobro->servicios && $cobro->servicios->count() > 0) {
-                                    foreach($cobro->servicios as $servicio) {
-                                        if ($servicio->categoria === 'peluqueria') {
-                                            $precio = $servicio->pivot->precio ?? $servicio->precio;
-                                            $nombre = $servicio->nombre;
-                                            
-                                            if ($esBono) {
-                                                $clave = $nombre . '_bono';
-                                                if (!isset($serviciosPeluqueriaBono[$clave])) {
-                                                    $serviciosPeluqueriaBono[$clave] = ['nombre' => $nombre, 'cantidad' => 0];
-                                                }
-                                                $serviciosPeluqueriaBono[$clave]['cantidad']++;
-                                            } else {
-                                                $clave = $nombre . '_' . $precio;
-                                                if (!isset($serviciosPeluqueria[$clave])) {
-                                                    $serviciosPeluqueria[$clave] = ['nombre' => $nombre, 'precio_unitario' => $precio, 'cantidad' => 0, 'precio_total' => 0];
-                                                }
-                                                $serviciosPeluqueria[$clave]['cantidad']++;
-                                                $serviciosPeluqueria[$clave]['precio_total'] += $precio;
-                                            }
-                                        }
-                                    }
                                 }
                             }
                         @endphp
@@ -383,7 +387,34 @@
                                 $yaContados = false;
                                 $esBono = $cobro->metodo_pago === 'bono';
                                 
-                                if ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
+                                // Prioridad 1: Servicios adjuntos directamente al cobro (Fuente de verdad)
+                                if ($cobro->servicios && $cobro->servicios->count() > 0) {
+                                    foreach($cobro->servicios as $servicio) {
+                                        if ($servicio->categoria === 'estetica') {
+                                            $precio = $servicio->pivot->precio ?? $servicio->precio;
+                                            $nombre = $servicio->nombre;
+                                            
+                                            if ($esBono) {
+                                                $clave = $nombre . '_bono';
+                                                if (!isset($serviciosEsteticaBono[$clave])) {
+                                                    $serviciosEsteticaBono[$clave] = ['nombre' => $nombre, 'cantidad' => 0];
+                                                }
+                                                $serviciosEsteticaBono[$clave]['cantidad']++;
+                                            } else {
+                                                $clave = $nombre . '_' . $precio;
+                                                if (!isset($serviciosEstetica[$clave])) {
+                                                    $serviciosEstetica[$clave] = ['nombre' => $nombre, 'precio_unitario' => $precio, 'cantidad' => 0, 'precio_total' => 0];
+                                                }
+                                                $serviciosEstetica[$clave]['cantidad']++;
+                                                $serviciosEstetica[$clave]['precio_total'] += $precio;
+                                            }
+                                        }
+                                    }
+                                    $yaContados = true;
+                                }
+                                
+                                // Prioridad 2: Cita individual (Fallback)
+                                if (!$yaContados && $cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
                                     foreach($cobro->cita->servicios as $servicio) {
                                         if ($servicio->categoria === 'estetica') {
                                             $precio = $servicio->pivot->precio ?? $servicio->precio;
@@ -408,6 +439,7 @@
                                     $yaContados = true;
                                 }
                                 
+                                // Prioridad 3: Citas agrupadas (Fallback)
                                 if (!$yaContados && $cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
                                     foreach($cobro->citasAgrupadas as $citaGrupo) {
                                         if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
@@ -435,30 +467,6 @@
                                         }
                                     }
                                     $yaContados = true;
-                                }
-                                
-                                if (!$yaContados && $cobro->servicios && $cobro->servicios->count() > 0) {
-                                    foreach($cobro->servicios as $servicio) {
-                                        if ($servicio->categoria === 'estetica') {
-                                            $precio = $servicio->pivot->precio ?? $servicio->precio;
-                                            $nombre = $servicio->nombre;
-                                            
-                                            if ($esBono) {
-                                                $clave = $nombre . '_bono';
-                                                if (!isset($serviciosEsteticaBono[$clave])) {
-                                                    $serviciosEsteticaBono[$clave] = ['nombre' => $nombre, 'cantidad' => 0];
-                                                }
-                                                $serviciosEsteticaBono[$clave]['cantidad']++;
-                                            } else {
-                                                $clave = $nombre . '_' . $precio;
-                                                if (!isset($serviciosEstetica[$clave])) {
-                                                    $serviciosEstetica[$clave] = ['nombre' => $nombre, 'precio_unitario' => $precio, 'cantidad' => 0, 'precio_total' => 0];
-                                                }
-                                                $serviciosEstetica[$clave]['cantidad']++;
-                                                $serviciosEstetica[$clave]['precio_total'] += $precio;
-                                            }
-                                        }
-                                    }
                                 }
                             }
                         @endphp
@@ -583,7 +591,21 @@
                                             $serviciosMostrados = false;
                                             $yaContados = false;
                                             
-                                            if ($item->cita && $item->cita->servicios && $item->cita->servicios->count() > 0) {
+                                            // Prioridad 1: Servicios adjuntos al cobro
+                                            if ($item->servicios && $item->servicios->count() > 0) {
+                                                foreach($item->servicios as $servicio) {
+                                                    if($servicio->categoria === 'peluqueria') {
+                                                        echo '<span class="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded text-xs mr-1 mb-1">💇 ' . $servicio->nombre . '</span>';
+                                                    } elseif($servicio->categoria === 'estetica') {
+                                                        echo '<span class="inline-flex items-center px-2 py-1 bg-pink-100 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300 rounded text-xs mr-1 mb-1">💅 ' . $servicio->nombre . '</span>';
+                                                    }
+                                                    $serviciosMostrados = true;
+                                                }
+                                                $yaContados = true;
+                                            }
+                                            
+                                            // Prioridad 2: Cita original (Fallback)
+                                            if (!$yaContados && $item->cita && $item->cita->servicios && $item->cita->servicios->count() > 0) {
                                                 foreach($item->cita->servicios as $servicio) {
                                                     if($servicio->categoria === 'peluqueria') {
                                                         echo '<span class="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded text-xs mr-1 mb-1">💇 ' . $servicio->nombre . '</span>';
@@ -595,6 +617,7 @@
                                                 $yaContados = true;
                                             }
                                             
+                                            // Prioridad 3: Citas agrupadas (Fallback)
                                             if (!$yaContados && $item->citasAgrupadas && $item->citasAgrupadas->count() > 0) {
                                                 foreach($item->citasAgrupadas as $citaGrupo) {
                                                     if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
@@ -609,17 +632,6 @@
                                                     }
                                                 }
                                                 $yaContados = true;
-                                            }
-                                            
-                                            if (!$yaContados && $item->servicios && $item->servicios->count() > 0) {
-                                                foreach($item->servicios as $servicio) {
-                                                    if($servicio->categoria === 'peluqueria') {
-                                                        echo '<span class="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded text-xs mr-1 mb-1">💇 ' . $servicio->nombre . '</span>';
-                                                    } elseif($servicio->categoria === 'estetica') {
-                                                        echo '<span class="inline-flex items-center px-2 py-1 bg-pink-100 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300 rounded text-xs mr-1 mb-1">💅 ' . $servicio->nombre . '</span>';
-                                                    }
-                                                    $serviciosMostrados = true;
-                                                }
                                             }
                                             
                                             if ($item->productos && $item->productos->count() > 0) {
@@ -752,11 +764,23 @@
                                                 @endif
                                             </div>
                                             <div class="flex flex-wrap gap-1">
-                                                @if($deuda->cita && $deuda->cita->servicios && $deuda->cita->servicios->count() > 0)
+                                                @php $serviciosMostrados = false; @endphp
+                                                
+                                                @if($deuda->servicios && $deuda->servicios->count() > 0)
+                                                    @foreach($deuda->servicios as $servicio)
+                                                        <span class="inline-flex items-center px-2 py-0.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-xs border border-red-200 dark:border-red-700">{{ $servicio->nombre }}</span>
+                                                    @endforeach
+                                                    @php $serviciosMostrados = true; @endphp
+                                                @endif
+
+                                                @if(!$serviciosMostrados && $deuda->cita && $deuda->cita->servicios && $deuda->cita->servicios->count() > 0)
                                                     @foreach($deuda->cita->servicios as $servicio)
                                                         <span class="inline-flex items-center px-2 py-0.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-xs border border-red-200 dark:border-red-700">{{ $servicio->nombre }}</span>
                                                     @endforeach
-                                                @else
+                                                    @php $serviciosMostrados = true; @endphp
+                                                @endif
+                                                
+                                                @if(!$serviciosMostrados)
                                                     <span class="text-xs text-gray-400 dark:text-gray-500 italic">Sin servicios</span>
                                                 @endif
                                             </div>

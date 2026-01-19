@@ -134,9 +134,9 @@ class CajaDiariaController extends Controller{
             $montoEfectivo = $metodoPago === 'mixto' ? $cobro->pago_efectivo : ($metodoPago === 'efectivo' ? $montoPagado : 0);
             $montoTarjeta = $metodoPago === 'mixto' ? $cobro->pago_tarjeta : ($metodoPago === 'tarjeta' ? $montoPagado : 0);
             
-            // PRIORIDAD 1: Servicios de cita individual
-            if ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
-                foreach($cobro->cita->servicios as $servicio) {
+            // PRIORIDAD 1: Servicios directos del cobro (Fuente de verdad)
+            if ($cobro->servicios && $cobro->servicios->count() > 0) {
+                foreach($cobro->servicios as $servicio) {
                     $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
                     
                     // Calcular proporción de este servicio respecto al total (sin descuentos)
@@ -162,7 +162,35 @@ class CajaDiariaController extends Controller{
                 $yaContados = true;
             }
             
-            // PRIORIDAD 2: Servicios de citas agrupadas (solo si no tiene cita individual)
+            // PRIORIDAD 2: Servicios de cita individual (Fallback para datos antiguos)
+            if (!$yaContados && $cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
+                foreach($cobro->cita->servicios as $servicio) {
+                    $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
+                    
+                    // Calcular proporción de este servicio respecto al total
+                    $proporcion = $cobro->coste > 0 ? ($precioServicio / $cobro->coste) : 0;
+                    
+                    // Solo sumar si NO es pago con bono
+                    if ($metodoPago !== 'bono') {
+                        $montoServicio = $montoPagado * $proporcion;
+                        $montoServicioEfectivo = $montoEfectivo * $proporcion;
+                        $montoServicioTarjeta = $montoTarjeta * $proporcion;
+                        
+                        if ($servicio->categoria === 'peluqueria') {
+                            $totalPeluqueria += $montoServicio;
+                            $totalPeluqueriaEfectivo += $montoServicioEfectivo;
+                            $totalPeluqueriaTarjeta += $montoServicioTarjeta;
+                        } elseif ($servicio->categoria === 'estetica') {
+                            $totalEstetica += $montoServicio;
+                            $totalEsteticaEfectivo += $montoServicioEfectivo;
+                            $totalEsteticaTarjeta += $montoServicioTarjeta;
+                        }
+                    }
+                }
+                $yaContados = true;
+            }
+            
+            // PRIORIDAD 3: Servicios de citas agrupadas (Fallback para datos antiguos)
             if (!$yaContados && $cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
                 foreach($cobro->citasAgrupadas as $citaGrupo) {
                     if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
@@ -192,33 +220,6 @@ class CajaDiariaController extends Controller{
                     }
                 }
                 $yaContados = true;
-            }
-            
-            // PRIORIDAD 3: Servicios directos (solo si no tiene citas)
-            if (!$yaContados && $cobro->servicios && $cobro->servicios->count() > 0) {
-                foreach($cobro->servicios as $servicio) {
-                    $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
-                    
-                    // Calcular proporción de este servicio respecto al total
-                    $proporcion = $cobro->coste > 0 ? ($precioServicio / $cobro->coste) : 0;
-                    
-                    // Solo sumar si NO es pago con bono
-                    if ($metodoPago !== 'bono') {
-                        $montoServicio = $montoPagado * $proporcion;
-                        $montoServicioEfectivo = $montoEfectivo * $proporcion;
-                        $montoServicioTarjeta = $montoTarjeta * $proporcion;
-                        
-                        if ($servicio->categoria === 'peluqueria') {
-                            $totalPeluqueria += $montoServicio;
-                            $totalPeluqueriaEfectivo += $montoServicioEfectivo;
-                            $totalPeluqueriaTarjeta += $montoServicioTarjeta;
-                        } elseif ($servicio->categoria === 'estetica') {
-                            $totalEstetica += $montoServicio;
-                            $totalEsteticaEfectivo += $montoServicioEfectivo;
-                            $totalEsteticaTarjeta += $montoServicioTarjeta;
-                        }
-                    }
-                }
             }
             
             // Si NO tiene servicios pero SÍ tiene productos, contabilizar productos
