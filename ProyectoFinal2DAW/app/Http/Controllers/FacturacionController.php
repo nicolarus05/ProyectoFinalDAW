@@ -62,8 +62,8 @@ class FacturacionController extends Controller
             if ($cobro->metodo_pago !== 'bono') {
                 $fechaCobro = $cobro->created_at->format('Y-m-d');
                 if (isset($cajasDiarias[$fechaCobro])) {
-                    // Calcular lo que realmente se pagó por servicios/productos (sin bonos)
-                    $montoPagadoServicios = $cobro->total_final - $cobro->deuda;
+                    // total_final contiene el monto real cobrado (sin deuda)
+                    $montoPagadoServicios = $cobro->total_final;
                     
                     // Sumar total (servicios/productos sin bonos todavía)
                     $cajasDiarias[$fechaCobro]['total'] += $montoPagadoServicios;
@@ -89,19 +89,28 @@ class FacturacionController extends Controller
                     // IMPORTANTE: Sumar bonos vendidos por SU PROPIO método de pago (no del cobro)
                     if ($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0) {
                         foreach ($cobro->bonosVendidos as $bono) {
-                            $precioBono = $bono->precio_pagado ?? ($bono->pivot->precio ?? 0);
                             $metodoPagoBono = $bono->metodo_pago; // Método de pago del BONO, no del cobro
                             
-                            // Sumar al total general
-                            $cajasDiarias[$fechaCobro]['total'] += $precioBono;
-                            
-                            // Sumar al método específico del bono
-                            if ($metodoPagoBono === 'efectivo') {
-                                $cajasDiarias[$fechaCobro]['efectivo'] += $precioBono;
-                            } elseif ($metodoPagoBono === 'tarjeta') {
-                                $cajasDiarias[$fechaCobro]['tarjeta'] += $precioBono;
+                            // SOLO sumar si NO quedó a deber (si método de pago es 'deuda', no contar)
+                            if ($metodoPagoBono !== 'deuda') {
+                                $precioBonoPagado = $bono->precio_pagado ?? 0;
+                                
+                                // Sumar al total general
+                                $cajasDiarias[$fechaCobro]['total'] += $precioBonoPagado;
+                                
+                                // Sumar al método específico del bono
+                                if ($metodoPagoBono === 'efectivo') {
+                                    $cajasDiarias[$fechaCobro]['efectivo'] += $precioBonoPagado;
+                                } elseif ($metodoPagoBono === 'tarjeta') {
+                                    $cajasDiarias[$fechaCobro]['tarjeta'] += $precioBonoPagado;
+                                } elseif ($metodoPagoBono === 'mixto') {
+                                    // Para bonos con pago mixto, distribuir proporcionalmente
+                                    // (esto es raro pero puede pasar)
+                                    $cajasDiarias[$fechaCobro]['efectivo'] += $precioBonoPagado / 2;
+                                    $cajasDiarias[$fechaCobro]['tarjeta'] += $precioBonoPagado / 2;
+                                }
                             }
-                            // Si el bono se pagó con deuda, se suma más adelante cuando se pague la deuda
+                            // Si el bono se pagó con deuda, NO se suma (se sumará cuando se pague la deuda)
                         }
                     }
                 }
@@ -165,8 +174,16 @@ class FacturacionController extends Controller
                 $proporcionServicios = $costoServiciosCobro / $costoTotalCobro;
                 $proporcionProductos = $costoProductosCobro / $costoTotalCobro;
                 
-                // Usar el total real facturado = lo que pagó + lo que debe
-                $totalFacturadoCobro = $cobro->total_final + $cobro->deuda;
+                // COMPATIBLE con registros antiguos y nuevos:
+                // - Nuevos registros: dinero_cliente tiene lo cobrado, deuda tiene lo pendiente
+                // - Registros antiguos: total_final tenía todo, usar ese valor
+                if ($cobro->dinero_cliente !== null) {
+                    // Registro nuevo: total facturado = dinero cobrado + deuda pendiente
+                    $totalFacturadoCobro = $cobro->dinero_cliente + $cobro->deuda;
+                } else {
+                    // Registro antiguo: total_final ya incluía todo
+                    $totalFacturadoCobro = $cobro->total_final;
+                }
                 $totalServiciosCobro = $totalFacturadoCobro * $proporcionServicios;
                 $totalProductosCobro = $totalFacturadoCobro * $proporcionProductos;
                 

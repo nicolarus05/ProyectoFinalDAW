@@ -76,8 +76,9 @@
                         <th class="p-2 border">Coste</th>
                         <th class="p-2 border">Desc. %</th>
                         <th class="p-2 border">Desc. €</th>
-                        <th class="p-2 border">Total Final</th>
+                        <th class="p-2 border">Total Facturado</th>
                         <th class="p-2 border">Dinero Cliente</th>
+                        <th class="p-2 border">Deuda</th>
                         <th class="p-2 border">Cambio</th>
                         <th class="p-2 border">Método Pago</th>
                         <th class="p-2 border">Acciones</th>
@@ -181,14 +182,29 @@
                             <td class="p-2 border">{{ $cobro->descuento_porcentaje ?? 0 }}%</td>
                             <td class="p-2 border">{{ number_format($cobro->descuento_euro ?? 0, 2) }} €</td>
                             <td class="p-2 border font-semibold">
-                                {{ number_format($cobro->total_final + ($cobro->total_bonos_vendidos ?? 0), 2) }} €
-                                @if(($cobro->total_bonos_vendidos ?? 0) > 0)
-                                    <div class="text-xs text-gray-600 mt-1">
-                                        (Servicios: €{{ number_format($cobro->total_final, 2) }} + Bono: €{{ number_format($cobro->total_bonos_vendidos, 2) }})
-                                    </div>
-                                @endif
+                                @php
+                                    // Total facturado = total_final (lo que se cobró sin deuda)
+                                    $totalCobrado = $cobro->total_final;
+                                @endphp
+                                {{ number_format($totalCobrado, 2) }} €
                             </td>
-                            <td class="p-2 border">{{ number_format($cobro->dinero_cliente, 2) }} €</td>
+                            <td class="p-2 border">{{ number_format($cobro->total_final, 2) }} €</td>
+                            <td class="p-2 border {{ ($cobro->deuda ?? 0) > 0 ? 'bg-red-100 text-red-700 font-semibold' : '' }}">
+                                @php
+                                    // Calcular deuda total: deuda de servicios + deuda de bonos
+                                    $deudaTotal = $cobro->deuda ?? 0;
+                                    // Sumar deuda de bonos vendidos en este cobro
+                                    if ($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0) {
+                                        foreach ($cobro->bonosVendidos as $bono) {
+                                            $precioTotalBono = $bono->pivot->precio ?? 0;
+                                            $precioPagadoBono = $bono->precio_pagado ?? 0;
+                                            $deudaBono = max(0, $precioTotalBono - $precioPagadoBono);
+                                            $deudaTotal += $deudaBono;
+                                        }
+                                    }
+                                @endphp
+                                {{ number_format($deudaTotal, 2) }} €
+                            </td>
                             <td class="p-2 border">{{ number_format($cobro->cambio, 2) }} €</td>
                             <td class="p-2 border capitalize">
                                 @if($cobro->metodo_pago === 'mixto')
@@ -230,48 +246,122 @@
                     <tr>
                         <td colspan="8" class="p-3 text-right border">TOTALES DEL DÍA:</td>
                         <td class="p-3 border text-center text-green-700 text-lg">
-                            {{ number_format($cobros->sum('total_final') + $cobros->sum('total_bonos_vendidos'), 2) }} €
-                        </td>
-                        <td colspan="4" class="p-3 border text-sm">
                             @php
-                                // Calcular efectivo: servicios/productos + bonos vendidos en efectivo
-                                $totalEfectivo = $cobros->where('metodo_pago', 'efectivo')->sum(function($c) {
-                                    return $c->total_final + ($c->total_bonos_vendidos ?? 0);
-                                }) + $cobros->where('metodo_pago', 'mixto')->sum('pago_efectivo');
-                                
-                                // Para mixtos, distribuir bonos proporcionalmente
-                                foreach($cobros->where('metodo_pago', 'mixto') as $cobro) {
-                                    $totalBonos = $cobro->total_bonos_vendidos ?? 0;
-                                    if ($totalBonos > 0) {
-                                        $efectivo = $cobro->pago_efectivo ?? 0;
-                                        $tarjeta = $cobro->pago_tarjeta ?? 0;
-                                        $totalPagado = $efectivo + $tarjeta;
-                                        if ($totalPagado > 0) {
-                                            $totalEfectivo += $totalBonos * ($efectivo / $totalPagado);
+                                // Total facturado = solo lo que se cobró (total_final)
+                                $totalFacturadoDia = $cobros->sum('total_final');
+                            @endphp
+                            {{ number_format($totalFacturadoDia, 2) }} €
+                            <div class="text-xs text-gray-600 mt-1">
+                                (Total Facturado)
+                            </div>
+                        </td>
+                        <td class="p-3 border text-center">
+                            @php
+                                // Deuda total = deuda de servicios + deuda de bonos
+                                $totalDeudaDia = $cobros->sum('deuda');
+                                // Sumar deuda de bonos
+                                foreach($cobros as $cobro) {
+                                    if ($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0) {
+                                        foreach ($cobro->bonosVendidos as $bono) {
+                                            $precioTotalBono = $bono->pivot->precio ?? 0;
+                                            $precioPagadoBono = $bono->precio_pagado ?? 0;
+                                            $deudaBono = max(0, $precioTotalBono - $precioPagadoBono);
+                                            $totalDeudaDia += $deudaBono;
                                         }
                                     }
                                 }
+                            @endphp
+                            <div class="text-red-700 text-base">
+                                {{ number_format($totalDeudaDia, 2) }} €
+                            </div>
+                            <div class="text-xs text-gray-600">
+                                (Deuda)
+                            </div>
+                        </td>
+                        <td colspan="3" class="p-3 border text-sm">
+                            @php
+                                // Calcular efectivo: solo lo cobrado en efectivo (servicios + bonos pagados)
+                                $totalEfectivo = 0;
+                                $totalTarjeta = 0;
+                                $totalBonosPago = 0;
                                 
-                                // Calcular tarjeta: servicios/productos + bonos vendidos en tarjeta
-                                $totalTarjeta = $cobros->where('metodo_pago', 'tarjeta')->sum(function($c) {
-                                    return $c->total_final + ($c->total_bonos_vendidos ?? 0);
-                                }) + $cobros->where('metodo_pago', 'mixto')->sum('pago_tarjeta');
-                                
-                                // Para mixtos, distribuir bonos proporcionalmente
-                                foreach($cobros->where('metodo_pago', 'mixto') as $cobro) {
-                                    $totalBonos = $cobro->total_bonos_vendidos ?? 0;
-                                    if ($totalBonos > 0) {
-                                        $efectivo = $cobro->pago_efectivo ?? 0;
-                                        $tarjeta = $cobro->pago_tarjeta ?? 0;
-                                        $totalPagado = $efectivo + $tarjeta;
-                                        if ($totalPagado > 0) {
-                                            $totalTarjeta += $totalBonos * ($tarjeta / $totalPagado);
+                                foreach($cobros as $cobro) {
+                                    if ($cobro->metodo_pago === 'efectivo') {
+                                        // Sumar lo cobrado de servicios
+                                        $totalEfectivo += $cobro->total_final;
+                                        // Sumar bonos pagados en efectivo
+                                        if ($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0) {
+                                            foreach ($cobro->bonosVendidos as $bono) {
+                                                if ($bono->metodo_pago === 'efectivo') {
+                                                    $totalEfectivo += $bono->precio_pagado ?? 0;
+                                                }
+                                            }
                                         }
+                                    } elseif ($cobro->metodo_pago === 'tarjeta') {
+                                        // Sumar lo cobrado de servicios
+                                        $totalTarjeta += $cobro->total_final;
+                                        // Sumar bonos pagados en tarjeta
+                                        if ($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0) {
+                                            foreach ($cobro->bonosVendidos as $bono) {
+                                                if ($bono->metodo_pago === 'tarjeta') {
+                                                    $totalTarjeta += $bono->precio_pagado ?? 0;
+                                                }
+                                            }
+                                        }
+                                    } elseif ($cobro->metodo_pago === 'mixto') {
+                                        // Pago mixto: usar las cantidades específicas
+                                        $totalEfectivo += $cobro->pago_efectivo ?? 0;
+                                        $totalTarjeta += $cobro->pago_tarjeta ?? 0;
+                                    } elseif ($cobro->metodo_pago === 'bono') {
+                                        // Servicios pagados con bono
+                                        $totalBonosPago += $cobro->total_final;
                                     }
                                 }
+                            @endphp
+                            <div class="flex gap-4 justify-center">
+                                <span class="text-green-700">💵 Efectivo: €{{ number_format($totalEfectivo, 2) }}</span>
+                                <span class="text-blue-700">💳 Tarjeta: €{{ number_format($totalTarjeta, 2) }}</span>
+                                <span class="text-purple-700">🎫 Bonos: €{{ number_format($totalBonosPago, 2) }}</span>
+                            </div>
+                        </td></td>
+                            @php
+                                // Calcular efectivo: solo lo cobrado en efectivo (servicios + bonos pagados)
+                                $totalEfectivo = 0;
+                                $totalTarjeta = 0;
+                                $totalBonosPago = 0;
                                 
-                                // Calcular bonos usados como método de pago (no vendidos)
-                                $totalBonosPago = $cobros->where('metodo_pago', 'bono')->sum('total_final');
+                                foreach($cobros as $cobro) {
+                                    if ($cobro->metodo_pago === 'efectivo') {
+                                        // Sumar lo cobrado de servicios
+                                        $totalEfectivo += $cobro->total_final;
+                                        // Sumar bonos pagados en efectivo
+                                        if ($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0) {
+                                            foreach ($cobro->bonosVendidos as $bono) {
+                                                if ($bono->metodo_pago === 'efectivo') {
+                                                    $totalEfectivo += $bono->precio_pagado ?? 0;
+                                                }
+                                            }
+                                        }
+                                    } elseif ($cobro->metodo_pago === 'tarjeta') {
+                                        // Sumar lo cobrado de servicios
+                                        $totalTarjeta += $cobro->total_final;
+                                        // Sumar bonos pagados en tarjeta
+                                        if ($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0) {
+                                            foreach ($cobro->bonosVendidos as $bono) {
+                                                if ($bono->metodo_pago === 'tarjeta') {
+                                                    $totalTarjeta += $bono->precio_pagado ?? 0;
+                                                }
+                                            }
+                                        }
+                                    } elseif ($cobro->metodo_pago === 'mixto') {
+                                        // Pago mixto: usar las cantidades específicas
+                                        $totalEfectivo += $cobro->pago_efectivo ?? 0;
+                                        $totalTarjeta += $cobro->pago_tarjeta ?? 0;
+                                    } elseif ($cobro->metodo_pago === 'bono') {
+                                        // Servicios pagados con bono
+                                        $totalBonosPago += $cobro->total_final;
+                                    }
+                                }
                             @endphp
                             <div class="flex gap-4 justify-center">
                                 <span class="text-green-700">💵 Efectivo: €{{ number_format($totalEfectivo, 2) }}</span>

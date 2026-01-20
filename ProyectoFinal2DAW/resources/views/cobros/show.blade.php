@@ -94,9 +94,19 @@
                 <span>{{ $cobro->descuento_euro ?? 0 }} €</span>
             </div>
             <div class="flex justify-between border-b pb-2">
-                <span class="font-semibold">Total Final:</span>
-                <span>{{ $cobro->total_final }} €</span>
+                <span class="font-semibold">Total Facturado:</span>
+                <span class="text-green-700 font-bold">{{ number_format($cobro->total_final + ($cobro->deuda ?? 0) + ($cobro->total_bonos_vendidos ?? 0), 2) }} €</span>
             </div>
+            <div class="flex justify-between border-b pb-2">
+                <span class="font-semibold">Total Cobrado:</span>
+                <span class="text-blue-700">{{ number_format($cobro->total_final + ($cobro->total_bonos_vendidos ?? 0), 2) }} €</span>
+            </div>
+            @if(($cobro->deuda ?? 0) > 0)
+            <div class="flex justify-between border-b pb-2">
+                <span class="font-semibold">Deuda:</span>
+                <span class="text-red-700 font-bold">{{ number_format($cobro->deuda, 2) }} €</span>
+            </div>
+            @endif
             <div class="flex justify-between border-b pb-2">
                 <span class="font-semibold">Dinero Cliente:</span>
                 <span>{{ $cobro->dinero_cliente }} €</span>

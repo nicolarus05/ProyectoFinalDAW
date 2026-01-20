@@ -46,7 +46,8 @@ class RegistroCobroController extends Controller{
             'servicios',
             'cliente.user',
             'empleado.user',
-            'productos'
+            'productos',
+            'bonosVendidos' // Cargar bonos vendidos para calcular deuda correctamente
         ])
         ->whereDate('created_at', $fecha)
         ->orderBy('created_at', 'desc')
@@ -639,36 +640,55 @@ class RegistroCobroController extends Controller{
 
         // --- SEPARAR BONOS VENDIDOS DEL TOTAL ---
         $totalBonosVendidos = 0;
-        $totalFinalServicios = $data['total_final'];
+        $totalFacturadoServicios = $data['total_final']; // Total facturado de servicios/productos
         
-        // Si se vendió un bono, su precio está incluido en total_final
+        // Si se vendió un bono, su precio está incluido en total_final del frontend
         // Debemos separarlo para tener el total real de servicios/productos
         if (!empty($data['bono_plantilla_id'])) {
             $bonoPlantilla = \App\Models\BonoPlantilla::find($data['bono_plantilla_id']);
             if ($bonoPlantilla) {
                 $totalBonosVendidos = $bonoPlantilla->precio;
                 // Restar el precio del bono del total_final para obtener solo servicios/productos
-                $totalFinalServicios = $data['total_final'] - $totalBonosVendidos;
+                $totalFacturadoServicios = $data['total_final'] - $totalBonosVendidos;
             }
         }
 
-        // --- Calcular deuda considerando solo servicios/productos ---
-        // La deuda del bono se manejará por separado al crear el BonoCliente
-        $deudaServicios = max(0, $totalFinalServicios - ($data['dinero_cliente'] ?? 0));
+        // --- Calcular cuánto dinero se pagó y cómo se distribuye ---
+        $dineroPagado = $data['dinero_cliente'] ?? 0;
         
-        // Si hay deuda en servicios y además se vendió un bono, todo el dinero va a servicios
-        // y el bono queda completamente a deber
-        $deudaBonos = 0;
-        if ($deudaServicios > 0 && $totalBonosVendidos > 0) {
-            // Si el dinero no alcanza ni para los servicios, el bono queda completamente a deber
-            $deudaBonos = $totalBonosVendidos;
-        } elseif ($totalBonosVendidos > 0) {
-            // Si el dinero cubre los servicios, ver cuánto queda para el bono
-            $dineroRestante = ($data['dinero_cliente'] ?? 0) - $totalFinalServicios;
-            $deudaBonos = max(0, $totalBonosVendidos - $dineroRestante);
+        // CASO 1: Si NO hay bono vendido, es simple
+        if ($totalBonosVendidos == 0) {
+            $deudaServicios = max(0, $totalFacturadoServicios - $dineroPagado);
+            // El total cobrado es simplemente el dinero que pagó el cliente (no puede ser más que lo facturado)
+            $totalCobradoServicios = min($dineroPagado, $totalFacturadoServicios);
+            $deudaBonos = 0;
+            $deuda = $deudaServicios;
         }
-        
-        $deuda = $deudaServicios + $deudaBonos;
+        // CASO 2: Si hay bono vendido, distribuir el dinero proporcionalmente
+        else {
+            $totalFacturadoCompleto = $totalFacturadoServicios + $totalBonosVendidos;
+            
+            if ($dineroPagado >= $totalFacturadoCompleto) {
+                // Caso 2A: Se pagó todo
+                $totalCobradoServicios = $totalFacturadoServicios;
+                $deudaServicios = 0;
+                $deudaBonos = 0;
+                $deuda = 0;
+            } else if ($dineroPagado == 0) {
+                // Caso 2B: No se pagó nada, todo queda a deber
+                $totalCobradoServicios = 0;
+                $deudaServicios = max(0, $totalFacturadoServicios); // Asegurar positivo
+                $deudaBonos = max(0, $totalBonosVendidos); // Asegurar positivo
+                $deuda = $deudaServicios + $deudaBonos;
+            } else {
+                // Caso 2C: Pago parcial, distribuir proporcionalmente
+                $proporcionServicios = $totalFacturadoCompleto > 0 ? $totalFacturadoServicios / $totalFacturadoCompleto : 0;
+                $totalCobradoServicios = max(0, $dineroPagado * $proporcionServicios);
+                $deudaServicios = max(0, $totalFacturadoServicios - $totalCobradoServicios);
+                $deudaBonos = max(0, $totalBonosVendidos - ($dineroPagado - $totalCobradoServicios));
+                $deuda = $deudaServicios + $deudaBonos;
+            }
+        }
 
         // --- Determinar id_empleado (nunca debe ser null) ---
         $empleadoId = $data['id_empleado'] ?? null;
@@ -785,7 +805,7 @@ class RegistroCobroController extends Controller{
             'descuento_servicios_euro' => $data['descuento_servicios_euro'] ?? 0,
             'descuento_productos_porcentaje' => $data['descuento_productos_porcentaje'] ?? 0,
             'descuento_productos_euro' => $data['descuento_productos_euro'] ?? 0,
-            'total_final' => $totalFinalServicios, // Solo servicios y productos (sin bonos vendidos)
+            'total_final' => $totalCobradoServicios, // SOLO lo que se cobró de servicios/productos (sin bonos, sin deuda)
             'total_bonos_vendidos' => $totalBonosVendidos, // Bonos vendidos separado
             'dinero_cliente' => $data['dinero_cliente'] ?? 0,
             'pago_efectivo' => $metodoPagoFinal === 'mixto' ? ($data['pago_efectivo'] ?? 0) : null,
@@ -794,7 +814,7 @@ class RegistroCobroController extends Controller{
             'metodo_pago' => $metodoPagoFinal, // Usar el método de pago determinado (puede ser 'bono' si todo fue cubierto)
             'id_cliente' => $clienteId,
             'id_empleado' => $empleadoId,
-            'deuda' => $deuda,
+            'deuda' => $deudaServicios, // SOLO la deuda de servicios/productos (la deuda de bonos se maneja en bonos_clientes)
         ]);
 
         // --- Vincular citas agrupadas si existen ---
@@ -831,8 +851,9 @@ class RegistroCobroController extends Controller{
                         // Calcular proporción de servicios del coste total
                         $proporcionServicios = $data['coste'] > 0 ? $costoTotalServicios / $data['coste'] : 1;
                         
-                        // Aplicar proporción al total_final MENOS productos (que ya tiene descuentos aplicados)
-                        $totalServiciosConDescuento = ($totalFinalServicios - $totalProductos) * $proporcionServicios;
+                        // Aplicar proporción al total facturado MENOS productos (que ya tiene descuentos aplicados)
+                        // Usar total facturado (incluyendo deuda) para cálculo proporcional
+                        $totalServiciosConDescuento = ($totalFacturadoServicios - $totalProductos) * $proporcionServicios;
                         
                         foreach ($cita->servicios as $servicio) {
                             // Calcular precio proporcional del servicio considerando descuentos
@@ -888,8 +909,9 @@ class RegistroCobroController extends Controller{
                     // Calcular proporción de servicios del coste total
                     $proporcionServicios = $data['coste'] > 0 ? $costoTotalTodosServicios / $data['coste'] : 1;
                     
-                    // Aplicar proporción al total_final MENOS productos (que ya tiene descuentos aplicados)
-                    $totalServiciosConDescuento = ($totalFinalServicios - $totalProductos) * $proporcionServicios;
+                    // Aplicar proporción al total facturado MENOS productos (que ya tiene descuentos aplicados)
+                    // Usar total facturado (incluyendo deuda) para cálculo proporcional
+                    $totalServiciosConDescuento = ($totalFacturadoServicios - $totalProductos) * $proporcionServicios;
                     
                     foreach ($citasAgrupadas as $citaGrupo) {
                         if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
@@ -922,14 +944,15 @@ class RegistroCobroController extends Controller{
             }
         }
 
-        // --- Si hay deuda, registrarla en el sistema de deudas ---
-        if ($deuda > 0 && $clienteId) {
+        // --- Si hay deuda de SERVICIOS, registrarla en el sistema de deudas ---
+        // NOTA: La deuda de bonos se registra por separado cuando se crea el BonoCliente
+        if ($deudaServicios > 0 && $clienteId) {
             $cliente = Cliente::find($clienteId);
             
             if ($cliente) {
                 $deudaCliente = $cliente->obtenerDeuda();
-                $nota = "Cobro #" . $cobro->id . (isset($data['id_cita']) && $data['id_cita'] ? " - Cita #" . $data['id_cita'] : " - Venta directa");
-                $deudaCliente->registrarCargo($deuda, $nota, null, $cobro->id);
+                $nota = "Cobro #" . $cobro->id . (isset($data['id_cita']) && $data['id_cita'] ? " - Cita #" . $data['id_cita'] : " - Venta directa") . " - Servicios/Productos";
+                $deudaCliente->registrarCargo($deudaServicios, $nota, null, $cobro->id);
             }
         }
 
@@ -942,6 +965,16 @@ class RegistroCobroController extends Controller{
                 // Calcular cuánto se pagó del bono
                 $dineroPagadoBono = max(0, $totalBonosVendidos - $deudaBonos);
                 
+                // Determinar el método de pago del bono
+                $metodoPagoBono = $data['metodo_pago'];
+                if ($deudaBonos >= $totalBonosVendidos) {
+                    // El bono queda completamente a deber
+                    $metodoPagoBono = 'deuda';
+                } elseif ($deudaBonos > 0) {
+                    // Pago parcial del bono (raro, pero posible)
+                    $metodoPagoBono = 'mixto';
+                }
+                
                 // Crear el bono del cliente
                 $bonoCliente = \App\Models\BonoCliente::create([
                     'cliente_id' => $clienteId,
@@ -949,12 +982,22 @@ class RegistroCobroController extends Controller{
                     'fecha_compra' => Carbon::now(),
                     'fecha_expiracion' => Carbon::now()->addDays($bonoPlantilla->duracion_dias),
                     'estado' => 'activo',
-                    'metodo_pago' => $deudaBonos > 0 ? 'deuda' : $data['metodo_pago'],
+                    'metodo_pago' => $metodoPagoBono,
                     'precio_pagado' => $dineroPagadoBono,
                     'dinero_cliente' => 0,
                     'cambio' => 0,
                     'id_empleado' => $empleadoId,
                 ]);
+                
+                // Si el bono tiene deuda, registrarla en el sistema de deudas
+                if ($deudaBonos > 0 && $clienteId) {
+                    $cliente = Cliente::find($clienteId);
+                    if ($cliente) {
+                        $deudaCliente = $cliente->obtenerDeuda();
+                        $nota = "Cobro #" . $cobro->id . " - Bono: " . $bonoPlantilla->nombre;
+                        $deudaCliente->registrarCargo($deudaBonos, $nota, null, $cobro->id);
+                    }
+                }
 
                 // Copiar servicios de la plantilla al bono del cliente
                 foreach ($bonoPlantilla->servicios as $servicio) {

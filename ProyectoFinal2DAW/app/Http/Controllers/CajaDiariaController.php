@@ -21,7 +21,10 @@ class CajaDiariaController extends Controller{
         
         // Obtenemos todos los cobros del día con TODAS las relaciones necesarias
         $cobrosDelDia = RegistroCobro::with([
-            'servicios',
+            'servicios.empleados', // Cargar empleados de cada servicio
+            'servicios' => function($query) {
+                $query->withPivot('empleado_id', 'precio'); // Incluir empleado_id y precio del pivot
+            },
             'productos',
             'cita.servicios',
             'citasAgrupadas.servicios',
@@ -32,9 +35,9 @@ class CajaDiariaController extends Controller{
         
         // Calculamos totales por método de pago considerando productos Y bonos vendidos
         foreach($cobrosDelDia as $cobro) {
-            // IMPORTANTE: total_final incluye servicios/productos pero NO los bonos vendidos
-            // Los bonos vendidos están en total_bonos_vendidos
-            $montoPagadoServicios = $cobro->total_final - $cobro->deuda;
+            // IMPORTANTE: total_final es el monto real cobrado (sin deuda)
+            // Para registros antiguos que no tienen dinero_cliente, usar total_final - deuda
+            $montoPagadoServicios = $cobro->total_final;
             
             // Sumar servicios/productos según método de pago del COBRO
             if ($cobro->metodo_pago === 'efectivo') {
@@ -98,7 +101,9 @@ class CajaDiariaController extends Controller{
             'citasAgrupadas.servicios',
             'citasAgrupadas.empleado.user',
             'citasAgrupadas.cliente.user',
-            'servicios',
+            'servicios' => function($query) {
+                $query->withPivot('empleado_id', 'precio'); // IMPORTANTE: cargar empleado_id y precio del pivot
+            },
             'productos'
         ])
             ->whereDate('created_at', $fecha)
@@ -127,8 +132,8 @@ class CajaDiariaController extends Controller{
             $metodoPago = $cobro->metodo_pago;
             $yaContados = false;
             
-            // Calcular el monto realmente pagado (sin incluir la deuda)
-            $montoPagado = $cobro->total_final - $cobro->deuda;
+            // Usar total_final que ya contiene el monto real cobrado (sin deuda)
+            $montoPagado = $cobro->total_final;
             
             // Para pagos mixtos, necesitamos distribuir entre categorías
             $montoEfectivo = $metodoPago === 'mixto' ? $cobro->pago_efectivo : ($metodoPago === 'efectivo' ? $montoPagado : 0);

@@ -544,7 +544,7 @@
 
         <!-- Servicios Realizados -->
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6 border border-gray-200 dark:border-gray-700">
-            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Servicios Realizados</h2>
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Servicios Realizados (Desglosado por Empleado)</h2>
             
             @if($detalleServicios->count() > 0)
                 <div class="overflow-x-auto">
@@ -553,120 +553,164 @@
                             <tr class="border-b border-gray-200 dark:border-gray-700">
                                 <th class="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Hora</th>
                                 <th class="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Cliente</th>
-                                <th class="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Servicios</th>
+                                <th class="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Servicio</th>
                                 <th class="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Empleado</th>
                                 <th class="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Método</th>
-                                <th class="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Total</th>
-                                <th class="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Deuda</th>
+                                <th class="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Precio Servicio</th>
+                                <th class="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Monto Pagado</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                             @foreach($detalleServicios as $item)
-                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                    <td class="py-3 px-4 font-medium text-gray-900 dark:text-gray-100">
+                                @php
+                                    // Obtener información común del cobro
+                                    $horaCita = null;
+                                    if ($item->cita && $item->cita->fecha_hora) {
+                                        $horaCita = \Carbon\Carbon::parse($item->cita->fecha_hora)->format('H:i');
+                                    } elseif ($item->citasAgrupadas && $item->citasAgrupadas->count() > 0) {
+                                        $primeraCita = $item->citasAgrupadas->first();
+                                        if ($primeraCita && $primeraCita->fecha_hora) {
+                                            $horaCita = \Carbon\Carbon::parse($primeraCita->fecha_hora)->format('H:i');
+                                        }
+                                    }
+                                    
+                                    $nombreCliente = '-';
+                                    if($item->cliente && $item->cliente->user) {
+                                        $nombreCliente = $item->cliente->user->nombre . ' ' . $item->cliente->user->apellidos;
+                                    } elseif($item->cita && $item->cita->cliente && $item->cita->cliente->user) {
+                                        $nombreCliente = $item->cita->cliente->user->nombre . ' ' . $item->cita->cliente->user->apellidos;
+                                    }
+                                    
+                                    // Usar total_final que ya es el monto cobrado (sin deuda)
+                                    $montoPagado = $item->total_final;
+                                    
+                                    // Variable para controlar si se mostraron filas
+                                    $filasMostradas = false;
+                                @endphp
+                                
+                                {{-- PRIORIDAD 1: Servicios directos del cobro con empleado en pivot --}}
+                                @if($item->servicios && $item->servicios->count() > 0)
+                                    @foreach($item->servicios as $servicio)
                                         @php
-                                            $horaCita = null;
-                                            if ($item->cita && $item->cita->fecha_hora) {
-                                                $horaCita = \Carbon\Carbon::parse($item->cita->fecha_hora)->format('H:i');
-                                            } elseif ($item->citasAgrupadas && $item->citasAgrupadas->count() > 0) {
-                                                $primeraCita = $item->citasAgrupadas->first();
-                                                if ($primeraCita && $primeraCita->fecha_hora) {
-                                                    $horaCita = \Carbon\Carbon::parse($primeraCita->fecha_hora)->format('H:i');
+                                            // Obtener empleado del pivot
+                                            $empleadoId = $servicio->pivot->empleado_id ?? null;
+                                            $empleadoNombre = '-';
+                                            
+                                            if($empleadoId) {
+                                                $empleado = \App\Models\Empleado::with('user')->find($empleadoId);
+                                                if($empleado && $empleado->user) {
+                                                    $empleadoNombre = $empleado->user->nombre;
                                                 }
                                             }
+                                            
+                                            // Obtener precio del servicio desde el pivot
+                                            $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
+                                            
+                                            // Calcular proporción del dinero pagado para este servicio
+                                            $proporcion = $item->coste > 0 ? ($precioServicio / $item->coste) : 0;
+                                            $montoPagadoServicio = $montoPagado * $proporcion;
+                                            
+                                            $filasMostradas = true;
                                         @endphp
-                                        {{ $horaCita ?? '-' }}
-                                    </td>
-                                    <td class="py-3 px-4 text-gray-700 dark:text-gray-300">
-                                        @if($item->cliente && $item->cliente->user)
-                                            {{ $item->cliente->user->nombre }} {{ $item->cliente->user->apellidos }}
-                                        @elseif($item->cita && $item->cita->cliente && $item->cita->cliente->user)
-                                            {{ $item->cita->cliente->user->nombre }} {{ $item->cita->cliente->user->apellidos }}
-                                        @else
-                                            -
-                                        @endif
-                                    </td>
-                                    <td class="py-3 px-4">
+                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                            <td class="py-3 px-4 font-medium text-gray-900 dark:text-gray-100">{{ $horaCita ?? '-' }}</td>
+                                            <td class="py-3 px-4 text-gray-700 dark:text-gray-300">{{ $nombreCliente }}</td>
+                                            <td class="py-3 px-4">
+                                                @if($servicio->categoria === 'peluqueria')
+                                                    <span class="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded text-xs">💇 {{ $servicio->nombre }}</span>
+                                                @elseif($servicio->categoria === 'estetica')
+                                                    <span class="inline-flex items-center px-2 py-1 bg-pink-100 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300 rounded text-xs">💅 {{ $servicio->nombre }}</span>
+                                                @endif
+                                            </td>
+                                            <td class="py-3 px-4 text-gray-700 dark:text-gray-300 font-semibold">{{ $empleadoNombre }}</td>
+                                            <td class="py-3 px-4">
+                                                @if($item->metodo_pago === 'efectivo')
+                                                    <span class="inline-flex items-center px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">💵 Efectivo</span>
+                                                @elseif($item->metodo_pago === 'tarjeta')
+                                                    <span class="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full text-xs font-semibold">💳 Tarjeta</span>
+                                                @elseif($item->metodo_pago === 'bono')
+                                                    <span class="inline-flex items-center px-2 py-1 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded-full text-xs font-semibold">🎫 Bono</span>
+                                                @elseif($item->metodo_pago === 'mixto')
+                                                    <span class="inline-flex items-center px-2 py-1 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-semibold">💳💵 Mixto</span>
+                                                @endif
+                                            </td>
+                                            <td class="py-3 px-4 text-right text-gray-700 dark:text-gray-300">€{{ number_format($precioServicio, 2) }}</td>
+                                            <td class="py-3 px-4 text-right font-bold text-green-600 dark:text-green-400">€{{ number_format($montoPagadoServicio, 2) }}</td>
+                                        </tr>
+                                    @endforeach
+                                @endif
+                                
+                                {{-- Si hay productos, mostrarlos también --}}
+                                @if($item->productos && $item->productos->count() > 0)
+                                    @foreach($item->productos as $producto)
                                         @php
-                                            $serviciosMostrados = false;
-                                            $yaContados = false;
-                                            
-                                            // Prioridad 1: Servicios adjuntos al cobro
-                                            if ($item->servicios && $item->servicios->count() > 0) {
-                                                foreach($item->servicios as $servicio) {
-                                                    if($servicio->categoria === 'peluqueria') {
-                                                        echo '<span class="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded text-xs mr-1 mb-1">💇 ' . $servicio->nombre . '</span>';
-                                                    } elseif($servicio->categoria === 'estetica') {
-                                                        echo '<span class="inline-flex items-center px-2 py-1 bg-pink-100 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300 rounded text-xs mr-1 mb-1">💅 ' . $servicio->nombre . '</span>';
-                                                    }
-                                                    $serviciosMostrados = true;
-                                                }
-                                                $yaContados = true;
-                                            }
-                                            
-                                            // Prioridad 2: Cita original (Fallback)
-                                            if (!$yaContados && $item->cita && $item->cita->servicios && $item->cita->servicios->count() > 0) {
-                                                foreach($item->cita->servicios as $servicio) {
-                                                    if($servicio->categoria === 'peluqueria') {
-                                                        echo '<span class="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded text-xs mr-1 mb-1">💇 ' . $servicio->nombre . '</span>';
-                                                    } elseif($servicio->categoria === 'estetica') {
-                                                        echo '<span class="inline-flex items-center px-2 py-1 bg-pink-100 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300 rounded text-xs mr-1 mb-1">💅 ' . $servicio->nombre . '</span>';
-                                                    }
-                                                    $serviciosMostrados = true;
-                                                }
-                                                $yaContados = true;
-                                            }
-                                            
-                                            // Prioridad 3: Citas agrupadas (Fallback)
-                                            if (!$yaContados && $item->citasAgrupadas && $item->citasAgrupadas->count() > 0) {
-                                                foreach($item->citasAgrupadas as $citaGrupo) {
-                                                    if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
-                                                        foreach($citaGrupo->servicios as $servicio) {
-                                                            if($servicio->categoria === 'peluqueria') {
-                                                                echo '<span class="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded text-xs mr-1 mb-1">💇 ' . $servicio->nombre . '</span>';
-                                                            } elseif($servicio->categoria === 'estetica') {
-                                                                echo '<span class="inline-flex items-center px-2 py-1 bg-pink-100 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300 rounded text-xs mr-1 mb-1">💅 ' . $servicio->nombre . '</span>';
-                                                            }
-                                                            $serviciosMostrados = true;
-                                                        }
-                                                    }
-                                                }
-                                                $yaContados = true;
-                                            }
-                                            
-                                            if ($item->productos && $item->productos->count() > 0) {
-                                                foreach($item->productos as $producto) {
-                                                    echo '<span class="inline-flex items-center px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded text-xs mr-1 mb-1">🛍️ ' . $producto->nombre . ' (x' . $producto->pivot->cantidad . ')</span>';
-                                                    $serviciosMostrados = true;
-                                                }
-                                            }
-                                            
-                                            if (!$serviciosMostrados) {
-                                                echo '<span class="text-gray-400 dark:text-gray-500">-</span>';
-                                            }
+                                            $subtotalProducto = $producto->pivot->subtotal ?? 0;
+                                            $proporcion = $item->coste > 0 ? ($subtotalProducto / $item->coste) : 0;
+                                            $montoPagadoProducto = $montoPagado * $proporcion;
+                                            $filasMostradas = true;
                                         @endphp
-                                    </td>
-                                    <td class="py-3 px-4 text-gray-700 dark:text-gray-300">
-                                        @if($item->empleado && $item->empleado->user)
-                                            {{ $item->empleado->user->nombre }}
-                                        @elseif($item->cita && $item->cita->empleado && $item->cita->empleado->user)
-                                            {{ $item->cita->empleado->user->nombre }}
-                                        @else
-                                            -
-                                        @endif
-                                    </td>
-                                    <td class="py-3 px-4">
-                                        @if($item->metodo_pago === 'efectivo')
-                                            <span class="inline-flex items-center px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">💵 Efectivo</span>
-                                        @elseif($item->metodo_pago === 'tarjeta')
-                                            <span class="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full text-xs font-semibold">💳 Tarjeta</span>
-                                        @elseif($item->metodo_pago === 'bono')
-                                            <span class="inline-flex items-center px-2 py-1 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded-full text-xs font-semibold">🎫 Bono</span>
-                                        @endif
-                                    </td>
-                                    <td class="py-3 px-4 text-right font-bold text-green-600 dark:text-green-400">€{{ number_format($item->total_final, 2) }}</td>
-                                    <td class="py-3 px-4 text-right font-bold {{ $item->deuda > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400 dark:text-gray-500' }}">€{{ number_format($item->deuda ?? 0, 2) }}</td>
-                                </tr>
+                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                            <td class="py-3 px-4 font-medium text-gray-900 dark:text-gray-100">{{ $horaCita ?? '-' }}</td>
+                                            <td class="py-3 px-4 text-gray-700 dark:text-gray-300">{{ $nombreCliente }}</td>
+                                            <td class="py-3 px-4">
+                                                <span class="inline-flex items-center px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded text-xs">🛍️ {{ $producto->nombre }} (x{{ $producto->pivot->cantidad }})</span>
+                                            </td>
+                                            <td class="py-3 px-4 text-gray-700 dark:text-gray-300">
+                                                @if($item->empleado && $item->empleado->user)
+                                                    {{ $item->empleado->user->nombre }}
+                                                @else
+                                                    -
+                                                @endif
+                                            </td>
+                                            <td class="py-3 px-4">
+                                                @if($item->metodo_pago === 'efectivo')
+                                                    <span class="inline-flex items-center px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">💵 Efectivo</span>
+                                                @elseif($item->metodo_pago === 'tarjeta')
+                                                    <span class="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full text-xs font-semibold">💳 Tarjeta</span>
+                                                @endif
+                                            </td>
+                                            <td class="py-3 px-4 text-right text-gray-700 dark:text-gray-300">€{{ number_format($subtotalProducto, 2) }}</td>
+                                            <td class="py-3 px-4 text-right font-bold text-green-600 dark:text-green-400">€{{ number_format($montoPagadoProducto, 2) }}</td>
+                                        </tr>
+                                    @endforeach
+                                @endif
+                                
+                                {{-- FALLBACK: Si no hay servicios directos, mostrar los de la cita (datos antiguos) --}}
+                                @if(!$filasMostradas && $item->cita && $item->cita->servicios && $item->cita->servicios->count() > 0)
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                        <td class="py-3 px-4 font-medium text-gray-900 dark:text-gray-100">{{ $horaCita ?? '-' }}</td>
+                                        <td class="py-3 px-4 text-gray-700 dark:text-gray-300">{{ $nombreCliente }}</td>
+                                        <td class="py-3 px-4">
+                                            @foreach($item->cita->servicios as $servicio)
+                                                @if($servicio->categoria === 'peluqueria')
+                                                    <span class="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded text-xs mr-1 mb-1">💇 {{ $servicio->nombre }}</span>
+                                                @elseif($servicio->categoria === 'estetica')
+                                                    <span class="inline-flex items-center px-2 py-1 bg-pink-100 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300 rounded text-xs mr-1 mb-1">💅 {{ $servicio->nombre }}</span>
+                                                @endif
+                                            @endforeach
+                                        </td>
+                                        <td class="py-3 px-4 text-gray-700 dark:text-gray-300">
+                                            @if($item->cita && $item->cita->empleado && $item->cita->empleado->user)
+                                                {{ $item->cita->empleado->user->nombre }}
+                                            @elseif($item->empleado && $item->empleado->user)
+                                                {{ $item->empleado->user->nombre }}
+                                            @else
+                                                -
+                                            @endif
+                                        </td>
+                                        <td class="py-3 px-4">
+                                            @if($item->metodo_pago === 'efectivo')
+                                                <span class="inline-flex items-center px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">💵 Efectivo</span>
+                                            @elseif($item->metodo_pago === 'tarjeta')
+                                                <span class="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full text-xs font-semibold">💳 Tarjeta</span>
+                                            @elseif($item->metodo_pago === 'bono')
+                                                <span class="inline-flex items-center px-2 py-1 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded-full text-xs font-semibold">🎫 Bono</span>
+                                            @endif
+                                        </td>
+                                        <td class="py-3 px-4 text-right text-gray-700 dark:text-gray-300">€{{ number_format($item->total_final, 2) }}</td>
+                                        <td class="py-3 px-4 text-right font-bold text-green-600 dark:text-green-400">€{{ number_format($montoPagado, 2) }}</td>
+                                    </tr>
+                                @endif
                             @endforeach
                         </tbody>
                     </table>
