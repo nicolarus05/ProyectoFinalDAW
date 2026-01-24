@@ -66,7 +66,7 @@ class RegistroCobro extends Model {
             'id_registro_cobro',
             'id_producto'
         )
-        ->withPivot(['cantidad','precio_unitario','subtotal'])
+        ->withPivot(['cantidad','precio_unitario','subtotal','empleado_id'])
         ->withTimestamps();
     }
 

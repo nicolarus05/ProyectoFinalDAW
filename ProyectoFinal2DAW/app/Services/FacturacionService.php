@@ -8,20 +8,52 @@ class FacturacionService
 {
     /**
      * Desglosa un cobro por empleado aplicando descuentos proporcionalmente
+     * LÓGICA: 
+     * - Solo facturar servicios/productos con precio > 0 en el pivot
+     * - Si hay descuento (total_final < suma_pivot), aplicar factor proporcional
+     * - Factor = total_final / suma_pivot_total
      */
     public function desglosarCobroPorEmpleado(RegistroCobro $cobro): array
     {
         $resultado = [];
 
+        // Calcular suma total de servicios y productos desde pivot
+        $sumaPivotServicios = 0;
+        $sumaPivotProductos = 0;
+        
+        if ($cobro->servicios) {
+            foreach ($cobro->servicios as $servicio) {
+                if ($servicio->pivot->precio > 0) {
+                    $sumaPivotServicios += $servicio->pivot->precio;
+                }
+            }
+        }
+        
+        if ($cobro->productos) {
+            foreach ($cobro->productos as $producto) {
+                $sumaPivotProductos += $producto->pivot->subtotal;
+            }
+        }
+        
+        $sumaPivotTotal = $sumaPivotServicios + $sumaPivotProductos;
+        
+        // Calcular factor de ajuste si hay descuento
+        // Si total_final < suma_pivot, hay descuento aplicado
+        $factorAjuste = 1.0;
+        if ($sumaPivotTotal > 0 && $cobro->total_final < $sumaPivotTotal - 0.01) {
+            $factorAjuste = $cobro->total_final / $sumaPivotTotal;
+        }
+
         /*
         |--------------------------------------------------------------------------
-        | SERVICIOS - Precios exactos sin descuentos proporcionados
-        | Excluir servicios pagados con bono (precio = 0 en pivot)
+        | SERVICIOS - Con ajuste proporcional por descuento
+        | Los servicios en deuda NO están en el pivot
+        | Los servicios pagados con bono tienen precio = 0 (no facturar)
         |--------------------------------------------------------------------------
         */
         if ($cobro->servicios) {
             foreach ($cobro->servicios as $servicio) {
-                // Solo facturar servicios con precio > 0 (excluir los pagados con bono)
+                // Solo facturar servicios con precio > 0
                 if ($servicio->pivot->precio > 0) {
                     $empleadoId = $servicio->pivot->empleado_id;
 
@@ -29,43 +61,60 @@ class FacturacionService
                         $resultado[$empleadoId] = $this->estructuraBase();
                     }
 
-                    $resultado[$empleadoId]['servicios'] += $servicio->pivot->precio;
+                    // Aplicar factor de ajuste si hay descuento
+                    $precioAjustado = $servicio->pivot->precio * $factorAjuste;
+                    $resultado[$empleadoId]['servicios'] += $precioAjustado;
                 }
             }
         }
 
         /*
         |--------------------------------------------------------------------------
-        | PRODUCTOS - Precios exactos asignados al empleado que cobra
+        | PRODUCTOS - Con ajuste proporcional por descuento
+        | Los productos en deuda NO están en el pivot
         |--------------------------------------------------------------------------
         */
         if ($cobro->productos) {
             foreach ($cobro->productos as $producto) {
-                $empleadoId = $cobro->id_empleado;
+                // Si el pivot tiene empleado_id, usar ese; si no, usar el empleado del cobro
+                $empleadoId = $producto->pivot->empleado_id ?? $cobro->id_empleado;
 
                 if (!isset($resultado[$empleadoId])) {
                     $resultado[$empleadoId] = $this->estructuraBase();
                 }
 
-                $resultado[$empleadoId]['productos'] += $producto->pivot->subtotal;
+                // Aplicar factor de ajuste si hay descuento
+                $precioAjustado = $producto->pivot->subtotal * $factorAjuste;
+                $resultado[$empleadoId]['productos'] += $precioAjustado;
             }
         }
 
         /*
         |--------------------------------------------------------------------------
         | BONOS VENDIDOS - Asignados al empleado que cobra
+        | IMPORTANTE: Solo se contabilizan los bonos que se cobraron
+        | Si el bono está en deuda (dinero_cliente < total_bonos_vendidos), NO se factura
         |--------------------------------------------------------------------------
         */
         if ($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0) {
-            $empleadoId = $cobro->id_empleado;
+            // Verificar que el cliente pagó los bonos (no están en deuda)
+            // Solo facturar bonos si: dinero_cliente >= (total_final + total_bonos_vendidos)
+            $totalCobrado = $cobro->total_final + ($cobro->total_bonos_vendidos ?? 0);
+            $dineroRecibido = $cobro->dinero_cliente ?? 0;
+            
+            // Si el dinero recibido cubre el total (servicios/productos + bonos), facturar bonos
+            if ($dineroRecibido >= $totalCobrado - 0.01) {
+                $empleadoId = $cobro->id_empleado;
 
-            if (!isset($resultado[$empleadoId])) {
-                $resultado[$empleadoId] = $this->estructuraBase();
-            }
+                if (!isset($resultado[$empleadoId])) {
+                    $resultado[$empleadoId] = $this->estructuraBase();
+                }
 
-            foreach ($cobro->bonosVendidos as $bono) {
-                $resultado[$empleadoId]['bonos'] += $bono->pivot->precio;
+                foreach ($cobro->bonosVendidos as $bono) {
+                    $resultado[$empleadoId]['bonos'] += $bono->pivot->precio;
+                }
             }
+            // Si hay deuda, los bonos NO se facturan hasta que se cobre la deuda
         }
 
         /*

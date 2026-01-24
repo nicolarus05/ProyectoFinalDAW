@@ -1155,6 +1155,7 @@ class RegistroCobroController extends Controller{
                     $cantidad = (int) $p['cantidad'];
                     $precio = (float) $p['precio'];
                     $subtotal = $cantidad * $precio;
+                    $empleadoIdProducto = isset($p['empleado_id']) && $p['empleado_id'] ? (int) $p['empleado_id'] : null;
 
                     $producto = Productos::find($p['id']);
                     
@@ -1177,11 +1178,12 @@ class RegistroCobroController extends Controller{
                     $producto->stock -= $cantidad;
                     $producto->save();
 
-                    // Asociar el producto al cobro
+                    // Asociar el producto al cobro con el empleado
                     $cobro->productos()->attach($p['id'], [
                         'cantidad' => $cantidad,
                         'precio_unitario' => $precio,
                         'subtotal' => $subtotal,
+                        'empleado_id' => $empleadoIdProducto,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
@@ -1212,6 +1214,7 @@ class RegistroCobroController extends Controller{
                 $cantidad = (int) $p['cantidad'];
                 $precio = (float) $p['precio_venta'];
                 $subtotal = $cantidad * $precio;
+                $empleadoIdProducto = isset($p['empleado_id']) && $p['empleado_id'] ? (int) $p['empleado_id'] : $empleadoId;
 
                 // Obtener el producto para actualizar el stock
                 $producto = Productos::find($p['id']);
@@ -1240,6 +1243,7 @@ class RegistroCobroController extends Controller{
                     'cantidad' => $cantidad,
                     'precio_unitario' => $precio,
                     'subtotal' => $subtotal,
+                    'empleado_id' => $empleadoIdProducto,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);

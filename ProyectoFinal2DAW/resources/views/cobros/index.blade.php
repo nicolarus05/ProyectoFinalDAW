@@ -363,11 +363,6 @@
                                     }
                                 }
                             @endphp
-                            <div class="flex gap-4 justify-center">
-                                <span class="text-green-700">💵 Efectivo: €{{ number_format($totalEfectivo, 2) }}</span>
-                                <span class="text-blue-700">💳 Tarjeta: €{{ number_format($totalTarjeta, 2) }}</span>
-                                <span class="text-purple-700">🎫 Bonos: €{{ number_format($totalBonosPago, 2) }}</span>
-                            </div>
                         </td>
                     </tr>
                 </tfoot>

@@ -367,6 +367,7 @@
                     <thead class="bg-gray-200">
                         <tr>
                             <th class="p-2 text-left">Producto</th>
+                            <th class="p-2 text-left">Empleado</th>
                             <th class="p-2 text-center">Cantidad</th>
                             <th class="p-2 text-right">Precio unit.</th>
                             <th class="p-2 text-right">Subtotal</th>
@@ -378,7 +379,7 @@
                     </tbody>
                     <tfoot>
                         <tr class="border-t-2 border-gray-300">
-                            <td colspan="3" class="p-2 text-right font-semibold">Total productos:</td>
+                            <td colspan="4" class="p-2 text-right font-semibold">Total productos:</td>
                             <td id="products-total" class="p-2 text-right font-semibold">€0.00</td>
                             <td></td>
                         </tr>
@@ -1336,12 +1337,16 @@ window.addProduct = function(id, nombre, precio, stock) {
         return;
     }
     
+    // Obtener empleado seleccionado (por defecto el empleado del cobro)
+    const empleadoSelect = document.getElementById('id_empleado');
+    const empleadoId = empleadoSelect.value ? parseInt(empleadoSelect.value) : null;
+    
     // Verificar si ya está añadido
     const existente = productosSeleccionados.find(p => p.id === id);
     if (existente) {
         existente.cantidad += cantidad;
     } else {
-        productosSeleccionados.push({ id, nombre, precio, cantidad });
+        productosSeleccionados.push({ id, nombre, precio, cantidad, empleado_id: empleadoId });
     }
     
     renderProductos();
@@ -1364,21 +1369,43 @@ window.updateProductQty = function(id, cantidad) {
     }
 }
 
+window.updateProductoEmpleado = function(index, empleadoId) {
+    if (productosSeleccionados[index]) {
+        productosSeleccionados[index].empleado_id = parseInt(empleadoId);
+        document.getElementById('productos_data').value = JSON.stringify(productosSeleccionados);
+    }
+}
+
 function renderProductos() {
     const tbody = document.getElementById('products-tbody');
     tbody.innerHTML = '';
     
     if (productosSeleccionados.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="p-2 text-center text-gray-500">No hay productos añadidos</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="p-2 text-center text-gray-500">No hay productos añadidos</td></tr>';
         return;
     }
     
-    productosSeleccionados.forEach(producto => {
+    productosSeleccionados.forEach((producto, index) => {
         const subtotal = producto.precio * producto.cantidad;
         const tr = document.createElement('tr');
         tr.className = 'border-b';
+        
+        // Crear select de empleados
+        const empleadosOptions = `
+            @foreach($empleados as $empleado)
+                <option value="{{ $empleado->id }}" ${producto.empleado_id == {{ $empleado->id }} ? 'selected' : ''}>
+                    {{ $empleado->user->nombre ?? '' }} {{ $empleado->user->apellidos ?? '' }}
+                </option>
+            @endforeach
+        `;
+        
         tr.innerHTML = `
             <td class="p-2">${producto.nombre}</td>
+            <td class="p-2">
+                <select onchange="updateProductoEmpleado(${index}, this.value)" class="w-full border rounded px-2 py-1 text-sm">
+                    ${empleadosOptions}
+                </select>
+            </td>
             <td class="p-2 text-center">
                 <input type="number" min="1" value="${producto.cantidad}" onchange="updateProductQty(${producto.id}, this.value)" class="w-16 border rounded px-2 py-1 text-center">
             </td>
