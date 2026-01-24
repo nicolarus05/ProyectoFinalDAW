@@ -154,6 +154,7 @@ Route::middleware([
             Route::get('/', [DeudaController::class, 'index'])->name('index');
             Route::get('/cliente/{cliente}', [DeudaController::class, 'show'])->name('show');
             Route::get('/cliente/{cliente}/pago', [DeudaController::class, 'crearPago'])->name('pago.create');
+            Route::get('/cliente/{cliente}/distribucion', [DeudaController::class, 'calcularDistribucion'])->name('distribucion');
             Route::post('/cliente/{cliente}/pago', [DeudaController::class, 'registrarPago'])->name('pago.store');
             Route::get('/cliente/{cliente}/historial', [DeudaController::class, 'historial'])->name('historial');
         });

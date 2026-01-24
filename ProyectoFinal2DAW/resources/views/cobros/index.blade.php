@@ -247,8 +247,22 @@
                         <td colspan="8" class="p-3 text-right border">TOTALES DEL DÍA:</td>
                         <td class="p-3 border text-center text-green-700 text-lg">
                             @php
-                                // Total facturado = solo lo que se cobró (total_final)
-                                $totalFacturadoDia = $cobros->sum('total_final');
+                                // Total facturado = lo cobrado + bonos vendidos
+                                $totalFacturadoDia = 0;
+                                foreach($cobros as $cobro) {
+                                    // Sumar servicios/productos (excluir cobros con bono porque son consumo)
+                                    if ($cobro->metodo_pago !== 'bono') {
+                                        $totalFacturadoDia += $cobro->total_final;
+                                    }
+                                    // Sumar bonos vendidos (solo los pagados, NO los que quedaron a deber)
+                                    if ($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0) {
+                                        foreach ($cobro->bonosVendidos as $bono) {
+                                            if ($bono->metodo_pago !== 'deuda') {
+                                                $totalFacturadoDia += $bono->precio_pagado ?? 0;
+                                            }
+                                        }
+                                    }
+                                }
                             @endphp
                             {{ number_format($totalFacturadoDia, 2) }} €
                             <div class="text-xs text-gray-600 mt-1">

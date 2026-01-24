@@ -125,15 +125,50 @@ echo "========================================================================="
 
 print_info "Ejecutando migración para tenant: $TENANT_ID"
 
-php artisan tenants:run "php artisan migrate --path=$MIGRATION_FILE --force"
+# Intentar método 1: tenants:run con comillas simples
+php artisan tenants:run 'php artisan migrate --path='"$MIGRATION_FILE"' --force' 2>/dev/null
 
 if [ $? -eq 0 ]; then
     print_success "Migración ejecutada correctamente"
 else
-    print_error "Error al ejecutar migración"
-    print_warning "Intenta ejecutar manualmente:"
-    echo "php artisan tenants:run \"php artisan migrate --path=$MIGRATION_FILE --force\""
-    exit 1
+    print_warning "Método 1 falló, intentando método 2..."
+    
+    # Método 2: tenants:migrate (migra todas las pendientes)
+    php artisan tenants:migrate --force 2>/dev/null
+    
+    if [ $? -eq 0 ]; then
+        print_success "Migración ejecutada correctamente (método 2)"
+    else
+        print_warning "Método 2 falló, intentando método 3..."
+        
+        # Método 3: migrate directo (si el tenant ya está inicializado)
+        php artisan migrate --path="$MIGRATION_FILE" --force 2>/dev/null
+        
+        if [ $? -eq 0 ]; then
+            print_success "Migración ejecutada correctamente (método 3)"
+        else
+            print_error "No se pudo ejecutar la migración automáticamente"
+            print_warning "Ejecuta manualmente UNO de estos comandos:"
+            echo ""
+            echo "Opción 1:"
+            echo "  php artisan tenants:migrate --force"
+            echo ""
+            echo "Opción 2:"
+            echo "  php artisan migrate --path=$MIGRATION_FILE --force"
+            echo ""
+            echo "Opción 3 (desde navegador):"
+            echo "  Crea ejecutar_migracion.php y accede desde el navegador"
+            echo ""
+            
+            read -p "¿Has ejecutado la migración manualmente? (s/n): " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Ss]$ ]]; then
+                print_error "Despliegue cancelado. Ejecuta la migración y vuelve a ejecutar el script."
+                exit 1
+            fi
+            print_info "Continuando con el despliegue..."
+        fi
+    fi
 fi
 
 echo ""

@@ -147,13 +147,15 @@ class Empleado extends Model
         $service = new FacturacionService();
 
         $cobros = RegistroCobro::with([
-                'servicios',
+                'cita.servicios',           // Servicios de cita individual
+                'citasAgrupadas.servicios', // Servicios de citas agrupadas
+                'servicios',                // Servicios directos
                 'productos',
                 'bonosVendidos.bonoPlantilla' // Necesitamos el bono_plantilla para su categoría
             ])
             ->whereBetween('created_at', [$fechaInicio, $fechaFin])
-            ->where('metodo_pago', '!=', 'bono')
-            ->where('contabilizado', true)
+            ->where('metodo_pago', '!=', 'bono') // Excluir cobros pagados con bono (son consumos, no ingresos)
+            ->where('metodo_pago', '!=', 'deuda') // Excluir cobros que GENERAN deuda (no se cobró nada)
             ->get();
 
         foreach ($cobros as $cobro) {
@@ -167,13 +169,21 @@ class Empleado extends Model
             }
 
             // CASO ESPECIAL: Cobro sin servicios/productos (ej: pago de deuda sin cobro original)
-            // Usar la categoría del empleado que registró el cobro
-            if ($cobro->servicios->count() == 0 && 
-                $cobro->productos->count() == 0 && 
-                $cobro->coste > 0) {
+            // Verificar si tiene servicios en cualquiera de las relaciones
+            $tieneServicios = false;
+            if (($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) ||
+                ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) ||
+                ($cobro->servicios && $cobro->servicios->count() > 0)) {
+                $tieneServicios = true;
+            }
+            
+            $tieneProductos = $cobro->productos && $cobro->productos->count() > 0;
+            
+            // Si no tiene servicios ni productos pero se cobró algo, usar categoría del empleado
+            if (!$tieneServicios && !$tieneProductos && $cobro->total_final > 0) {
                 $empleado = Empleado::find($cobro->id_empleado);
                 $categoriaEmpleado = $empleado?->categoria ?? 'peluqueria';
-                $facturacion[$categoriaEmpleado]['servicios'] += $cobro->coste;
+                $facturacion[$categoriaEmpleado]['servicios'] += $cobro->total_final;
             }
         }
 

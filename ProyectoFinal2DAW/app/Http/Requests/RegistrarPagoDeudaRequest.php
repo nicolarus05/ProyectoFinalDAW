@@ -32,7 +32,7 @@ class RegistrarPagoDeudaRequest extends FormRequest
                 'in:efectivo,tarjeta,transferencia',
             ],
             'empleado_id' => [
-                'required',
+                'nullable', // Ahora es opcional, se valida en withValidator
                 'integer',
                 'exists:empleados,id',
             ],
@@ -42,6 +42,45 @@ class RegistrarPagoDeudaRequest extends FormRequest
                 'max:500',
             ],
         ];
+    }
+
+    /**
+     * Configure the validator instance.
+     */
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+            $cliente = $this->route('cliente');
+            $deuda = $cliente->deuda;
+            
+            if (!$deuda) {
+                $validator->errors()->add('deuda', 'No hay deuda registrada para este cliente.');
+                return;
+            }
+
+            // Validar que el monto no exceda la deuda pendiente
+            if ($this->monto > $deuda->saldo_pendiente) {
+                $validator->errors()->add('monto', 'El monto no puede ser mayor a la deuda pendiente.');
+            }
+
+            // Verificar si hay un cobro original con servicios
+            $ultimoCargo = $deuda->movimientos()
+                ->where('tipo', 'cargo')
+                ->whereNotNull('id_registro_cobro')
+                ->with('registroCobro.servicios', 'registroCobro.productos')
+                ->latest()
+                ->first();
+
+            $tieneCobroOriginal = $ultimoCargo && 
+                $ultimoCargo->registroCobro && 
+                ($ultimoCargo->registroCobro->servicios->count() > 0 || 
+                 $ultimoCargo->registroCobro->productos->count() > 0);
+
+            // empleado_id es requerido solo si NO hay cobro original con servicios
+            if (!$tieneCobroOriginal && !$this->empleado_id) {
+                $validator->errors()->add('empleado_id', 'Debe seleccionar un empleado para este pago.');
+            }
+        });
     }
 
     /**

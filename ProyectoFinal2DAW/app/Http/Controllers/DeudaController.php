@@ -125,6 +125,100 @@ class DeudaController extends Controller
         return view('deudas.pago', compact('cliente', 'deuda', 'empleados', 'empleadoPreseleccionado'));
     }
 
+    /**
+     * Calcular cómo se distribuirá el pago entre empleados
+     */
+    public function calcularDistribucion(Cliente $cliente)
+    {
+        $deuda = $cliente->obtenerDeuda();
+        
+        if (!$deuda->tieneDeuda()) {
+            return response()->json(['error' => 'No hay deuda pendiente'], 400);
+        }
+        
+        // Buscar el cobro original
+        $ultimoCargo = $deuda->movimientos()
+            ->where('tipo', 'cargo')
+            ->with(['registroCobro.servicios', 'registroCobro.productos'])
+            ->latest()
+            ->first();
+        
+        $distribucion = [];
+        $tieneCobroOriginal = false;
+        
+        if ($ultimoCargo && $ultimoCargo->registroCobro) {
+            $cobroOriginal = $ultimoCargo->registroCobro;
+            $tieneCobroOriginal = true;
+            
+            // Calcular total original
+            $totalOriginal = 0;
+            $servicios = $cobroOriginal->servicios ?? collect();
+            $productos = $cobroOriginal->productos ?? collect();
+            
+            foreach ($servicios as $servicio) {
+                $totalOriginal += $servicio->pivot->precio;
+            }
+            
+            foreach ($productos as $producto) {
+                $totalOriginal += $producto->pivot->subtotal;
+            }
+            
+            // Agrupar por empleado
+            $montoPorEmpleado = [];
+            
+            foreach ($servicios as $servicio) {
+                $empId = $servicio->pivot->empleado_id;
+                $precio = $servicio->pivot->precio;
+                
+                if (!isset($montoPorEmpleado[$empId])) {
+                    $empleado = \App\Models\Empleado::with('user')->find($empId);
+                    $montoPorEmpleado[$empId] = [
+                        'empleado_id' => $empId,
+                        'nombre' => $empleado ? $empleado->user->name : 'Desconocido',
+                        'monto_original' => 0,
+                        'servicios' => []
+                    ];
+                }
+                
+                $montoPorEmpleado[$empId]['monto_original'] += $precio;
+                $montoPorEmpleado[$empId]['servicios'][] = $servicio->nombre;
+            }
+            
+            foreach ($productos as $producto) {
+                $empId = $producto->pivot->empleado_id;
+                if ($empId) {
+                    $subtotal = $producto->pivot->subtotal;
+                    
+                    if (!isset($montoPorEmpleado[$empId])) {
+                        $empleado = \App\Models\Empleado::with('user')->find($empId);
+                        $montoPorEmpleado[$empId] = [
+                            'empleado_id' => $empId,
+                            'nombre' => $empleado ? $empleado->user->name : 'Desconocido',
+                            'monto_original' => 0,
+                            'servicios' => []
+                        ];
+                    }
+                    
+                    $montoPorEmpleado[$empId]['monto_original'] += $subtotal;
+                    $montoPorEmpleado[$empId]['servicios'][] = $producto->nombre;
+                }
+            }
+            
+            // Calcular proporciones para mostrar
+            foreach ($montoPorEmpleado as &$datos) {
+                $datos['proporcion'] = $totalOriginal > 0 ? ($datos['monto_original'] / $totalOriginal) * 100 : 0;
+            }
+            
+            $distribucion = array_values($montoPorEmpleado);
+        }
+        
+        return response()->json([
+            'tiene_cobro_original' => $tieneCobroOriginal,
+            'distribucion' => $distribucion,
+            'total_original' => $totalOriginal ?? 0
+        ]);
+    }
+
     public function registrarPago(RegistrarPagoDeudaRequest $request, Cliente $cliente)
     {
         // Los datos ya vienen validados y sanitizados del Form Request
@@ -153,9 +247,6 @@ class DeudaController extends Controller
             ])->withInput();
         }
 
-        // Obtener el empleado seleccionado por el usuario
-        $empleadoId = $validated['empleado_id'];
-        
         // Buscar el cargo original (cuando se generó la deuda) para obtener los servicios y productos originales
         $ultimoCargo = $deuda->movimientos()
             ->where('tipo', 'cargo')
@@ -166,85 +257,119 @@ class DeudaController extends Controller
         $citaId = null;
         $serviciosOriginales = collect();
         $productosOriginales = collect();
+        $totalOriginal = 0;
         
-        // Si hay cobro original con servicios/productos, los usaremos para distribuir proporcionalmente
+        // Si hay cobro original con servicios/productos, los usaremos para distribuir automáticamente
         if ($ultimoCargo && $ultimoCargo->registroCobro) {
             $cobroOriginal = $ultimoCargo->registroCobro;
             $citaId = $cobroOriginal->id_cita;
             
-            // Obtener servicios del cobro original
+            // Obtener servicios del cobro original CON sus empleados
             if ($cobroOriginal->servicios && $cobroOriginal->servicios->count() > 0) {
                 $serviciosOriginales = $cobroOriginal->servicios;
+                $totalOriginal += $serviciosOriginales->sum('pivot.precio');
             }
             
             // Obtener productos del cobro original
             if ($cobroOriginal->productos && $cobroOriginal->productos->count() > 0) {
                 $productosOriginales = $cobroOriginal->productos;
+                $totalOriginal += $productosOriginales->sum('pivot.subtotal');
             }
         }
         
-        // Calcular el porcentaje de pago basado en el saldo pendiente + monto pagado
-        // Esto permite manejar pagos parciales correctamente
-        $totalDeudaAntesPago = $deuda->saldo_pendiente + $monto;
-        $porcentajePago = $monto / $totalDeudaAntesPago;
+        // Calcular empleado principal (el que más dinero recibe o el del primer servicio)
+        $empleadoPrincipalId = null;
         
-        // Crear registro de cobro para la caja del día (con referencia a la cita original si existe)
+        if ($serviciosOriginales->count() > 0 || $productosOriginales->count() > 0) {
+            // Distribución automática basada en servicios/productos originales
+            // Encontrar el empleado que más cobra
+            $montoPorEmpleado = [];
+            
+            foreach ($serviciosOriginales as $servicio) {
+                $empId = $servicio->pivot->empleado_id;
+                $precio = $servicio->pivot->precio;
+                $montoPorEmpleado[$empId] = ($montoPorEmpleado[$empId] ?? 0) + $precio;
+            }
+            
+            foreach ($productosOriginales as $producto) {
+                $empId = $producto->pivot->empleado_id ?? null;
+                if ($empId) {
+                    $subtotal = $producto->pivot->subtotal;
+                    $montoPorEmpleado[$empId] = ($montoPorEmpleado[$empId] ?? 0) + $subtotal;
+                }
+            }
+            
+            // Empleado principal = el que más dinero cobra
+            if (!empty($montoPorEmpleado)) {
+                $empleadoPrincipalId = array_key_first(array_filter($montoPorEmpleado, fn($m) => $m == max($montoPorEmpleado)));
+            }
+        } else {
+            // Sin cobro original: usar empleado seleccionado manualmente
+            $empleadoPrincipalId = $validated['empleado_id'] ?? null;
+            
+            if (!$empleadoPrincipalId) {
+                return back()->withErrors([
+                    'empleado_id' => 'Debe seleccionar un empleado para este pago.'
+                ])->withInput();
+            }
+        }
+        
+        // Crear registro de cobro para la caja del día
         $registroCobro = \App\Models\RegistroCobro::create([
-            'id_cita' => $citaId, // Vinculamos con la cita original
+            'id_cita' => $citaId,
             'id_cliente' => $cliente->id,
-            'id_empleado' => $empleadoId, // El empleado seleccionado que cobra
+            'id_empleado' => $empleadoPrincipalId,
             'coste' => $monto,
             'total_final' => $monto,
             'metodo_pago' => $validated['metodo_pago'],
-            'deuda' => 0, // No genera nueva deuda, la está pagando
+            'deuda' => 0,
             'dinero_cliente' => $monto,
             'pago_efectivo' => $validated['metodo_pago'] === 'efectivo' ? $monto : 0,
             'pago_tarjeta' => $validated['metodo_pago'] === 'tarjeta' ? $monto : 0,
             'cambio' => 0,
-            'contabilizado' => true, // IMPORTANTE: marcar como contabilizado para facturación
+            'contabilizado' => true,
         ]);
         
-        // Vincular servicios originales al nuevo cobro CON PRECIO proporcional
-        // TODO el dinero va al empleado seleccionado
-        $serviciosVinculados = false;
-        if ($serviciosOriginales->count() > 0) {
+        // Vincular servicios originales con distribución proporcional al pago
+        if ($serviciosOriginales->count() > 0 && $totalOriginal > 0) {
             foreach ($serviciosOriginales as $servicio) {
-                // Calcular precio proporcional del servicio
-                // Si el servicio tiene precio en pivot, usarlo; si no, usar el precio base del servicio
-                $precioServicio = $servicio->pivot->precio > 0 ? $servicio->pivot->precio : $servicio->precio;
-                $precioProporcion = $precioServicio * $porcentajePago;
+                $precioOriginal = $servicio->pivot->precio;
+                $empleadoServicio = $servicio->pivot->empleado_id;
+                
+                // Calcular precio proporcional al monto pagado
+                $precioProporcion = ($precioOriginal / $totalOriginal) * $monto;
                 
                 $registroCobro->servicios()->attach($servicio->id, [
-                    'empleado_id' => $empleadoId, // TODO el dinero va al empleado seleccionado
-                    'precio' => $precioProporcion, // Precio proporcional al pago
+                    'empleado_id' => $empleadoServicio, // Empleado original del servicio
+                    'precio' => $precioProporcion,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
-                $serviciosVinculados = true;
             }
         }
         
-        // Vincular productos originales al nuevo cobro CON PRECIO proporcional
-        if ($productosOriginales->count() > 0) {
+        // Vincular productos originales con distribución proporcional al pago
+        if ($productosOriginales->count() > 0 && $totalOriginal > 0) {
             foreach ($productosOriginales as $producto) {
-                // Calcular subtotal proporcional según el porcentaje pagado
-                $subtotalProporcion = $producto->pivot->subtotal * $porcentajePago;
+                $subtotalOriginal = $producto->pivot->subtotal;
+                $empleadoProducto = $producto->pivot->empleado_id;
+                
+                // Calcular subtotal proporcional al monto pagado
+                $subtotalProporcion = ($subtotalOriginal / $totalOriginal) * $monto;
                 
                 $registroCobro->productos()->attach($producto->id, [
                     'cantidad' => $producto->pivot->cantidad,
                     'precio_unitario' => $producto->pivot->precio_unitario,
-                    'subtotal' => $subtotalProporcion, // Subtotal proporcional al pago
-                    'empleado_id' => $empleadoId, // TODO el dinero va al empleado seleccionado
+                    'subtotal' => $subtotalProporcion,
+                    'empleado_id' => $empleadoProducto,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
             }
         }
         
-        // Si NO hay servicios ni productos originales (deuda creada manualmente)
-        // El cobro ya está creado con coste y total_final, por lo que aparecerá en caja diaria
-        // Para facturación del empleado, FacturacionService usará el coste del cobro
-        // NO hacemos nada adicional aquí
+        // Si NO hay servicios ni productos originales, el cobro quedará sin vincular
+        // y el CASO ESPECIAL en facturacionPorFechas() usará el coste completo para el empleado principal
 
         // Registrar el abono en la deuda vinculado al registro de cobro
         $deuda->registrarAbono(
