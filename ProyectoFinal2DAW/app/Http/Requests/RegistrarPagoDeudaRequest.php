@@ -31,6 +31,11 @@ class RegistrarPagoDeudaRequest extends FormRequest
                 'string',
                 'in:efectivo,tarjeta,transferencia',
             ],
+            'empleado_id' => [
+                'required',
+                'integer',
+                'exists:empleados,id',
+            ],
             'nota' => [
                 'nullable',
                 'string',
@@ -50,6 +55,8 @@ class RegistrarPagoDeudaRequest extends FormRequest
             'monto.max' => 'El monto máximo permitido es 999,999.99€.',
             'metodo_pago.required' => 'El método de pago es obligatorio.',
             'metodo_pago.in' => 'El método de pago debe ser efectivo, tarjeta o transferencia.',
+            'empleado_id.required' => 'Debe seleccionar el empleado que realizó el servicio.',
+            'empleado_id.exists' => 'El empleado seleccionado no es válido.',
             'nota.max' => 'La nota no puede exceder 500 caracteres.',
         ];
     }

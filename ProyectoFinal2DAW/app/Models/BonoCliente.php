@@ -44,6 +44,14 @@ class BonoCliente extends Model
     }
 
     /**
+     * Alias para plantilla() - para consistencia con eager loading
+     */
+    public function bonoPlantilla()
+    {
+        return $this->plantilla();
+    }
+
+    /**
      * Servicios del bono con sus cantidades
      */
     public function servicios()

@@ -95,4 +95,13 @@ class RegistroCobro extends Model {
         ->withPivot('precio')
         ->withTimestamps();
     }
+
+    // Relación con movimientos de deuda (para identificar pagos de deuda)
+    public function movimientosDeuda()
+    {
+        return $this->hasMany(
+            \App\Models\MovimientoDeuda::class,
+            'id_registro_cobro'
+        );
+    }
 }

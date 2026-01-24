@@ -144,6 +144,28 @@
                 <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
                     🎫 Bonos Vendidos
                 </h2>
+                
+                <!-- Bonos Peluquería -->
+                <div class="p-4 bg-blue-50 rounded-lg border-2 border-blue-200 mb-4">
+                    <div class="flex justify-between items-center">
+                        <span class="font-semibold text-gray-800">💇 Bonos Peluquería</span>
+                        <span class="text-2xl font-bold text-blue-700">
+                            €{{ number_format($bonosPeluqueria, 2) }}
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- Bonos Estética -->
+                <div class="p-4 bg-pink-50 rounded-lg border-2 border-pink-200 mb-4">
+                    <div class="flex justify-between items-center">
+                        <span class="font-semibold text-gray-800">✨ Bonos Estética</span>
+                        <span class="text-2xl font-bold text-pink-700">
+                            €{{ number_format($bonosEstetica, 2) }}
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- Total Bonos -->
                 <div class="p-4 bg-indigo-50 rounded-lg border-2 border-indigo-200">
                     <div class="flex justify-between items-center">
                         <span class="font-semibold text-gray-800 text-lg">Total Bonos</span>

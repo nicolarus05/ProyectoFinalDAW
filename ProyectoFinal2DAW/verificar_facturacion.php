@@ -231,6 +231,16 @@ foreach ($empleados as $emp) {
             }
         }
         
+        // CASO ESPECIAL: Cobro sin servicios/productos (ej: pago de deuda sin cobro original)
+        // Si el cobro no tiene servicios ni productos pero está asignado a este empleado,
+        // facturar el coste completo como "servicios"
+        if ($cobro->id_empleado == $emp->id && 
+            $cobro->servicios->count() == 0 && 
+            $cobro->productos->count() == 0 && 
+            $cobro->coste > 0) {
+            $totalServiciosManual += $cobro->coste;
+        }
+        
         // Bonos vendidos (van al empleado que registró el cobro)
         // Solo facturar si el cliente pagó los bonos (no están en deuda)
         if ($cobro->id_empleado == $emp->id && $cobro->bonosVendidos->count() > 0) {

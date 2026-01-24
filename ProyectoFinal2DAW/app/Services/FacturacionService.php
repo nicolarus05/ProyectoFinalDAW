@@ -132,6 +132,107 @@ class FacturacionService
         return $resultado;
     }
 
+    /**
+     * Desglosa un cobro por categoría (peluqueria/estetica) aplicando descuentos proporcionalmente
+     * LÓGICA:
+     * - Agrupa servicios, productos y bonos según su categoría
+     * - Aplica el mismo factor de ajuste proporcional que desglosarCobroPorEmpleado
+     * - Para bonos vendidos: usa la categoría del bono_plantilla
+     */
+    public function desglosarCobroPorCategoria(RegistroCobro $cobro): array
+    {
+        $resultado = [
+            'peluqueria' => $this->estructuraBase(),
+            'estetica' => $this->estructuraBase(),
+        ];
+
+        // Calcular suma total de servicios y productos desde pivot
+        $sumaPivotServicios = 0;
+        $sumaPivotProductos = 0;
+        
+        if ($cobro->servicios) {
+            foreach ($cobro->servicios as $servicio) {
+                if ($servicio->pivot->precio > 0) {
+                    $sumaPivotServicios += $servicio->pivot->precio;
+                }
+            }
+        }
+        
+        if ($cobro->productos) {
+            foreach ($cobro->productos as $producto) {
+                $sumaPivotProductos += $producto->pivot->subtotal;
+            }
+        }
+        
+        $sumaPivotTotal = $sumaPivotServicios + $sumaPivotProductos;
+        
+        // Calcular factor de ajuste si hay descuento
+        $factorAjuste = 1.0;
+        if ($sumaPivotTotal > 0 && $cobro->total_final < $sumaPivotTotal - 0.01) {
+            $factorAjuste = $cobro->total_final / $sumaPivotTotal;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | SERVICIOS - Por categoría del servicio
+        |--------------------------------------------------------------------------
+        */
+        if ($cobro->servicios) {
+            foreach ($cobro->servicios as $servicio) {
+                if ($servicio->pivot->precio > 0) {
+                    $categoria = $servicio->categoria ?? 'peluqueria'; // Default si no tiene
+                    $precioAjustado = $servicio->pivot->precio * $factorAjuste;
+                    $resultado[$categoria]['servicios'] += $precioAjustado;
+                }
+            }
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | PRODUCTOS - Por categoría del producto
+        |--------------------------------------------------------------------------
+        */
+        if ($cobro->productos) {
+            foreach ($cobro->productos as $producto) {
+                $categoria = $producto->categoria ?? 'peluqueria'; // Default si no tiene
+                $precioAjustado = $producto->pivot->subtotal * $factorAjuste;
+                $resultado[$categoria]['productos'] += $precioAjustado;
+            }
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | BONOS VENDIDOS - Por categoría del bono_plantilla
+        |--------------------------------------------------------------------------
+        */
+        if ($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0) {
+            $totalCobrado = $cobro->total_final + ($cobro->total_bonos_vendidos ?? 0);
+            $dineroRecibido = $cobro->dinero_cliente ?? 0;
+            
+            if ($dineroRecibido >= $totalCobrado - 0.01) {
+                foreach ($cobro->bonosVendidos as $bono) {
+                    // Obtener categoría del bono_plantilla
+                    $categoria = $bono->bonoPlantilla->categoria ?? 'peluqueria'; // Default si no tiene
+                    $resultado[$categoria]['bonos'] += $bono->pivot->precio;
+                }
+            }
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | TOTAL
+        |--------------------------------------------------------------------------
+        */
+        foreach ($resultado as $categoria => $datos) {
+            $resultado[$categoria]['total'] =
+                $datos['servicios'] +
+                $datos['productos'] +
+                $datos['bonos'];
+        }
+
+        return $resultado;
+    }
+
     private function estructuraBase(): array
     {
         return [

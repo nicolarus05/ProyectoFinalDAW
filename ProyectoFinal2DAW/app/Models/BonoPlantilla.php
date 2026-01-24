@@ -13,7 +13,8 @@ class BonoPlantilla extends Model
         'descripcion',
         'precio',
         'duracion_dias',
-        'activo'
+        'activo',
+        'categoria'
     ];
 
     protected $casts = [
