@@ -517,6 +517,12 @@ class RegistroCobroController extends Controller{
         }
         
         // Procesar bonos (solo si NO se está vendiendo un bono nuevo)
+        Log::info('🎫 PROCESANDO BONOS', [
+            'se_vende_bono' => $seVendeBono,
+            'cliente_id' => $clienteId,
+            'tiene_citas' => $citasAProcesar->isNotEmpty()
+        ]);
+        
         if (!$seVendeBono && $clienteId) {
             // CASO A: Cobro con citas
             if ($citasAProcesar->isNotEmpty()) {
@@ -529,8 +535,24 @@ class RegistroCobroController extends Controller{
                             ->where('fecha_expiracion', '>=', Carbon::now())
                             ->get();
 
+                        Log::info('🔍 Bonos activos encontrados', [
+                            'cita_id' => $cita->id,
+                            'cliente_id' => $cita->cliente->id,
+                            'cantidad_bonos' => $bonosActivos->count(),
+                            'bonos' => $bonosActivos->map(fn($b) => [
+                                'id' => $b->id,
+                                'plantilla' => $b->plantilla->nombre ?? 'N/A',
+                                'fecha_expiracion' => $b->fecha_expiracion?->format('Y-m-d')
+                            ])
+                        ]);
+
                         // Iterar sobre los servicios de la cita
                         foreach ($cita->servicios as $servicioCita) {
+                            Log::info('🔄 Procesando servicio de cita', [
+                                'servicio_id' => $servicioCita->id,
+                                'servicio_nombre' => $servicioCita->nombre
+                            ]);
+                            
                             // Buscar si hay un bono que incluya este servicio
                             foreach ($bonosActivos as $bono) {
                                 $servicioBono = $bono->servicios()
@@ -541,6 +563,15 @@ class RegistroCobroController extends Controller{
                                 if ($servicioBono) {
                                     // Hay disponibilidad en el bono, deducir 1
                                     $cantidadUsada = $servicioBono->pivot->cantidad_usada + 1;
+                                    
+                                    Log::info('✅ APLICANDO BONO', [
+                                        'bono_id' => $bono->id,
+                                        'servicio_id' => $servicioCita->id,
+                                        'servicio_nombre' => $servicioCita->nombre,
+                                        'cantidad_usada_antes' => $servicioBono->pivot->cantidad_usada,
+                                        'cantidad_usada_despues' => $cantidadUsada,
+                                        'cantidad_total' => $servicioBono->pivot->cantidad_total
+                                    ]);
                                     
                                     $bono->servicios()->updateExistingPivot($servicioCita->id, [
                                         'cantidad_usada' => $cantidadUsada
@@ -559,14 +590,27 @@ class RegistroCobroController extends Controller{
                                         'cantidad_usada' => 1
                                     ]);
 
+                                    Log::info('📝 Uso de bono registrado', [
+                                        'bono_uso_detalle_id' => 'creado',
+                                        'bono_id' => $bono->id
+                                    ]);
+
                                     // NOTA: El precio a 0 se aplicará al guardar los servicios en el pivot
 
                                     // Verificar si el bono está completamente usado
                                     if ($bono->estaCompletamenteUsado()) {
                                         $bono->update(['estado' => 'usado']);
+                                        Log::info('🏁 Bono marcado como usado completamente', [
+                                            'bono_id' => $bono->id
+                                        ]);
                                     }
 
                                     break; // Ya se aplicó un bono para este servicio, pasar al siguiente
+                                } else {
+                                    Log::info('⏭️  Servicio no encontrado en este bono', [
+                                        'bono_id' => $bono->id,
+                                        'servicio_id' => $servicioCita->id
+                                    ]);
                                 }
                             }
                         }
@@ -577,6 +621,11 @@ class RegistroCobroController extends Controller{
             elseif ($request->has('servicios_data') && !empty($data['servicios_data'])) {
                 $serviciosData = json_decode($data['servicios_data'], true);
                 
+                Log::info('💼 CASO B: Cobro directo sin cita', [
+                    'cliente_id' => $clienteId,
+                    'servicios_count' => count($serviciosData)
+                ]);
+                
                 if (is_array($serviciosData) && count($serviciosData) > 0) {
                     // Obtener bonos activos del cliente
                     $bonosActivos = BonoCliente::with('servicios')
@@ -585,10 +634,24 @@ class RegistroCobroController extends Controller{
                         ->where('fecha_expiracion', '>=', Carbon::now())
                         ->get();
 
+                    Log::info('🔍 Bonos activos encontrados (cobro directo)', [
+                        'cliente_id' => $clienteId,
+                        'cantidad_bonos' => $bonosActivos->count(),
+                        'bonos' => $bonosActivos->map(fn($b) => [
+                            'id' => $b->id,
+                            'plantilla' => $b->plantilla->nombre ?? 'N/A'
+                        ])
+                    ]);
+
                     // Procesar cada servicio del cobro directo
                     foreach ($serviciosData as $servicioData) {
                         $servicioId = (int) $servicioData['id'];
                         $servicio = \App\Models\Servicio::find($servicioId);
+                        
+                        Log::info('🔄 Procesando servicio de cobro directo', [
+                            'servicio_id' => $servicioId,
+                            'servicio_nombre' => $servicio->nombre ?? 'N/A'
+                        ]);
                         
                         if ($servicio) {
                             // Buscar si hay un bono que incluya este servicio
@@ -601,6 +664,15 @@ class RegistroCobroController extends Controller{
                                 if ($servicioBono) {
                                     // Hay disponibilidad en el bono, deducir 1
                                     $cantidadUsada = $servicioBono->pivot->cantidad_usada + 1;
+                                    
+                                    Log::info('✅ APLICANDO BONO (cobro directo)', [
+                                        'bono_id' => $bono->id,
+                                        'servicio_id' => $servicioId,
+                                        'servicio_nombre' => $servicio->nombre,
+                                        'cantidad_usada_antes' => $servicioBono->pivot->cantidad_usada,
+                                        'cantidad_usada_despues' => $cantidadUsada,
+                                        'cantidad_total' => $servicioBono->pivot->cantidad_total
+                                    ]);
                                     
                                     $bono->servicios()->updateExistingPivot($servicioId, [
                                         'cantidad_usada' => $cantidadUsada

@@ -41,3 +41,18 @@ Schedule::command('backup:monitor')
     ->daily()
     ->at('04:00')
     ->when(fn() => env('BACKUP_ENABLED', true));
+
+// Eliminar bonos expirados automáticamente cada día a las 5:00 AM
+Schedule::command('bonos:expirar')
+    ->dailyAt('05:00')
+    ->timezone('Europe/Madrid')
+    ->onSuccess(function () {
+        Log::info('✅ Limpieza de bonos expirados ejecutada correctamente', [
+            'timestamp' => now()->toDateTimeString()
+        ]);
+    })
+    ->onFailure(function () {
+        Log::error('❌ Error al ejecutar limpieza de bonos expirados', [
+            'timestamp' => now()->toDateTimeString()
+        ]);
+    });
