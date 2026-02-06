@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <title>Editar Cobro</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .bono-badge { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: white; padding: 2px 6px; border-radius: 9999px; font-size: 0.65rem; font-weight: 700; }
+        .info-badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+    </style>
     <script>
         function actualizarCosteYTotales() {
             const select = document.getElementById('id_cita');
@@ -30,8 +34,104 @@
     </script>
 </head>
 <body class="bg-gray-100 p-8">
-    <div class="max-w-xl mx-auto bg-white p-8 rounded shadow">
-        <h1 class="text-3xl font-bold mb-6">Editar Cobro</h1>
+    <div class="max-w-5xl mx-auto">
+        <!-- Información Actual del Cobro -->
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg shadow-md mb-6 border-2 border-blue-200">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">ℹ️ Información Actual del Cobro #{{ $cobro->id }}</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Servicios -->
+                <div class="bg-white p-4 rounded-lg">
+                    <div class="text-sm font-semibold text-gray-600 mb-2">✂️ Servicios</div>
+                    @php
+                        $serviciosInfo = [];
+                        if ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
+                            foreach ($cobro->cita->servicios as $servicio) {
+                                $pagadoConBono = \DB::table('bono_uso_detalle')
+                                    ->where('cita_id', $cobro->cita->id)
+                                    ->where('servicio_id', $servicio->id)
+                                    ->exists();
+                                $serviciosInfo[] = ['nombre' => $servicio->nombre, 'es_bono' => $pagadoConBono];
+                            }
+                        } elseif ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                            foreach ($cobro->citasAgrupadas as $citaGrupo) {
+                                if ($citaGrupo->servicios) {
+                                    foreach ($citaGrupo->servicios as $servicio) {
+                                        $pagadoConBono = \DB::table('bono_uso_detalle')
+                                            ->where('cita_id', $citaGrupo->id)
+                                            ->where('servicio_id', $servicio->id)
+                                            ->exists();
+                                        $serviciosInfo[] = ['nombre' => $servicio->nombre, 'es_bono' => $pagadoConBono];
+                                    }
+                                }
+                            }
+                        } elseif ($cobro->servicios && $cobro->servicios->count() > 0) {
+                            foreach ($cobro->servicios as $servicio) {
+                                $pagadoConBono = $cobro->metodo_pago === 'bono';
+                                $serviciosInfo[] = ['nombre' => $servicio->nombre, 'es_bono' => $pagadoConBono];
+                            }
+                        }
+                    @endphp
+                    
+                    @if(count($serviciosInfo) > 0)
+                        <ul class="space-y-1 text-sm">
+                            @foreach($serviciosInfo as $servInfo)
+                                <li class="flex items-center gap-2">
+                                    <span class="text-gray-700">{{ $servInfo['nombre'] }}</span>
+                                    @if($servInfo['es_bono'])
+                                        <span class="bono-badge">🎫 BONO</span>
+                                    @endif
+                                </li>
+                            @endforeach
+                        </ul>
+                    @else
+                        <span class="text-gray-400 text-sm">Sin servicios</span>
+                    @endif
+                </div>
+                
+                <!-- Productos -->
+                <div class="bg-white p-4 rounded-lg">
+                    <div class="text-sm font-semibold text-gray-600 mb-2">🛍️ Productos</div>
+                    @if($cobro->productos && $cobro->productos->count() > 0)
+                        <ul class="space-y-1 text-sm">
+                            @foreach($cobro->productos as $producto)
+                                <li class="text-gray-700">
+                                    {{ $producto->nombre }} (x{{ $producto->pivot->cantidad ?? 1 }})
+                                </li>
+                            @endforeach
+                        </ul>
+                    @else
+                        <span class="text-gray-400 text-sm">Sin productos</span>
+                    @endif
+                </div>
+                
+                <!-- Bonos Vendidos -->
+                <div class="bg-white p-4 rounded-lg">
+                    <div class="text-sm font-semibold text-gray-600 mb-2">🎫 Bonos Vendidos</div>
+                    @if($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0)
+                        <ul class="space-y-1 text-sm">
+                            @foreach($cobro->bonosVendidos as $bono)
+                                @php
+                                    $plantilla = $bono->plantilla ?? null;
+                                    $nombreBono = $plantilla ? $plantilla->nombre : 'Bono #' . $bono->id;
+                                    $precioTotal = $bono->pivot->precio ?? 0;
+                                @endphp
+                                <li class="text-gray-700">
+                                    {{ $nombreBono }}
+                                    <span class="text-yellow-600 font-semibold">({{ number_format($precioTotal, 2) }}€)</span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @else
+                        <span class="text-gray-400 text-sm">Sin bonos vendidos</span>
+                    @endif
+                </div>
+            </div>
+        </div>
+        
+        <!-- Formulario de Edición -->
+        <div class="bg-white p-8 rounded-lg shadow-lg">
+            <h1 class="text-3xl font-bold mb-6">✏️ Editar Cobro</h1>
 
         <form action="{{ route('cobros.update', $cobro->id) }}" method="POST" class="space-y-5" oninput="calcularTotales()">
             @csrf
@@ -148,11 +248,16 @@
             </select>
             </div>
 
-            <div class="flex items-center justify-between">
-            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-semibold">Actualizar</button>
-            <a href="{{ route('cobros.index') }}" class="text-blue-600 hover:underline">Volver</a>
+            <div class="flex items-center justify-between mt-6">
+                <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold shadow-md hover:shadow-lg transition">
+                    💾 Actualizar Cobro
+                </button>
+                <a href="{{ route('cobros.index') }}" class="bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 font-semibold shadow-md hover:shadow-lg transition">
+                    ← Cancelar
+                </a>
             </div>
         </form>
+        </div>
     </div>
 </body>
 </html>
