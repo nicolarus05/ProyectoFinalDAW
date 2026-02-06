@@ -934,14 +934,16 @@ class RegistroCobroController extends Controller{
                             $precioConDescuento = $totalServiciosConDescuento * $proporcion;
                             
                             // Verificar si este servicio fue pagado con bono
+                            // Buscar en una ventana de 24 horas para mayor seguridad
                             $usoBono = DB::table('bono_uso_detalle')
                                 ->where('servicio_id', $servicio->id)
                                 ->where('cita_id', $cita->id)
-                                ->where('created_at', '>=', now()->subMinutes(5))
+                                ->where('created_at', '>=', now()->subHours(24))
                                 ->exists();
                             
                             if ($usoBono) {
                                 $precioConDescuento = 0; // Servicio pagado con bono
+                                Log::info("Cobro #{$cobro->id}: Servicio #{$servicio->id} en cita #{$cita->id} pagado con bono, precio = 0");
                             }
                             
                             $cobro->servicios()->attach($servicio->id, [
@@ -993,14 +995,16 @@ class RegistroCobroController extends Controller{
                                 $precioConDescuento = $totalServiciosConDescuento * $proporcion;
                                 
                                 // Verificar si este servicio fue pagado con bono
+                                // Buscar en una ventana de 24 horas para mayor seguridad
                                 $usoBono = DB::table('bono_uso_detalle')
                                     ->where('servicio_id', $servicio->id)
                                     ->where('cita_id', $citaGrupo->id)
-                                    ->where('created_at', '>=', now()->subMinutes(5))
+                                    ->where('created_at', '>=', now()->subHours(24))
                                     ->exists();
                                 
                                 if ($usoBono) {
                                     $precioConDescuento = 0; // Servicio pagado con bono
+                                    Log::info("Cobro #{$cobro->id}: Servicio #{$servicio->id} en cita agrupada #{$citaGrupo->id} pagado con bono, precio = 0");
                                 }
                                 
                                 $cobro->servicios()->attach($servicio->id, [
@@ -1199,14 +1203,28 @@ class RegistroCobroController extends Controller{
                     }
 
                     // Verificar si este servicio fue pagado con bono ANTES de guardarlo
-                    // Si tiene uso de bono reciente, el precio debe ser 0
-                    $usoBono = DB::table('bono_uso_detalle')
-                        ->where('servicio_id', $servicioId)
-                        ->where('created_at', '>=', now()->subMinutes(5))
-                        ->exists();
+                    // Para cobros directos, buscar en las citas agrupadas o en ventana de 24h
+                    $usoBono = false;
+                    
+                    // Primero: verificar si el cobro tiene citas agrupadas
+                    if (!empty($data['citas_ids']) && is_array($data['citas_ids'])) {
+                        $usoBono = DB::table('bono_uso_detalle')
+                            ->where('servicio_id', $servicioId)
+                            ->whereIn('cita_id', $data['citas_ids'])
+                            ->exists();
+                    }
+                    
+                    // Si no tiene citas agrupadas, buscar por ventana de tiempo
+                    if (!$usoBono) {
+                        $usoBono = DB::table('bono_uso_detalle')
+                            ->where('servicio_id', $servicioId)
+                            ->where('created_at', '>=', now()->subHours(24))
+                            ->exists();
+                    }
                     
                     if ($usoBono) {
                         $precio = 0; // Servicio pagado con bono, precio 0
+                        Log::info("Cobro #{$cobro->id}: Servicio #{$servicioId} en cobro directo pagado con bono, precio = 0");
                     }
 
                     $cobro->servicios()->attach($servicioId, [
