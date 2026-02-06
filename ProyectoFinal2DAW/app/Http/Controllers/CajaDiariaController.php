@@ -67,7 +67,7 @@ class CajaDiariaController extends Controller{
         
         // Si no hay IDs, crear colección vacía en lugar de hacer query
         $bonosVendidosDelDia = !empty($idsBonosDelDia) 
-            ? BonoCliente::whereIn('id', $idsBonosDelDia)->get()
+            ? BonoCliente::with(['plantilla.servicios'])->whereIn('id', $idsBonosDelDia)->get()
             : collect();
 
         // Calcular totales de bonos para mostrar en la vista
@@ -141,11 +141,17 @@ class CajaDiariaController extends Controller{
             
             // PRIORIDAD 1: Servicios directos del cobro (Fuente de verdad)
             if ($cobro->servicios && $cobro->servicios->count() > 0) {
+                // Calcular suma REAL de servicios (no usar $cobro->coste que puede estar desactualizado)
+                $sumaRealServicios = 0;
+                foreach($cobro->servicios as $servicio) {
+                    $sumaRealServicios += $servicio->pivot->precio ?? $servicio->precio;
+                }
+                
                 foreach($cobro->servicios as $servicio) {
                     $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
                     
-                    // Calcular proporción de este servicio respecto al total (sin descuentos)
-                    $proporcion = $cobro->coste > 0 ? ($precioServicio / $cobro->coste) : 0;
+                    // Calcular proporción usando la suma REAL de servicios
+                    $proporcion = $sumaRealServicios > 0 ? ($precioServicio / $sumaRealServicios) : 0;
                     
                     // Solo sumar si NO es pago con bono (los bonos no generan ingreso ese día)
                     if ($metodoPago !== 'bono') {
@@ -169,11 +175,17 @@ class CajaDiariaController extends Controller{
             
             // PRIORIDAD 2: Servicios de cita individual (Fallback para datos antiguos)
             if (!$yaContados && $cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
+                // Calcular suma REAL de servicios
+                $sumaRealServicios = 0;
+                foreach($cobro->cita->servicios as $servicio) {
+                    $sumaRealServicios += $servicio->pivot->precio ?? $servicio->precio;
+                }
+                
                 foreach($cobro->cita->servicios as $servicio) {
                     $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
                     
-                    // Calcular proporción de este servicio respecto al total
-                    $proporcion = $cobro->coste > 0 ? ($precioServicio / $cobro->coste) : 0;
+                    // Calcular proporción usando la suma REAL
+                    $proporcion = $sumaRealServicios > 0 ? ($precioServicio / $sumaRealServicios) : 0;
                     
                     // Solo sumar si NO es pago con bono
                     if ($metodoPago !== 'bono') {
@@ -197,13 +209,23 @@ class CajaDiariaController extends Controller{
             
             // PRIORIDAD 3: Servicios de citas agrupadas (Fallback para datos antiguos)
             if (!$yaContados && $cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                // Calcular suma REAL de todos los servicios de citas agrupadas
+                $sumaRealServicios = 0;
+                foreach($cobro->citasAgrupadas as $citaGrupo) {
+                    if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
+                        foreach($citaGrupo->servicios as $servicio) {
+                            $sumaRealServicios += $servicio->pivot->precio ?? $servicio->precio;
+                        }
+                    }
+                }
+                
                 foreach($cobro->citasAgrupadas as $citaGrupo) {
                     if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
                         foreach($citaGrupo->servicios as $servicio) {
                             $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
                             
-                            // Calcular proporción de este servicio respecto al total
-                            $proporcion = $cobro->coste > 0 ? ($precioServicio / $cobro->coste) : 0;
+                            // Calcular proporción usando la suma REAL
+                            $proporcion = $sumaRealServicios > 0 ? ($precioServicio / $sumaRealServicios) : 0;
                             
                             // Solo sumar si NO es pago con bono
                             if ($metodoPago !== 'bono') {
@@ -229,11 +251,17 @@ class CajaDiariaController extends Controller{
             
             // Si NO tiene servicios pero SÍ tiene productos, contabilizar productos
             if (!$yaContados && $cobro->productos && $cobro->productos->count() > 0) {
+                // Calcular suma REAL de productos
+                $sumaRealProductos = 0;
+                foreach($cobro->productos as $producto) {
+                    $sumaRealProductos += $producto->pivot->subtotal ?? 0;
+                }
+                
                 foreach($cobro->productos as $producto) {
                     $subtotal = $producto->pivot->subtotal ?? 0;
                     
-                    // Calcular proporción de este producto respecto al total
-                    $proporcion = $cobro->coste > 0 ? ($subtotal / $cobro->coste) : 0;
+                    // Calcular proporción usando la suma REAL
+                    $proporcion = $sumaRealProductos > 0 ? ($subtotal / $sumaRealProductos) : 0;
                     
                     // Solo sumar si NO es pago con bono
                     if ($metodoPago !== 'bono') {
@@ -254,6 +282,67 @@ class CajaDiariaController extends Controller{
                 }
             }
         }
+
+        // PASO ADICIONAL: Agregar bonos vendidos a las categorías correspondientes
+        // Los bonos vendidos deben sumarse a peluquería/estética según los servicios que incluyan
+        foreach($bonosVendidosDelDia as $bono) {
+            $precioPagado = $bono->precio_pagado ?? 0;
+            $metodoPago = $bono->metodo_pago;
+            
+            \Log::info("Procesando bono #{$bono->id}: Precio pagado: {$precioPagado}, Método: {$metodoPago}");
+            
+            // Obtener servicios del bono desde la plantilla
+            $plantilla = $bono->plantilla;
+            
+            if (!$plantilla) {
+                \Log::warning("Bono #{$bono->id} no tiene plantilla asociada");
+                continue;
+            }
+            
+            \Log::info("Bono #{$bono->id} tiene plantilla: {$plantilla->nombre}");
+            
+            if ($plantilla && $plantilla->servicios && $plantilla->servicios->count() > 0) {
+                // Contar servicios por categoría en el bono
+                $serviciosPeluqueria = $plantilla->servicios->where('categoria', 'peluqueria')->count();
+                $serviciosEstetica = $plantilla->servicios->where('categoria', 'estetica')->count();
+                $totalServiciosBono = $serviciosPeluqueria + $serviciosEstetica;
+                
+                \Log::info("Bono #{$bono->id}: {$serviciosPeluqueria} servicios peluquería, {$serviciosEstetica} servicios estética");
+                
+                if ($totalServiciosBono > 0) {
+                    // Calcular proporción por categoría
+                    $proporcionPeluqueria = $serviciosPeluqueria / $totalServiciosBono;
+                    $proporcionEstetica = $serviciosEstetica / $totalServiciosBono;
+                    
+                    // Distribuir el precio pagado según proporción
+                    $montoPeluqueria = $precioPagado * $proporcionPeluqueria;
+                    $montoEstetica = $precioPagado * $proporcionEstetica;
+                    
+                    \Log::info("Distribución bono #{$bono->id}: Peluquería: €{$montoPeluqueria}, Estética: €{$montoEstetica}");
+                    
+                    // Sumar a totales según método de pago
+                    if ($metodoPago === 'efectivo') {
+                        $totalPeluqueriaEfectivo += $montoPeluqueria;
+                        $totalEsteticaEfectivo += $montoEstetica;
+                    } elseif ($metodoPago === 'tarjeta') {
+                        $totalPeluqueriaTarjeta += $montoPeluqueria;
+                        $totalEsteticaTarjeta += $montoEstetica;
+                        \Log::info("Sumado a tarjeta peluquería: €{$montoPeluqueria}");
+                    }
+                    // Si es método 'deuda', no sumamos porque no ingresó dinero
+                    
+                    // Sumar al total de la categoría
+                    $totalPeluqueria += $montoPeluqueria;
+                    $totalEstetica += $montoEstetica;
+                } else {
+                    \Log::warning("Bono #{$bono->id} no tiene servicios contables");
+                }
+            } else {
+                \Log::warning("Bono #{$bono->id} no tiene servicios en la plantilla");
+            }
+        }
+        
+        \Log::info("Totales finales - Peluquería Tarjeta: €{$totalPeluqueriaTarjeta}, Peluquería Total: €{$totalPeluqueria}");
 
         return view('caja.index', compact(
             'fecha',
