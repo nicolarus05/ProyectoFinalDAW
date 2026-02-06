@@ -934,11 +934,10 @@ class RegistroCobroController extends Controller{
                             $precioConDescuento = $totalServiciosConDescuento * $proporcion;
                             
                             // Verificar si este servicio fue pagado con bono
-                            // Buscar en una ventana de 24 horas para mayor seguridad
+                            // CORRECCIÓN: Buscar SOLO por cita_id y servicio_id (sin ventana de tiempo amplia)
                             $usoBono = DB::table('bono_uso_detalle')
                                 ->where('servicio_id', $servicio->id)
                                 ->where('cita_id', $cita->id)
-                                ->where('created_at', '>=', now()->subHours(24))
                                 ->exists();
                             
                             if ($usoBono) {
@@ -1203,24 +1202,18 @@ class RegistroCobroController extends Controller{
                     }
 
                     // Verificar si este servicio fue pagado con bono ANTES de guardarlo
-                    // Para cobros directos, buscar en las citas agrupadas o en ventana de 24h
+                    // CORRECCIÓN: Solo buscar si hay citas asociadas específicas
                     $usoBono = false;
                     
-                    // Primero: verificar si el cobro tiene citas agrupadas
+                    // Solo verificar si el cobro tiene citas agrupadas
                     if (!empty($data['citas_ids']) && is_array($data['citas_ids'])) {
                         $usoBono = DB::table('bono_uso_detalle')
                             ->where('servicio_id', $servicioId)
                             ->whereIn('cita_id', $data['citas_ids'])
                             ->exists();
                     }
-                    
-                    // Si no tiene citas agrupadas, buscar por ventana de tiempo
-                    if (!$usoBono) {
-                        $usoBono = DB::table('bono_uso_detalle')
-                            ->where('servicio_id', $servicioId)
-                            ->where('created_at', '>=', now()->subHours(24))
-                            ->exists();
-                    }
+                    // Para cobros directos sin cita: NO buscar en bono_uso_detalle
+                    // Los bonos ya se aplicaron en las líneas 614-720
                     
                     if ($usoBono) {
                         $precio = 0; // Servicio pagado con bono, precio 0
