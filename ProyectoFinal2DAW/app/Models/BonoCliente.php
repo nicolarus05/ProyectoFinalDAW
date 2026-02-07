@@ -17,6 +17,8 @@ class BonoCliente extends Model
         'estado',
         'metodo_pago',
         'precio_pagado',
+        'pago_efectivo',
+        'pago_tarjeta',
         'dinero_cliente',
         'cambio',
         'id_empleado'

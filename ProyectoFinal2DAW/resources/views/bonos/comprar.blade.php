@@ -105,18 +105,25 @@
                         <label class="flex items-center cursor-pointer">
                             <input type="radio" name="metodo_pago" value="efectivo" 
                                    {{ old('metodo_pago') == 'efectivo' ? 'checked' : '' }} 
-                                   class="mr-2" required onchange="toggleDineroCliente()">
+                                   class="mr-2" required onchange="toggleMetodoPago()">
                             <span class="font-semibold">💵 Efectivo</span>
                         </label>
                         <label class="flex items-center cursor-pointer">
                             <input type="radio" name="metodo_pago" value="tarjeta" 
                                    {{ old('metodo_pago') == 'tarjeta' ? 'checked' : '' }} 
-                                   class="mr-2" required onchange="toggleDineroCliente()">
+                                   class="mr-2" required onchange="toggleMetodoPago()">
                             <span class="font-semibold">💳 Tarjeta</span>
+                        </label>
+                        <label class="flex items-center cursor-pointer">
+                            <input type="radio" name="metodo_pago" value="mixto" 
+                                   {{ old('metodo_pago') == 'mixto' ? 'checked' : '' }} 
+                                   class="mr-2" required onchange="toggleMetodoPago()">
+                            <span class="font-semibold">💳💵 Mixto</span>
                         </label>
                     </div>
                 </div>
 
+                <!-- Campos para pago en efectivo -->
                 <div id="dineroClienteDiv" style="display: none;">
                     <label for="dinero_cliente" class="block font-semibold mb-2">💰 Dinero del Cliente:</label>
                     <input type="number" name="dinero_cliente" id="dinero_cliente" 
@@ -125,6 +132,46 @@
                            class="w-full border rounded px-3 py-2"
                            placeholder="Ingrese el dinero que entrega el cliente"
                            oninput="calcularCambio()">
+                </div>
+
+                <!-- Campos para pago mixto -->
+                <div id="pagoMixtoDiv" style="display: none;">
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label for="pago_efectivo" class="block font-semibold mb-2">💵 Pago en Efectivo:</label>
+                            <input type="number" name="pago_efectivo" id="pago_efectivo" 
+                                   value="{{ old('pago_efectivo') }}" 
+                                   step="0.01" min="0" 
+                                   class="w-full border rounded px-3 py-2"
+                                   placeholder="€0.00"
+                                   oninput="calcularTotalMixto()">
+                        </div>
+                        <div>
+                            <label for="pago_tarjeta" class="block font-semibold mb-2">💳 Pago con Tarjeta:</label>
+                            <input type="number" name="pago_tarjeta" id="pago_tarjeta" 
+                                   value="{{ old('pago_tarjeta') }}" 
+                                   step="0.01" min="0" 
+                                   class="w-full border rounded px-3 py-2"
+                                   placeholder="€0.00"
+                                   oninput="calcularTotalMixto()">
+                        </div>
+                    </div>
+                    <div id="totalMixtoDiv" class="bg-white border-2 border-blue-500 rounded p-3">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="text-sm text-gray-600">Total pagado:</p>
+                                <p id="totalMixtoMostrado" class="text-xl font-bold text-blue-600">€0.00</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Precio bono:</p>
+                                <p class="text-xl font-bold text-gray-700">€{{ number_format($plantilla->precio, 2) }}</p>
+                            </div>
+                            <div id="diferenciaMixtoDiv">
+                                <p class="text-sm text-gray-600">Diferencia:</p>
+                                <p id="diferenciaMixtoMostrado" class="text-xl font-bold text-red-600">€0.00</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="cambioDiv" class="mt-4" style="display: none;">
@@ -152,21 +199,37 @@
         <script>
             const precioTotal = {{ $plantilla->precio }};
 
-            function toggleDineroCliente() {
-                const metodoPago = document.querySelector('input[name="metodo_pago"]:checked').value;
+            function toggleMetodoPago() {
+                const metodoPago = document.querySelector('input[name="metodo_pago"]:checked')?.value;
                 const dineroDiv = document.getElementById('dineroClienteDiv');
                 const cambioDiv = document.getElementById('cambioDiv');
                 const dineroInput = document.getElementById('dinero_cliente');
+                const pagoMixtoDiv = document.getElementById('pagoMixtoDiv');
+                const pagoEfectivoInput = document.getElementById('pago_efectivo');
+                const pagoTarjetaInput = document.getElementById('pago_tarjeta');
+
+                // Ocultar todo primero
+                dineroDiv.style.display = 'none';
+                cambioDiv.style.display = 'none';
+                pagoMixtoDiv.style.display = 'none';
+                dineroInput.required = false;
+                pagoEfectivoInput.required = false;
+                pagoTarjetaInput.required = false;
 
                 if (metodoPago === 'efectivo') {
                     dineroDiv.style.display = 'block';
                     dineroInput.required = true;
-                } else {
-                    dineroDiv.style.display = 'none';
-                    cambioDiv.style.display = 'none';
-                    dineroInput.required = false;
-                    dineroInput.value = '';
+                } else if (metodoPago === 'mixto') {
+                    pagoMixtoDiv.style.display = 'block';
+                    pagoEfectivoInput.required = true;
+                    pagoTarjetaInput.required = true;
+                    calcularTotalMixto();
                 }
+                // Tarjeta: no muestra nada extra
+            }
+
+            function toggleDineroCliente() {
+                toggleMetodoPago();
             }
 
             function calcularCambio() {
@@ -183,11 +246,32 @@
                 }
             }
 
+            function calcularTotalMixto() {
+                const pagoEfectivo = parseFloat(document.getElementById('pago_efectivo').value) || 0;
+                const pagoTarjeta = parseFloat(document.getElementById('pago_tarjeta').value) || 0;
+                const totalPagado = pagoEfectivo + pagoTarjeta;
+                const diferencia = precioTotal - totalPagado;
+
+                document.getElementById('totalMixtoMostrado').textContent = '€' + totalPagado.toFixed(2);
+                
+                const diferenciaEl = document.getElementById('diferenciaMixtoMostrado');
+                if (diferencia > 0) {
+                    diferenciaEl.textContent = '-€' + diferencia.toFixed(2);
+                    diferenciaEl.className = 'text-xl font-bold text-red-600';
+                } else if (diferencia < 0) {
+                    diferenciaEl.textContent = '+€' + Math.abs(diferencia).toFixed(2);
+                    diferenciaEl.className = 'text-xl font-bold text-orange-600';
+                } else {
+                    diferenciaEl.textContent = '€0.00 ✓';
+                    diferenciaEl.className = 'text-xl font-bold text-green-600';
+                }
+            }
+
             // Inicializar estado al cargar
             document.addEventListener('DOMContentLoaded', function() {
                 const metodoPagoChecked = document.querySelector('input[name="metodo_pago"]:checked');
                 if (metodoPagoChecked) {
-                    toggleDineroCliente();
+                    toggleMetodoPago();
                 }
             });
         </script>

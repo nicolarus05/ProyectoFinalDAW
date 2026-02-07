@@ -198,6 +198,8 @@ class BonoController extends Controller
             $precioTotal = $plantilla->precio;
             $dineroCliente = $request->dinero_cliente ?? 0;
             $cambio = 0;
+            $pagoEfectivo = null;
+            $pagoTarjeta = null;
 
             if ($metodoPago === 'efectivo') {
                 if ($dineroCliente < $precioTotal) {
@@ -205,10 +207,28 @@ class BonoController extends Controller
                     return redirect()->back()->withErrors(['dinero_cliente' => 'El dinero del cliente debe ser al menos €' . number_format($precioTotal, 2)])->withInput();
                 }
                 $cambio = $dineroCliente - $precioTotal;
+                $pagoEfectivo = $precioTotal;
+                $pagoTarjeta = 0;
+            } elseif ($metodoPago === 'mixto') {
+                // Pago mixto: validar que la suma cubra el precio
+                $pagoEfectivo = $request->pago_efectivo ?? 0;
+                $pagoTarjeta = $request->pago_tarjeta ?? 0;
+                $totalPagado = $pagoEfectivo + $pagoTarjeta;
+                
+                if ($totalPagado < $precioTotal) {
+                    DB::rollBack();
+                    return redirect()->back()->withErrors(['pago_efectivo' => 'La suma de efectivo y tarjeta debe ser al menos €' . number_format($precioTotal, 2) . '. Actualmente: €' . number_format($totalPagado, 2)])->withInput();
+                }
+                
+                // Si pagaron de más, el exceso se devuelve como cambio del efectivo
+                $cambio = $totalPagado - $precioTotal;
+                $dineroCliente = $pagoEfectivo; // El dinero en mano es el efectivo
             } else {
                 // Tarjeta: pago exacto
                 $dineroCliente = $precioTotal;
                 $cambio = 0;
+                $pagoEfectivo = 0;
+                $pagoTarjeta = $precioTotal;
             }
 
             // Crear bono para el cliente
@@ -226,6 +246,8 @@ class BonoController extends Controller
                 'estado' => 'activo',
                 'metodo_pago' => $metodoPago,
                 'precio_pagado' => $precioTotal,
+                'pago_efectivo' => $pagoEfectivo,
+                'pago_tarjeta' => $pagoTarjeta,
                 'dinero_cliente' => $dineroCliente,
                 'cambio' => $cambio,
                 'id_empleado' => $request->id_empleado
@@ -246,6 +268,12 @@ class BonoController extends Controller
             if ($metodoPago === 'efectivo') {
                 $mensaje .= " | Dinero recibido: €" . number_format($dineroCliente, 2);
                 $mensaje .= " | Cambio: €" . number_format($cambio, 2);
+            } elseif ($metodoPago === 'mixto') {
+                $mensaje .= " | Efectivo: €" . number_format($pagoEfectivo, 2);
+                $mensaje .= " | Tarjeta: €" . number_format($pagoTarjeta, 2);
+                if ($cambio > 0) {
+                    $mensaje .= " | Cambio: €" . number_format($cambio, 2);
+                }
             } else {
                 $mensaje .= " | Pagado con tarjeta";
             }

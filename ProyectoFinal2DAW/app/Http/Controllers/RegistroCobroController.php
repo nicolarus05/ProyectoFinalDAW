@@ -1040,14 +1040,40 @@ class RegistroCobroController extends Controller{
                 // Calcular cuánto se pagó del bono
                 $dineroPagadoBono = max(0, $totalBonosVendidos - $deudaBonos);
                 
-                // Determinar el método de pago del bono
+                // Determinar el método de pago del bono y calcular desglose
                 $metodoPagoBono = $data['metodo_pago'];
+                $pagoEfectivoBono = null;
+                $pagoTarjetaBono = null;
+                
                 if ($deudaBonos >= $totalBonosVendidos) {
                     // El bono queda completamente a deber
                     $metodoPagoBono = 'deuda';
+                    $pagoEfectivoBono = 0;
+                    $pagoTarjetaBono = 0;
                 } elseif ($deudaBonos > 0) {
                     // Pago parcial del bono (raro, pero posible)
                     $metodoPagoBono = 'mixto';
+                } else {
+                    // Pago completo - calcular desglose según método de pago del cobro
+                    if ($metodoPagoBono === 'efectivo') {
+                        $pagoEfectivoBono = $dineroPagadoBono;
+                        $pagoTarjetaBono = 0;
+                    } elseif ($metodoPagoBono === 'tarjeta') {
+                        $pagoEfectivoBono = 0;
+                        $pagoTarjetaBono = $dineroPagadoBono;
+                    } elseif ($metodoPagoBono === 'mixto') {
+                        // Para mixto, calcular proporción basándose en el cobro
+                        $totalPagosCobro = ($data['pago_efectivo'] ?? 0) + ($data['pago_tarjeta'] ?? 0);
+                        if ($totalPagosCobro > 0) {
+                            $proporcionEfectivo = ($data['pago_efectivo'] ?? 0) / $totalPagosCobro;
+                            $pagoEfectivoBono = $dineroPagadoBono * $proporcionEfectivo;
+                            $pagoTarjetaBono = $dineroPagadoBono - $pagoEfectivoBono;
+                        } else {
+                            // Fallback 50/50
+                            $pagoEfectivoBono = $dineroPagadoBono / 2;
+                            $pagoTarjetaBono = $dineroPagadoBono / 2;
+                        }
+                    }
                 }
                 
                 // Crear el bono del cliente
@@ -1059,6 +1085,8 @@ class RegistroCobroController extends Controller{
                     'estado' => 'activo',
                     'metodo_pago' => $metodoPagoBono,
                     'precio_pagado' => $dineroPagadoBono,
+                    'pago_efectivo' => $pagoEfectivoBono,
+                    'pago_tarjeta' => $pagoTarjetaBono,
                     'dinero_cliente' => 0,
                     'cambio' => 0,
                     'id_empleado' => $empleadoId,
