@@ -11,7 +11,10 @@
         <div class="bg-white rounded-lg shadow-md p-6">
             <div class="flex justify-between items-center mb-6">
                 <h1 class="text-3xl font-bold text-gray-800">👥 Control de Asistencia</h1>
-                <a href="{{ route('dashboard') }}" class="text-blue-600 hover:underline">← Volver al Inicio</a>
+                <div class="flex items-center gap-3">
+                    <a href="{{ route('asistencia.informe-mensual') }}" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm">🖨️ Informe Mensual</a>
+                    <a href="{{ route('dashboard') }}" class="text-blue-600 hover:underline">← Volver al Inicio</a>
+                </div>
             </div>
 
             <!-- Estadísticas del día -->

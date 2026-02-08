@@ -422,5 +422,77 @@ class RegistroEntradaSalidaController extends Controller{
             'mensaje' => 'Jornada completada'
         ]);
     }
+
+    /**
+     * Vista imprimible de horas mensuales de empleados
+     */
+    public function informeMensual(Request $request){
+        if (Auth::user()->rol !== 'admin') {
+            abort(403, 'No tienes permiso para acceder a esta sección.');
+        }
+
+        $mes = $request->get('mes', Carbon::now()->month);
+        $anio = $request->get('anio', Carbon::now()->year);
+
+        $fechaInicio = Carbon::create($anio, $mes, 1)->startOfMonth();
+        $fechaFin = $fechaInicio->copy()->endOfMonth();
+        $nombreMes = $fechaInicio->translatedFormat('F Y');
+
+        $empleados = Empleado::with('user')->get();
+
+        $datosEmpleados = [];
+
+        foreach ($empleados as $empleado) {
+            $registros = RegistroEntradaSalida::where('id_empleado', $empleado->id)
+                ->whereBetween('fecha', [$fechaInicio->format('Y-m-d'), $fechaFin->format('Y-m-d')])
+                ->whereNotNull('hora_entrada')
+                ->whereNotNull('hora_salida')
+                ->orderBy('fecha')
+                ->get();
+
+            $totalMinutos = 0;
+            $totalMinutosExtra = 0;
+            $diasTrabajados = 0;
+            $detalleDias = [];
+
+            foreach ($registros as $registro) {
+                $horas = $registro->calcularHorasTrabajadas();
+                if ($horas) {
+                    $totalMinutos += $horas['total_minutos'];
+                    $totalMinutosExtra += $registro->minutos_extra ?? 0;
+                    $diasTrabajados++;
+                    $detalleDias[] = [
+                        'fecha' => $registro->fecha,
+                        'entrada' => $registro->hora_entrada,
+                        'salida' => $registro->hora_salida,
+                        'horas' => $horas['formatted'],
+                        'minutos_total' => $horas['total_minutos'],
+                        'minutos_extra' => $registro->minutos_extra ?? 0,
+                        'fuera_horario' => $registro->salida_fuera_horario,
+                    ];
+                }
+            }
+
+            $horasTotales = floor($totalMinutos / 60);
+            $minutosTotales = $totalMinutos % 60;
+            $horasExtra = floor($totalMinutosExtra / 60);
+            $minutosExtra = $totalMinutosExtra % 60;
+            $promedioDiario = $diasTrabajados > 0 ? round($totalMinutos / $diasTrabajados) : 0;
+
+            $datosEmpleados[] = [
+                'empleado' => $empleado,
+                'dias_trabajados' => $diasTrabajados,
+                'total_minutos' => $totalMinutos,
+                'total_formatted' => sprintf('%dh %02dmin', $horasTotales, $minutosTotales),
+                'extra_formatted' => sprintf('%dh %02dmin', $horasExtra, $minutosExtra),
+                'promedio_diario' => sprintf('%dh %02dmin', floor($promedioDiario / 60), $promedioDiario % 60),
+                'detalle_dias' => $detalleDias,
+            ];
+        }
+
+        return view('asistencia.informe-mensual', compact(
+            'datosEmpleados', 'nombreMes', 'mes', 'anio', 'fechaInicio', 'fechaFin'
+        ));
+    }
 }
 

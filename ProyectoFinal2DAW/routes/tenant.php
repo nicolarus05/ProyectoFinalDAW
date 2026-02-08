@@ -123,6 +123,7 @@ Route::middleware([
 
         // Asistencia completa (solo admin)
         Route::get('asistencia', [RegistroEntradaSalidaController::class, 'index'])->name('asistencia.index');
+        Route::get('asistencia/informe-mensual', [RegistroEntradaSalidaController::class, 'informeMensual'])->name('asistencia.informe-mensual');
         Route::get('asistencia/empleado/{empleado}', [RegistroEntradaSalidaController::class, 'porEmpleado'])->name('asistencia.empleado');
         Route::post('asistencia/desconectar/{registro}', [RegistroEntradaSalidaController::class, 'desconectarEmpleado'])->name('asistencia.desconectar');
     });
