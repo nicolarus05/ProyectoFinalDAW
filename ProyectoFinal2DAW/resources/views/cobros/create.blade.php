@@ -71,6 +71,7 @@
                     <thead>
                         <tr class="text-left">
                             <th class="pb-2">Nombre</th>
+                            <th class="pb-2">Empleado</th>
                             <th class="pb-2">Cantidad</th>
                             <th class="pb-2">Precio unitario</th>
                             <th class="pb-2 text-right">Subtotal</th>
@@ -82,7 +83,7 @@
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="3" class="text-right font-semibold">Total productos:</td>
+                            <td colspan="4" class="text-right font-semibold">Total productos:</td>
                             <td id="selected-products-total" class="text-right font-semibold">0.00</td>
                             <td></td>
                         </tr>
@@ -376,6 +377,11 @@
 </div>
 
 <script>
+// Datos de empleados para dropdown de productos
+window.empleadosData = @json($empleados->map(function($empleado) {
+    return ['id' => $empleado->id, 'nombre' => ($empleado->user->nombre ?? '') . ' ' . ($empleado->user->apellidos ?? '')];
+}));
+
 // Datos de servicios y bonos por cita
 window.citasData = {
     @foreach($citas as $cita)

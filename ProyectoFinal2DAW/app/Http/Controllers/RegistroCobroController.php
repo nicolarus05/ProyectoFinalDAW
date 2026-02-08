@@ -10,6 +10,7 @@ use App\Models\Productos;
 use App\Models\Cliente;
 use App\Models\BonoCliente;
 use App\Models\BonoUsoDetalle;
+use App\Models\Empleado;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -75,7 +76,9 @@ class RegistroCobroController extends Controller{
                 ->find($request->cita_id);
         }
         
-        return view('cobros.create', compact('citas', 'citaSeleccionada'));
+        $empleados = Empleado::with('user')->get();
+
+        return view('cobros.create', compact('citas', 'citaSeleccionada', 'empleados'));
     }
 
     /**

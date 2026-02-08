@@ -131,11 +131,24 @@ document.addEventListener('DOMContentLoaded', function() {
         const tr = document.createElement('tr');
         tr.dataset.productId = id;
         tr.className = 'border-b';
+
+        // Generar opciones de empleados
+        const empleados = window.empleadosData || [];
+        let empleadoOptions = '<option value="">-- Seleccionar --</option>';
+        empleados.forEach(emp => {
+          empleadoOptions += `<option value="${emp.id}">${escapeHtml(emp.nombre)}</option>`;
+        });
+
         tr.innerHTML = `
           <td class="py-2">
             ${escapeHtml(nombre)}
             <input type="hidden" name="products[${idx}][id]" value="${id}">
             <input type="hidden" name="products[${idx}][nombre]" value="${escapeHtml(nombre)}">
+          </td>
+          <td class="py-2">
+            <select name="products[${idx}][empleado_id]" class="w-full border rounded px-2 py-1 text-sm sel-empleado">
+              ${empleadoOptions}
+            </select>
           </td>
           <td class="py-2">
             <input type="number" name="products[${idx}][cantidad]" value="${cantidad}" min="1" class="w-20 border rounded px-2 py-1 sel-qty">
