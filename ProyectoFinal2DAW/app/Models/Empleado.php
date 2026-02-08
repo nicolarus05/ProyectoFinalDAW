@@ -79,6 +79,7 @@ class Empleado extends Model
         $cobros = RegistroCobro::with(['servicios', 'productos', 'bonosVendidos', 'cita.servicios', 'citasAgrupadas.servicios'])
             ->whereBetween('created_at', [$fechaInicio, $fechaFin])
             ->where('metodo_pago', '!=', 'bono')
+            ->where('metodo_pago', '!=', 'deuda') // Deuda = dinero NO cobrado, no facturar
             ->where('contabilizado', true)
             ->get();
 
@@ -97,8 +98,8 @@ class Empleado extends Model
                 if ($cobro->id_empleado == $this->id && 
                     $cobro->servicios->count() == 0 && 
                     $cobro->productos->count() == 0 && 
-                    $cobro->coste > 0) {
-                    $facturacion['servicios'] += $cobro->coste;
+                    $cobro->total_final > 0) {
+                    $facturacion['servicios'] += $cobro->total_final;
                 }
             }
         }

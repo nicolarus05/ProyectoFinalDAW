@@ -29,6 +29,7 @@ class RegistroCobro extends Model {
         'pago_tarjeta',
         'cambio',
         'deuda',
+        'contabilizado',
     ];
 
     // Relación directa con cita (para cobros de una sola cita)

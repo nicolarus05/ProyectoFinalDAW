@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\BonoPlantilla;
 use App\Models\BonoCliente;
+use App\Models\RegistroCobro;
 use App\Models\Servicio;
 use App\Models\Cliente;
 use App\Models\Empleado;
@@ -106,8 +107,10 @@ class BonoController extends Controller
         $request->validate([
             'cliente_id' => 'required|exists:clientes,id',
             'id_empleado' => 'required|exists:empleados,id',
-            'metodo_pago' => 'required|in:efectivo,tarjeta',
+            'metodo_pago' => 'required|in:efectivo,tarjeta,mixto',
             'dinero_cliente' => 'nullable|numeric|min:0',
+            'pago_efectivo' => 'nullable|numeric|min:0',
+            'pago_tarjeta' => 'nullable|numeric|min:0',
         ]);
 
         try {
@@ -260,6 +263,34 @@ class BonoController extends Controller
                     'cantidad_usada' => 0
                 ]);
             }
+
+            // Crear RegistroCobro auxiliar para que el bono aparezca en caja diaria y facturación
+            // total_final = 0 (no hay servicios/productos) → no suma al monto de servicios
+            // total_bonos_vendidos = precioTotal → el bono se cuenta via bonosVendidos()
+            // dinero_cliente = total pagado → necesario para que FacturacionService verifique que el bono se cobró
+            $dineroClienteCobro = ($metodoPago === 'mixto') 
+                ? ($pagoEfectivo + $pagoTarjeta) 
+                : $dineroCliente;
+
+            $cobroAuxiliar = RegistroCobro::create([
+                'id_cliente' => $clienteId,
+                'id_empleado' => $request->id_empleado,
+                'coste' => 0,
+                'total_final' => 0,
+                'total_bonos_vendidos' => $precioTotal,
+                'metodo_pago' => $metodoPago,
+                'dinero_cliente' => $dineroClienteCobro,
+                'pago_efectivo' => 0, // Servicios = 0, el pago del bono está en BonoCliente
+                'pago_tarjeta' => 0,  // Servicios = 0, el pago del bono está en BonoCliente
+                'cambio' => 0,
+                'deuda' => 0,
+                'contabilizado' => true,
+            ]);
+
+            // Vincular el bono al cobro para que CajaDiariaController y FacturacionController lo detecten
+            $cobroAuxiliar->bonosVendidos()->attach($bonoCliente->id, [
+                'precio' => $precioTotal
+            ]);
 
             DB::commit();
             

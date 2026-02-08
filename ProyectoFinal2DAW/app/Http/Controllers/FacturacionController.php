@@ -74,9 +74,9 @@ class FacturacionController extends Controller
                         $cajasDiarias[$fechaCobro]['efectivo'] += $cobro->pago_efectivo ?? 0;
                         $cajasDiarias[$fechaCobro]['tarjeta'] += $cobro->pago_tarjeta ?? 0;
                     } elseif ($cobro->metodo_pago === 'deuda') {
-                        if ($montoPagadoServicios > 0) {
-                            $cajasDiarias[$fechaCobro]['efectivo'] += $montoPagadoServicios;
-                        }
+                        // Deuda = dinero NO cobrado, no sumar a ningún método.
+                        // Cuando se pague, el DeudaController crea un nuevo cobro
+                        // con metodo_pago real (efectivo/tarjeta) que se contará normalmente.
                     }
                     
                     // Sumar bonos vendidos por su propio método de pago
@@ -93,8 +93,14 @@ class FacturacionController extends Controller
                                 } elseif ($metodoPagoBono === 'tarjeta') {
                                     $cajasDiarias[$fechaCobro]['tarjeta'] += $precioBonoPagado;
                                 } elseif ($metodoPagoBono === 'mixto') {
-                                    $cajasDiarias[$fechaCobro]['efectivo'] += $precioBonoPagado / 2;
-                                    $cajasDiarias[$fechaCobro]['tarjeta'] += $precioBonoPagado / 2;
+                                    // Usar desglose real si existe, sino fallback 50/50 para datos antiguos
+                                    if ($bono->pago_efectivo !== null && $bono->pago_tarjeta !== null) {
+                                        $cajasDiarias[$fechaCobro]['efectivo'] += $bono->pago_efectivo;
+                                        $cajasDiarias[$fechaCobro]['tarjeta'] += $bono->pago_tarjeta;
+                                    } else {
+                                        $cajasDiarias[$fechaCobro]['efectivo'] += $precioBonoPagado / 2;
+                                        $cajasDiarias[$fechaCobro]['tarjeta'] += $precioBonoPagado / 2;
+                                    }
                                 }
                             }
                         }

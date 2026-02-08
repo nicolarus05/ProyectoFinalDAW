@@ -37,10 +37,11 @@ class FacturacionService
         
         $sumaPivotTotal = $sumaPivotServicios + $sumaPivotProductos;
         
-        // Calcular factor de ajuste si hay descuento
-        // Si total_final < suma_pivot, hay descuento aplicado
+        // Calcular factor de ajuste proporcional
+        // Aplica tanto para descuentos (factor < 1) como recargos (factor > 1)
+        // Unificado con desglosarCobroPorCategoria()
         $factorAjuste = 1.0;
-        if ($sumaPivotTotal > 0 && $cobro->total_final < $sumaPivotTotal - 0.01) {
+        if ($sumaPivotTotal > 0.01) {
             $factorAjuste = $cobro->total_final / $sumaPivotTotal;
         }
 
@@ -135,10 +136,10 @@ class FacturacionService
     /**
      * Desglosa un cobro por categoría (peluqueria/estetica) aplicando descuentos proporcionalmente
      * LÓGICA:
-     * - Agrupa servicios, productos y bonos según su categoría
+     * - Usa $cobro->servicios (registro_cobro_servicio) como fuente principal (consistente con desglosarCobroPorEmpleado)
      * - Aplica el mismo factor de ajuste proporcional que desglosarCobroPorEmpleado
      * - Para bonos vendidos: usa la categoría del bono_plantilla
-     * - Prioriza servicios de: cita individual > citas agrupadas > servicios directos
+     * - Fallback: si el pivot está vacío, intenta cita/citasAgrupadas para distribución por categoría
      */
     public function desglosarCobroPorCategoria(RegistroCobro $cobro): array
     {
@@ -147,41 +148,17 @@ class FacturacionService
             'estetica' => $this->estructuraBase(),
         ];
 
-        // Obtener servicios según prioridad (igual que en desglosarCobroPorEmpleado)
-        $servicios = [];
-        $yaContados = false;
-        
-        // PRIORIDAD 1: Servicios de cita individual
-        if ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
-            $servicios = $cobro->cita->servicios;
-            $yaContados = true;
-        }
-        
-        // PRIORIDAD 2: Servicios de citas agrupadas
-        if (!$yaContados && $cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
-            foreach ($cobro->citasAgrupadas as $citaGrupo) {
-                if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
-                    foreach ($citaGrupo->servicios as $servicio) {
-                        $servicios[] = $servicio;
-                    }
-                }
-            }
-            $yaContados = true;
-        }
-        
-        // PRIORIDAD 3: Servicios directos
-        if (!$yaContados && $cobro->servicios && $cobro->servicios->count() > 0) {
-            $servicios = $cobro->servicios;
-        }
+        // FUENTE PRINCIPAL: Usar $cobro->servicios (tabla registro_cobro_servicio)
+        // Esta es la misma fuente que desglosarCobroPorEmpleado() y tiene los precios correctos
+        $servicios = $cobro->servicios ?? collect();
 
         // Calcular suma total de servicios y productos desde pivot
         $sumaPivotServicios = 0;
         $sumaPivotProductos = 0;
         
         foreach ($servicios as $servicio) {
-            $precio = $servicio->pivot->precio ?? $servicio->precio ?? 0;
-            if ($precio > 0) {
-                $sumaPivotServicios += $precio;
+            if ($servicio->pivot->precio > 0) {
+                $sumaPivotServicios += $servicio->pivot->precio;
             }
         }
         
@@ -193,9 +170,7 @@ class FacturacionService
         
         $sumaPivotTotal = $sumaPivotServicios + $sumaPivotProductos;
         
-        // Calcular factor de ajuste
-        // Si hay descuento: aplicar proporcionalmente
-        // Si hay cargo extra (total_final > sumaPivotTotal): también aplicar proporcionalmente
+        // Calcular factor de ajuste (unificado con desglosarCobroPorEmpleado)
         $factorAjuste = 1.0;
         if ($sumaPivotTotal > 0.01) {
             $factorAjuste = $cobro->total_final / $sumaPivotTotal;
@@ -207,34 +182,52 @@ class FacturacionService
         |--------------------------------------------------------------------------
         */
         
-        // CASO ESPECIAL: Si sumaPivotTotal es 0 pero hay servicios con total_final > 0
-        // Distribuir el total_final proporcionalmente por categoría de servicios
-        if ($sumaPivotTotal < 0.01 && $cobro->total_final > 0 && count($servicios) > 0) {
-            // Contar servicios por categoría
-            $serviciosPorCategoria = ['peluqueria' => 0, 'estetica' => 0];
-            foreach ($servicios as $servicio) {
-                $categoria = $servicio->categoria ?? 'peluqueria';
-                $serviciosPorCategoria[$categoria]++;
+        // CASO ESPECIAL: Si el pivot no tiene servicios con precio pero total_final > 0
+        // Esto ocurre con datos legacy o cobros donde todos los servicios son de bono (precio=0)
+        // Fallback: intentar obtener servicios desde cita/citasAgrupadas para distribuir por categoría
+        if ($sumaPivotTotal < 0.01 && $cobro->total_final > 0) {
+            // Intentar obtener servicios desde cualquier fuente para saber la categoría
+            $serviciosFallback = collect();
+            
+            if ($cobro->servicios && $cobro->servicios->count() > 0) {
+                $serviciosFallback = $cobro->servicios;
+            } elseif ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
+                $serviciosFallback = $cobro->cita->servicios;
+            } elseif ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                foreach ($cobro->citasAgrupadas as $citaGrupo) {
+                    if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
+                        foreach ($citaGrupo->servicios as $s) {
+                            $serviciosFallback->push($s);
+                        }
+                    }
+                }
             }
-            
-            $totalServicios = $serviciosPorCategoria['peluqueria'] + $serviciosPorCategoria['estetica'];
-            
-            if ($totalServicios > 0) {
-                // Distribuir proporcionalmente
-                foreach (['peluqueria', 'estetica'] as $cat) {
-                    if ($serviciosPorCategoria[$cat] > 0) {
-                        $proporcion = $serviciosPorCategoria[$cat] / $totalServicios;
-                        $resultado[$cat]['servicios'] += $cobro->total_final * $proporcion;
+
+            if ($serviciosFallback->count() > 0) {
+                // Contar servicios por categoría y distribuir proporcionalmente
+                $serviciosPorCategoria = ['peluqueria' => 0, 'estetica' => 0];
+                foreach ($serviciosFallback as $servicio) {
+                    $categoria = $servicio->categoria ?? 'peluqueria';
+                    $serviciosPorCategoria[$categoria]++;
+                }
+                
+                $totalServicios = $serviciosPorCategoria['peluqueria'] + $serviciosPorCategoria['estetica'];
+                
+                if ($totalServicios > 0) {
+                    foreach (['peluqueria', 'estetica'] as $cat) {
+                        if ($serviciosPorCategoria[$cat] > 0) {
+                            $proporcion = $serviciosPorCategoria[$cat] / $totalServicios;
+                            $resultado[$cat]['servicios'] += $cobro->total_final * $proporcion;
+                        }
                     }
                 }
             }
         } else {
-            // Caso normal: aplicar factor de ajuste
+            // Caso normal: aplicar factor de ajuste con precios del pivot
             foreach ($servicios as $servicio) {
-                $precio = $servicio->pivot->precio ?? $servicio->precio ?? 0;
-                if ($precio > 0) {
-                    $categoria = $servicio->categoria ?? 'peluqueria'; // Default si no tiene
-                    $precioAjustado = $precio * $factorAjuste;
+                if ($servicio->pivot->precio > 0) {
+                    $categoria = $servicio->categoria ?? 'peluqueria';
+                    $precioAjustado = $servicio->pivot->precio * $factorAjuste;
                     $resultado[$categoria]['servicios'] += $precioAjustado;
                 }
             }
