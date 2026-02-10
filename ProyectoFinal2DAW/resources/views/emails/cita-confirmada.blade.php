@@ -40,7 +40,12 @@
                                 <tr>
                                     <td style="color: #4F7C7A; font-weight: bold;">Servicio(s):</td>
                                     <td style="color: #333333;">
-                                        @if($cita->servicios->isNotEmpty())
+                                        @if(isset($citasGrupo) && $citasGrupo->count() > 1)
+                                            {{-- Grupo de citas: mostrar todos los servicios --}}
+                                            @foreach($citasGrupo as $citaGrupo)
+                                                {{ $citaGrupo->servicios->pluck('nombre')->join(', ') }}@if(!$loop->last), @endif
+                                            @endforeach
+                                        @elseif($cita->servicios->isNotEmpty())
                                             {{ $cita->servicios->pluck('nombre')->join(', ') }}
                                         @else
                                             No especificado
@@ -53,12 +58,23 @@
                                 </tr>
                                 <tr>
                                     <td style="color: #4F7C7A; font-weight: bold;">Duracion:</td>
-                                    <td style="color: #333333;">{{ $cita->duracion_minutos ?? $cita->servicios->sum('duracion_minutos') }} minutos</td>
+                                    <td style="color: #333333;">
+                                        @if(isset($citasGrupo) && $citasGrupo->count() > 1)
+                                            {{ $citasGrupo->sum(fn($c) => $c->duracion_minutos ?? $c->servicios->sum('duracion_minutos')) }} minutos
+                                        @else
+                                            {{ $cita->duracion_minutos ?? $cita->servicios->sum('duracion_minutos') }} minutos
+                                        @endif
+                                    </td>
                                 </tr>
-                                @if($cita->servicios->isNotEmpty() && $cita->servicios->sum('precio') > 0)
+                                @php
+                                    $precioTotal = (isset($citasGrupo) && $citasGrupo->count() > 1)
+                                        ? $citasGrupo->sum(fn($c) => $c->servicios->sum('precio'))
+                                        : $cita->servicios->sum('precio');
+                                @endphp
+                                @if($precioTotal > 0)
                                 <tr>
                                     <td style="color: #4F7C7A; font-weight: bold;">Precio:</td>
-                                    <td style="color: #333333;">{{ number_format($cita->servicios->sum('precio'), 2) }} EUR</td>
+                                    <td style="color: #333333;">{{ number_format($precioTotal, 2) }} EUR</td>
                                 </tr>
                                 @endif
                             </table>

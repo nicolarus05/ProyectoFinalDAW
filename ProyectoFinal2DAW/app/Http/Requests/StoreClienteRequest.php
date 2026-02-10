@@ -24,7 +24,8 @@ class StoreClienteRequest extends FormRequest
             'nombre' => ['required', 'string', 'max:255', 'min:2'],
             'apellidos' => ['required', 'string', 'max:255', 'min:2'],
             'telefono' => ['nullable', 'string', 'max:20', 'regex:/^[0-9+\s\-()]+$/'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            // Excluir usuarios soft-deleted de la validación unique para permitir re-registro
+            'email' => ['required', 'email', 'max:255', \Illuminate\Validation\Rule::unique('users', 'email')->whereNull('deleted_at')],
             'password' => ['required', 'string', 'min:6', 'max:255'],
             'genero' => ['required', 'string', 'in:Hombre,Mujer,Otro'],
             'edad' => ['required', 'integer', 'min:16', 'max:120'],

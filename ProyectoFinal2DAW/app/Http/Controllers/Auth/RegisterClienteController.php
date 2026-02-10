@@ -22,7 +22,7 @@ class RegisterClienteController extends Controller
             'nombre' => 'required|string|max:255',
             'apellidos' => 'required|string|max:255',
             'telefono' => 'required|string|max:20',
-            'email' => 'required|string|email|max:255|unique:users',
+            'email' => ['required', 'string', 'email', 'max:255', \Illuminate\Validation\Rule::unique('users', 'email')->whereNull('deleted_at')],
             'password' => 'required|string|min:8|confirmed',
             'genero' => 'required|in:Hombre,Mujer,Otro',
             'edad' => 'required|integer|min:0|max:120',
@@ -33,28 +33,66 @@ class RegisterClienteController extends Controller
         // Asignar fecha de registro automáticamente
         $fechaRegistro = $request->fecha_registro ?? date('Y-m-d');
 
-        $user = user::create([
-            'nombre' => $request->nombre,
-            'apellidos' => $request->apellidos,
-            'telefono' => $request->telefono,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'genero' => $request->genero,
-            'edad' => $request->edad,
-            'rol' => 'cliente',
-            'direccion' => $request->direccion,
-            'notas_adicionales' => $request->notas_adicionales,
-            'fecha_registro' => $fechaRegistro,
-        ]);
+        // Verificar si existe un usuario soft-deleted con este email y restaurarlo
+        $existingUser = User::withTrashed()
+            ->where('email', $request->email)
+            ->whereNotNull('deleted_at')
+            ->first();
 
-        // Crear registro en tabla clientes vinculado al user
-        Cliente::create([
-            'id_user' => $user->id,
-            'direccion' => $request->direccion,
-            'notas_adicionales' => $request->notas_adicionales,
-            'fecha_registro' => $fechaRegistro,
-        ]);
+        if ($existingUser) {
+            $existingUser->restore();
+            $existingUser->update([
+                'nombre' => $request->nombre,
+                'apellidos' => $request->apellidos,
+                'telefono' => $request->telefono,
+                'password' => Hash::make($request->password),
+                'genero' => $request->genero,
+                'edad' => $request->edad,
+                'rol' => 'cliente',
+            ]);
+            $user = $existingUser;
 
+            $existingCliente = Cliente::withTrashed()
+                ->where('id_user', $user->id)
+                ->first();
+
+            if ($existingCliente) {
+                $existingCliente->restore();
+                $existingCliente->update([
+                    'direccion' => $request->direccion,
+                    'notas_adicionales' => $request->notas_adicionales,
+                    'fecha_registro' => $fechaRegistro,
+                ]);
+            } else {
+                Cliente::create([
+                    'id_user' => $user->id,
+                    'direccion' => $request->direccion,
+                    'notas_adicionales' => $request->notas_adicionales,
+                    'fecha_registro' => $fechaRegistro,
+                ]);
+            }
+        } else {
+            $user = User::create([
+                'nombre' => $request->nombre,
+                'apellidos' => $request->apellidos,
+                'telefono' => $request->telefono,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'genero' => $request->genero,
+                'edad' => $request->edad,
+                'rol' => 'cliente',
+                'direccion' => $request->direccion,
+                'notas_adicionales' => $request->notas_adicionales,
+                'fecha_registro' => $fechaRegistro,
+            ]);
+
+            Cliente::create([
+                'id_user' => $user->id,
+                'direccion' => $request->direccion,
+                'notas_adicionales' => $request->notas_adicionales,
+                'fecha_registro' => $fechaRegistro,
+            ]);
+        }
 
         Auth::login($user);
 

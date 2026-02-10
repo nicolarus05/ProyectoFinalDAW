@@ -51,29 +51,65 @@ class EmpleadoController extends Controller{
             'nombre' => 'required|string|max:255',
             'apellidos' => 'required|string|max:255',
             'telefono' => 'nullable|string|max:20',
-            'email' => 'required|email|unique:users,email',
+            'email' => ['required', 'email', \Illuminate\Validation\Rule::unique('users', 'email')->whereNull('deleted_at')],
             'genero' => 'required|string|max:20',
             'edad' => 'required|integer|min:0',
             'categoria' => 'required|in:peluqueria,estetica',
         ]);
 
-        // Crear user
-        $user = user::create([
-            'nombre' => $request->input('nombre'),
-            'apellidos' => $request->input('apellidos'),
-            'telefono' => $request->input('telefono'),
-            'email' => $request->input('email'),
-            'password' => bcrypt($request->input('password')),
-            'genero' => $request->input('genero'),
-            'edad' => $request->input('edad'),
-            'rol' => 'empleado',
-        ]);
+        // Verificar si existe un usuario soft-deleted con este email y restaurarlo
+        $existingUser = user::withTrashed()
+            ->where('email', $request->input('email'))
+            ->whereNotNull('deleted_at')
+            ->first();
 
-        // Crear empleado
-        Empleado::create([
-            'id_user' => $user->id,
-            'categoria' => $request->input('categoria'),
-        ]);
+        if ($existingUser) {
+            $existingUser->restore();
+            $existingUser->update([
+                'nombre' => $request->input('nombre'),
+                'apellidos' => $request->input('apellidos'),
+                'telefono' => $request->input('telefono'),
+                'password' => bcrypt($request->input('password')),
+                'genero' => $request->input('genero'),
+                'edad' => $request->input('edad'),
+                'rol' => 'empleado',
+            ]);
+            $user = $existingUser;
+
+            $existingEmpleado = Empleado::withTrashed()
+                ->where('id_user', $user->id)
+                ->first();
+
+            if ($existingEmpleado) {
+                $existingEmpleado->restore();
+                $existingEmpleado->update([
+                    'categoria' => $request->input('categoria'),
+                ]);
+            } else {
+                Empleado::create([
+                    'id_user' => $user->id,
+                    'categoria' => $request->input('categoria'),
+                ]);
+            }
+        } else {
+            // Crear user
+            $user = user::create([
+                'nombre' => $request->input('nombre'),
+                'apellidos' => $request->input('apellidos'),
+                'telefono' => $request->input('telefono'),
+                'email' => $request->input('email'),
+                'password' => bcrypt($request->input('password')),
+                'genero' => $request->input('genero'),
+                'edad' => $request->input('edad'),
+                'rol' => 'empleado',
+            ]);
+
+            // Crear empleado
+            Empleado::create([
+                'id_user' => $user->id,
+                'categoria' => $request->input('categoria'),
+            ]);
+        }
         
         // Redirigir a la lista de empleados
         return $this->redirectWithSuccess('empleados.index', $this->getCreatedMessage());

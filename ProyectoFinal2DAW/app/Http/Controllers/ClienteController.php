@@ -51,25 +51,68 @@ class ClienteController extends Controller{
         // Asignar fecha de registro automáticamente
         $fechaRegistro = $request->fecha_registro ?? date('Y-m-d');
 
-        // Crear user con datos validados y sanitizados
-        $user = user::create([
-            'nombre' => $validated['nombre'],
-            'apellidos' => $validated['apellidos'],
-            'telefono' => $validated['telefono'] ?? null,
-            'email' => $validated['email'],
-            'password' => bcrypt($validated['password']),
-            'genero' => $validated['genero'],
-            'edad' => $validated['edad'],
-            'rol' => 'cliente',
-        ]);
-        
-        // Crear cliente
-        $cliente = Cliente::create([
-            'id_user' => $user->id,
-            'direccion' => $validated['direccion'],
-            'notas_adicionales' => $validated['notas_adicionales'] ?? null,
-            'fecha_registro' => $fechaRegistro,
-        ]);
+        // Verificar si existe un usuario soft-deleted con este email y restaurarlo
+        $existingUser = user::withTrashed()
+            ->where('email', $validated['email'])
+            ->whereNotNull('deleted_at')
+            ->first();
+
+        if ($existingUser) {
+            // Restaurar el usuario soft-deleted y actualizar sus datos
+            $existingUser->restore();
+            $existingUser->update([
+                'nombre' => $validated['nombre'],
+                'apellidos' => $validated['apellidos'],
+                'telefono' => $validated['telefono'] ?? null,
+                'password' => bcrypt($validated['password']),
+                'genero' => $validated['genero'],
+                'edad' => $validated['edad'],
+                'rol' => 'cliente',
+            ]);
+            $user = $existingUser;
+
+            // Restaurar o crear el cliente asociado
+            $existingCliente = Cliente::withTrashed()
+                ->where('id_user', $user->id)
+                ->first();
+
+            if ($existingCliente) {
+                $existingCliente->restore();
+                $existingCliente->update([
+                    'direccion' => $validated['direccion'],
+                    'notas_adicionales' => $validated['notas_adicionales'] ?? null,
+                    'fecha_registro' => $fechaRegistro,
+                ]);
+                $cliente = $existingCliente;
+            } else {
+                $cliente = Cliente::create([
+                    'id_user' => $user->id,
+                    'direccion' => $validated['direccion'],
+                    'notas_adicionales' => $validated['notas_adicionales'] ?? null,
+                    'fecha_registro' => $fechaRegistro,
+                ]);
+            }
+        } else {
+            // Crear user con datos validados y sanitizados
+            $user = user::create([
+                'nombre' => $validated['nombre'],
+                'apellidos' => $validated['apellidos'],
+                'telefono' => $validated['telefono'] ?? null,
+                'email' => $validated['email'],
+                'password' => bcrypt($validated['password']),
+                'genero' => $validated['genero'],
+                'edad' => $validated['edad'],
+                'rol' => 'cliente',
+            ]);
+            
+            // Crear cliente
+            $cliente = Cliente::create([
+                'id_user' => $user->id,
+                'direccion' => $validated['direccion'],
+                'notas_adicionales' => $validated['notas_adicionales'] ?? null,
+                'fecha_registro' => $fechaRegistro,
+            ]);
+        }
 
         // Si la petición espera JSON (desde el modal), devolver JSON
         if ($request->expectsJson() || $request->ajax()) {

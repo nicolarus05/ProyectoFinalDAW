@@ -17,6 +17,7 @@ class CitaConfirmada extends Mailable implements ShouldQueue
 
     public $citaId;
     public $cita;
+    public $citasGrupo;
 
     /**
      * Create a new message instance.
@@ -44,6 +45,16 @@ class CitaConfirmada extends Mailable implements ShouldQueue
         // Cargar la cita con sus relaciones cuando se procesa el job
         $this->cita = Cita::with(['cliente.user', 'servicios', 'empleado.user'])
             ->findOrFail($this->citaId);
+
+        // Si la cita pertenece a un grupo, cargar todas las citas del grupo
+        // para mostrar todos los servicios en un solo email
+        $this->citasGrupo = collect();
+        if ($this->cita->grupo_cita_id) {
+            $this->citasGrupo = Cita::with(['servicios', 'empleado.user'])
+                ->where('grupo_cita_id', $this->cita->grupo_cita_id)
+                ->orderBy('orden_servicio')
+                ->get();
+        }
             
         return $this;
     }

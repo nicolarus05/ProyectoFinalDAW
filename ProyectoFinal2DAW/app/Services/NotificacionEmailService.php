@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Mail\CitaConfirmada;
 use App\Mail\CitaRecordatorio;
 use App\Mail\CitaCancelada;
+use App\Mail\RecordatorioCitasAgrupado;
 use App\Models\Cita;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
@@ -115,6 +116,39 @@ class NotificacionEmailService
     }
 
     /**
+     * Enviar email de recordatorio agrupado (todas las citas del día de un cliente)
+     */
+    public function enviarRecordatorioAgrupado(string $email, string $nombreCliente, $citas)
+    {
+        try {
+            if (empty($email)) {
+                Log::warning("No se pudo enviar recordatorio agrupado - Email vacío", [
+                    'cliente' => $nombreCliente,
+                    'num_citas' => $citas->count()
+                ]);
+                return false;
+            }
+
+            Mail::to($email)->send(new RecordatorioCitasAgrupado($citas));
+
+            Log::info("Recordatorio agrupado enviado exitosamente", [
+                'cliente_email' => $email,
+                'num_citas' => $citas->count(),
+                'citas_ids' => $citas->pluck('id')->toArray()
+            ]);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error("Error al enviar recordatorio agrupado", [
+                'cliente_email' => $email,
+                'num_citas' => $citas->count(),
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
+
+    /**
      * Obtener todas las citas que necesitan recordatorio (24h antes)
      */
     public static function obtenerCitasParaRecordatorio()
@@ -126,5 +160,16 @@ class NotificacionEmailService
             ->whereIn('estado', ['pendiente', 'confirmada'])
             ->with(['cliente.user', 'servicios', 'empleado.user'])
             ->get();
+    }
+
+    /**
+     * Obtener citas para recordatorio agrupadas por cliente
+     * Retorna una colección agrupada: [cliente_id => Collection<Cita>]
+     */
+    public static function obtenerCitasAgrupadasPorCliente()
+    {
+        $citas = self::obtenerCitasParaRecordatorio();
+
+        return $citas->groupBy('id_cliente');
     }
 }
