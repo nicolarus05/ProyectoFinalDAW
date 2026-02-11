@@ -188,10 +188,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // mantener cálculo global
     window.actualizarCosteYTotales = function() {
       const select = document.getElementById('id_cita');
-      const selectedOption = select.options[select.selectedIndex];
-      const costeServicio = parseFloat(selectedOption?.getAttribute('data-coste')) || 0;
-      document.getElementById('coste').value = formatMoney(costeServicio);
-      calcularTotales();
+      const citaId = select.value;
+      // Cargar servicios y recalcular desde la tabla editable
+      cargarServiciosDeCita(citaId);
     };
 
     window.calcularTotales = function() {
@@ -215,11 +214,12 @@ document.addEventListener('DOMContentLoaded', function() {
       
       if (window.citasData && citaId && window.citasData[citaId]) {
         const citaData = window.citasData[citaId];
-        const serviciosCita = citaData.servicios || [];
+        // Usar serviciosSeleccionados (editados por el usuario) en vez de los de la cita original
+        const serviciosActuales = serviciosSeleccionados || [];
         const bonosCliente = citaData.bonos || [];
         
         // Calcular qué servicios están cubiertos por bonos
-        serviciosCita.forEach(servicio => {
+        serviciosActuales.forEach(servicio => {
           for (let bono of bonosCliente) {
             const servicioEnBono = bono.servicios.find(s => s.id === servicio.id);
             if (servicioEnBono && servicioEnBono.disponibles > 0) {
@@ -379,11 +379,151 @@ document.addEventListener('DOMContentLoaded', function() {
       deudaModal.classList.remove('flex');
     };
 
+    // ========== GESTIÓN DE SERVICIOS EDITABLES ==========
+    let serviciosSeleccionados = [];
+    const serviciosTbody = document.getElementById('servicios-tbody');
+    const serviciosTotalCell = document.getElementById('servicios-total');
+    const addServicioRow = document.getElementById('add-servicio-row');
+    const btnAddServicio = document.getElementById('btn-add-servicio');
+    const btnConfirmAddServicio = document.getElementById('btn-confirm-add-servicio');
+    const btnCancelAddServicio = document.getElementById('btn-cancel-add-servicio');
+
+    if (btnAddServicio) {
+        btnAddServicio.addEventListener('click', () => {
+            addServicioRow.classList.remove('hidden');
+        });
+    }
+    if (btnCancelAddServicio) {
+        btnCancelAddServicio.addEventListener('click', () => {
+            addServicioRow.classList.add('hidden');
+            document.getElementById('nuevo-servicio-select').value = '';
+        });
+    }
+    if (btnConfirmAddServicio) {
+        btnConfirmAddServicio.addEventListener('click', () => {
+            const sel = document.getElementById('nuevo-servicio-select');
+            const opt = sel.options[sel.selectedIndex];
+            if (!sel.value) { alert('Selecciona un servicio.'); return; }
+            
+            const id = parseInt(sel.value);
+            const nombre = opt.dataset.nombre;
+            const precio = parseFloat(opt.dataset.precio) || 0;
+            
+            serviciosSeleccionados.push({ id, nombre, precio, empleado_id: null });
+            renderServiciosTable();
+            addServicioRow.classList.add('hidden');
+            sel.value = '';
+        });
+    }
+
+    function cargarServiciosDeCita(citaId) {
+        serviciosSeleccionados = [];
+        if (window.citasData && citaId && window.citasData[citaId]) {
+            const serviciosCita = window.citasData[citaId].servicios || [];
+            serviciosCita.forEach(s => {
+                serviciosSeleccionados.push({
+                    id: s.id,
+                    nombre: s.nombre,
+                    precio: parseFloat(s.precio) || 0,
+                    empleado_id: s.empleado_id || null
+                });
+            });
+        }
+        renderServiciosTable();
+    }
+
+    function renderServiciosTable() {
+        if (!serviciosTbody) return;
+        serviciosTbody.innerHTML = '';
+        
+        if (serviciosSeleccionados.length === 0) {
+            serviciosTbody.innerHTML = '<tr><td colspan="4" class="text-center text-gray-400 py-3">No hay servicios seleccionados</td></tr>';
+        } else {
+            const empleados = window.empleadosData || [];
+            serviciosSeleccionados.forEach((s, idx) => {
+                let empleadoOptions = '<option value="">-- Empleado --</option>';
+                empleados.forEach(emp => {
+                    const selected = s.empleado_id == emp.id ? 'selected' : '';
+                    empleadoOptions += `<option value="${emp.id}" ${selected}>${escapeHtml(emp.nombre)}</option>`;
+                });
+
+                const tr = document.createElement('tr');
+                tr.className = 'border-b';
+                tr.innerHTML = `
+                    <td class="py-2">${escapeHtml(s.nombre)}</td>
+                    <td class="py-2">
+                        <select class="w-full border rounded px-2 py-1 text-sm servicio-empleado-select" data-idx="${idx}">
+                            ${empleadoOptions}
+                        </select>
+                    </td>
+                    <td class="py-2 text-right">
+                        <input type="number" step="0.01" min="0" value="${formatMoney(s.precio)}" class="w-24 border rounded px-2 py-1 text-right servicio-precio-input" data-idx="${idx}">
+                    </td>
+                    <td class="py-2 text-right">
+                        <button type="button" class="remove-servicio text-red-600 hover:underline text-sm" data-idx="${idx}">Eliminar</button>
+                    </td>
+                `;
+                serviciosTbody.appendChild(tr);
+            });
+        }
+        
+        // Event listeners
+        serviciosTbody.querySelectorAll('.remove-servicio').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const idx = parseInt(e.target.dataset.idx);
+                serviciosSeleccionados.splice(idx, 1);
+                renderServiciosTable();
+            });
+        });
+        serviciosTbody.querySelectorAll('.servicio-empleado-select').forEach(sel => {
+            sel.addEventListener('change', (e) => {
+                const idx = parseInt(e.target.dataset.idx);
+                serviciosSeleccionados[idx].empleado_id = e.target.value ? parseInt(e.target.value) : null;
+                actualizarServiciosData();
+            });
+        });
+        serviciosTbody.querySelectorAll('.servicio-precio-input').forEach(inp => {
+            inp.addEventListener('input', (e) => {
+                const idx = parseInt(e.target.dataset.idx);
+                serviciosSeleccionados[idx].precio = parseFloat(e.target.value) || 0;
+                actualizarServiciosData();
+                recalcServiciosTotal();
+            });
+        });
+        
+        actualizarServiciosData();
+        recalcServiciosTotal();
+    }
+
+    function recalcServiciosTotal() {
+        const total = serviciosSeleccionados.reduce((sum, s) => sum + (parseFloat(s.precio) || 0), 0);
+        if (serviciosTotalCell) {
+            serviciosTotalCell.textContent = '€' + formatMoney(total);
+        }
+        // Actualizar el campo coste
+        const costeInput = document.getElementById('coste');
+        if (costeInput) {
+            costeInput.value = formatMoney(total);
+        }
+        calcularTotales();
+    }
+
+    function actualizarServiciosData() {
+        const input = document.getElementById('servicios_data');
+        if (input) {
+            input.value = JSON.stringify(serviciosSeleccionados);
+        }
+    }
+
     window.actualizarClienteInfo = function() {
       const select = document.getElementById('id_cita');
       const selectedOption = select.options[select.selectedIndex];
-      const costeServicio = parseFloat(selectedOption?.getAttribute('data-coste')) || 0;
-      document.getElementById('coste').value = formatMoney(costeServicio);
+      const citaId = select.value;
+      
+      // Cargar servicios editables de la cita seleccionada
+      cargarServiciosDeCita(citaId);
+      
+      // El coste ahora se calcula desde la tabla de servicios, no desde data-coste
       calcularTotales();
     };
 

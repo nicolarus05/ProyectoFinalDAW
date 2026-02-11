@@ -1183,13 +1183,9 @@ window.closeModalServices = function() {
     document.getElementById('modal-services').classList.add('hidden');
 }
 
+let servicioUidCounter = 0;
+
 window.addService = function(id, nombre, precio) {
-    // Verificar si ya está añadido
-    if (serviciosSeleccionados.find(s => s.id === id)) {
-        alert('Este servicio ya está añadido');
-        return;
-    }
-    
     // Obtener el empleado por defecto (el seleccionado en el formulario principal)
     const empleadoSelect = document.getElementById('id_empleado');
     const empleadoId = empleadoSelect.value ? parseInt(empleadoSelect.value) : null;
@@ -1201,15 +1197,17 @@ window.addService = function(id, nombre, precio) {
         return;
     }
     
-    serviciosSeleccionados.push({ id, nombre, precio, empleado_id: empleadoId });
+    // uid interno para identificar cada fila de forma única (permite duplicados del mismo servicio)
+    servicioUidCounter++;
+    serviciosSeleccionados.push({ id, nombre, precio, empleado_id: empleadoId, _uid: servicioUidCounter });
     renderServicios();
     closeModalServices();
     calcularDescuentoBono();
     calcularTotales();
 }
 
-window.removeService = function(id) {
-    serviciosSeleccionados = serviciosSeleccionados.filter(s => s.id !== id);
+window.removeService = function(uid) {
+    serviciosSeleccionados = serviciosSeleccionados.filter(s => s._uid !== uid);
     renderServicios();
     calcularDescuentoBono();
     calcularTotales();
@@ -1253,7 +1251,7 @@ function renderServicios() {
             </td>
             <td class="p-2 text-right">€${servicio.precio.toFixed(2)}</td>
             <td class="p-2 text-center">
-                <button type="button" onclick="removeService(${servicio.id})" class="text-red-600 hover:text-red-800">✕</button>
+                <button type="button" onclick="removeService(${servicio._uid})" class="text-red-600 hover:text-red-800">✕</button>
             </td>
         `;
         tbody.appendChild(tr);

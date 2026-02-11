@@ -157,20 +157,54 @@
                                 // Obtener servicios con su información detallada
                                 $serviciosDetalle = [];
                                 
-                                // CASO 1: Cita individual
-                                if ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
+                                // PRIORIDAD: Usar servicios vinculados al cobro (registro_cobro_servicio)
+                                if ($cobro->servicios && $cobro->servicios->count() > 0) {
+                                    foreach ($cobro->servicios as $servicio) {
+                                        $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
+                                        $empleadoIdPivot = $servicio->pivot->empleado_id;
+                                        $empleado = 'Sin asignar';
+                                        if ($empleadoIdPivot) {
+                                            $empModel = \App\Models\Empleado::with('user')->find($empleadoIdPivot);
+                                            if ($empModel && $empModel->user) {
+                                                $empleado = $empModel->user->nombre;
+                                            }
+                                        }
+                                        
+                                        $pagadoConBono = false;
+                                        if ($precioServicio == 0) {
+                                            $pagadoConBono = true;
+                                        } elseif ($cobro->id_cita) {
+                                            $pagadoConBono = \DB::table('bono_uso_detalle')
+                                                ->where('cita_id', $cobro->id_cita)
+                                                ->where('servicio_id', $servicio->id)
+                                                ->exists();
+                                        } elseif ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                                            $pagadoConBono = \DB::table('bono_uso_detalle')
+                                                ->whereIn('cita_id', $cobro->citasAgrupadas->pluck('id'))
+                                                ->where('servicio_id', $servicio->id)
+                                                ->exists();
+                                        }
+                                        
+                                        $serviciosDetalle[] = [
+                                            'nombre' => $servicio->nombre,
+                                            'precio' => $precioServicio,
+                                            'empleado' => $empleado,
+                                            'es_bono' => $pagadoConBono
+                                        ];
+                                    }
+                                }
+                                // FALLBACK: Para cobros antiguos sin servicios en pivot, usar cita
+                                elseif ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
                                     $empleado = $cobro->cita->empleado && $cobro->cita->empleado->user 
                                         ? $cobro->cita->empleado->user->nombre 
                                         : 'Sin asignar';
                                     
                                     foreach ($cobro->cita->servicios as $servicio) {
-                                        // Buscar precio en registro_cobro_servicio
                                         $precioServicio = \DB::table('registro_cobro_servicio')
                                             ->where('registro_cobro_id', $cobro->id)
                                             ->where('servicio_id', $servicio->id)
                                             ->value('precio') ?? $servicio->precio;
                                         
-                                        // Verificar si fue pagado con bono
                                         $pagadoConBono = \DB::table('bono_uso_detalle')
                                             ->where('cita_id', $cobro->cita->id)
                                             ->where('servicio_id', $servicio->id)
@@ -184,7 +218,7 @@
                                         ];
                                     }
                                 }
-                                // CASO 2: Citas agrupadas
+                                // FALLBACK 2: Citas agrupadas sin servicios en pivot
                                 elseif ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
                                     foreach ($cobro->citasAgrupadas as $citaGrupo) {
                                         $empleado = $citaGrupo->empleado && $citaGrupo->empleado->user 
@@ -198,7 +232,6 @@
                                                     ->where('servicio_id', $servicio->id)
                                                     ->value('precio') ?? $servicio->precio;
                                                 
-                                                // Verificar si fue pagado con bono
                                                 $pagadoConBono = \DB::table('bono_uso_detalle')
                                                     ->where('cita_id', $citaGrupo->id)
                                                     ->where('servicio_id', $servicio->id)
@@ -212,26 +245,6 @@
                                                 ];
                                             }
                                         }
-                                    }
-                                }
-                                // CASO 3: Cobro directo (servicios sin cita)
-                                elseif ($cobro->servicios && $cobro->servicios->count() > 0) {
-                                    $empleado = $cobro->empleado && $cobro->empleado->user 
-                                        ? $cobro->empleado->user->nombre 
-                                        : 'Sin asignar';
-                                    
-                                    foreach ($cobro->servicios as $servicio) {
-                                        $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
-                                        
-                                        // Para cobros directos, verificar si el método de pago es bono
-                                        $pagadoConBono = $cobro->metodo_pago === 'bono';
-                                        
-                                        $serviciosDetalle[] = [
-                                            'nombre' => $servicio->nombre,
-                                            'precio' => $precioServicio,
-                                            'empleado' => $empleado,
-                                            'es_bono' => $pagadoConBono
-                                        ];
                                     }
                                 }
                             @endphp

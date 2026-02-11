@@ -11,6 +11,7 @@ use App\Models\Cliente;
 use App\Models\BonoCliente;
 use App\Models\BonoUsoDetalle;
 use App\Models\Empleado;
+use App\Models\Servicio;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -62,7 +63,7 @@ class RegistroCobroController extends Controller{
      */
     public function create(Request $request){
         $citas = Cita::whereDoesntHave('cobro')
-            ->with(['cliente.user', 'cliente.deuda', 'servicios', 'cliente.bonosActivos.plantilla.servicios', 'cliente.bonosActivos.servicios' => function($query) {
+            ->with(['cliente.user', 'cliente.deuda', 'servicios', 'empleado', 'cliente.bonosActivos.plantilla.servicios', 'cliente.bonosActivos.servicios' => function($query) {
                 $query->withPivot('cantidad_total', 'cantidad_usada');
             }])
             ->get();
@@ -77,8 +78,9 @@ class RegistroCobroController extends Controller{
         }
         
         $empleados = Empleado::with('user')->get();
+        $servicios = Servicio::where('activo', true)->orderBy('nombre')->get();
 
-        return view('cobros.create', compact('citas', 'citaSeleccionada', 'empleados'));
+        return view('cobros.create', compact('citas', 'citaSeleccionada', 'empleados', 'servicios'));
     }
 
     /**
@@ -529,6 +531,22 @@ class RegistroCobroController extends Controller{
         if (!$seVendeBono && $clienteId) {
             // CASO A: Cobro con citas
             if ($citasAProcesar->isNotEmpty()) {
+                // Determinar qué servicios procesar: si hay servicios_data, usar esos (editados por el usuario)
+                $serviciosParaBonos = collect();
+                $usarServiciosData = $request->has('servicios_data') && !empty($data['servicios_data']);
+                
+                if ($usarServiciosData) {
+                    $serviciosDataBonos = json_decode($data['servicios_data'], true);
+                    if (is_array($serviciosDataBonos) && count($serviciosDataBonos) > 0) {
+                        foreach ($serviciosDataBonos as $sd) {
+                            $serv = \App\Models\Servicio::find((int) $sd['id']);
+                            if ($serv) {
+                                $serviciosParaBonos->push($serv);
+                            }
+                        }
+                    }
+                }
+                
                 foreach ($citasAProcesar as $cita) {
                     if ($cita && $cita->cliente) {
                         // Obtener bonos activos del cliente
@@ -542,6 +560,7 @@ class RegistroCobroController extends Controller{
                             'cita_id' => $cita->id,
                             'cliente_id' => $cita->cliente->id,
                             'cantidad_bonos' => $bonosActivos->count(),
+                            'usando_servicios_data' => $usarServiciosData,
                             'bonos' => $bonosActivos->map(fn($b) => [
                                 'id' => $b->id,
                                 'plantilla' => $b->plantilla->nombre ?? 'N/A',
@@ -549,8 +568,13 @@ class RegistroCobroController extends Controller{
                             ])
                         ]);
 
-                        // Iterar sobre los servicios de la cita
-                        foreach ($cita->servicios as $servicioCita) {
+                        // Usar servicios editados (servicios_data) o los originales de la cita
+                        $serviciosAIterar = $usarServiciosData && $serviciosParaBonos->isNotEmpty()
+                            ? $serviciosParaBonos
+                            : $cita->servicios;
+
+                        // Iterar sobre los servicios
+                        foreach ($serviciosAIterar as $servicioCita) {
                             Log::info('🔄 Procesando servicio de cita', [
                                 'servicio_id' => $servicioCita->id,
                                 'servicio_nombre' => $servicioCita->nombre
@@ -900,9 +924,55 @@ class RegistroCobroController extends Controller{
         // --- VINCULAR SERVICIOS DE CITAS A registro_cobro_servicio ---
         // CRÍTICO: Esto permite calcular correctamente la facturación por empleado
         // y contabilizar servicios realizados por diferentes empleados en una misma cita
-        // SOLO si NO hay servicios_data (para evitar duplicación en cobros directos)
-        // Y SOLO si el método de pago NO es 'bono' (los servicios pagados con bono no generan facturación)
-        if ((!$request->has('servicios_data') || empty($data['servicios_data'])) && $metodoPagoFinal !== 'bono') {
+        // Determinar si hay servicios_data con contenido real (no "[]" vacío)
+        $serviciosDataArray = [];
+        $tieneServiciosEditados = false;
+        if ($request->has('servicios_data') && !empty($data['servicios_data'])) {
+            $serviciosDataArray = json_decode($data['servicios_data'], true);
+            $tieneServiciosEditados = is_array($serviciosDataArray) && count($serviciosDataArray) > 0;
+        }
+        
+        // Si hay servicios editados por el usuario, usar esos
+        if ($tieneServiciosEditados && $metodoPagoFinal !== 'bono') {
+            foreach ($serviciosDataArray as $s) {
+                $servicioId = (int) $s['id'];
+                $precio = (float) $s['precio'];
+                $empleadoServicio = isset($s['empleado_id']) ? (int) $s['empleado_id'] : null;
+
+                // Si no hay empleado_id en el servicio, usar el empleado principal del cobro
+                if (!$empleadoServicio) {
+                    $empleadoServicio = $empleadoId;
+                }
+
+                // Verificar si este servicio fue pagado con bono
+                $usoBono = false;
+                if (!empty($data['id_cita'])) {
+                    $usoBono = DB::table('bono_uso_detalle')
+                        ->where('servicio_id', $servicioId)
+                        ->where('cita_id', $data['id_cita'])
+                        ->exists();
+                } elseif (!empty($data['citas_ids']) && is_array($data['citas_ids'])) {
+                    $usoBono = DB::table('bono_uso_detalle')
+                        ->where('servicio_id', $servicioId)
+                        ->whereIn('cita_id', $data['citas_ids'])
+                        ->exists();
+                }
+
+                if ($usoBono) {
+                    $precio = 0;
+                    Log::info("Cobro #{$cobro->id}: Servicio #{$servicioId} pagado con bono, precio = 0");
+                }
+
+                $cobro->servicios()->attach($servicioId, [
+                    'precio' => $precio,
+                    'empleado_id' => $empleadoServicio,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        }
+        // Si NO hay servicios editados, usar los originales de la cita
+        elseif (!$tieneServiciosEditados && $metodoPagoFinal !== 'bono') {
             if (!empty($data['id_cita'])) {
                 // Caso 1: Cobro de una sola cita
                 $cita = Cita::with('servicios', 'empleado')->find($data['id_cita']);
@@ -1214,49 +1284,6 @@ class RegistroCobroController extends Controller{
                 // Verificar si el bono está completamente usado
                 if ($bonoCliente->estaCompletamenteUsado()) {
                     $bonoCliente->update(['estado' => 'usado']);
-                }
-            }
-        }
-
-        // --- Para cobros directos: procesar servicios_data ---
-        if ($request->has('servicios_data') && !empty($data['servicios_data'])) {
-            $serviciosData = json_decode($data['servicios_data'], true);
-            if (is_array($serviciosData)) {
-                foreach ($serviciosData as $s) {
-                    $servicioId = (int) $s['id'];
-                    $precio = (float) $s['precio'];
-                    $empleadoServicio = isset($s['empleado_id']) ? (int) $s['empleado_id'] : null;
-
-                    // Si no hay empleado_id en el servicio, usar el empleado principal del cobro
-                    if (!$empleadoServicio) {
-                        $empleadoServicio = $empleadoId; // Usar la variable $empleadoId del cobro
-                    }
-
-                    // Verificar si este servicio fue pagado con bono ANTES de guardarlo
-                    // CORRECCIÓN: Solo buscar si hay citas asociadas específicas
-                    $usoBono = false;
-                    
-                    // Solo verificar si el cobro tiene citas agrupadas
-                    if (!empty($data['citas_ids']) && is_array($data['citas_ids'])) {
-                        $usoBono = DB::table('bono_uso_detalle')
-                            ->where('servicio_id', $servicioId)
-                            ->whereIn('cita_id', $data['citas_ids'])
-                            ->exists();
-                    }
-                    // Para cobros directos sin cita: NO buscar en bono_uso_detalle
-                    // Los bonos ya se aplicaron en las líneas 614-720
-                    
-                    if ($usoBono) {
-                        $precio = 0; // Servicio pagado con bono, precio 0
-                        Log::info("Cobro #{$cobro->id}: Servicio #{$servicioId} en cobro directo pagado con bono, precio = 0");
-                    }
-
-                    $cobro->servicios()->attach($servicioId, [
-                        'precio' => $precio,
-                        'empleado_id' => $empleadoServicio,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
                 }
             }
         }

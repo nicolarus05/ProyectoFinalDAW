@@ -289,13 +289,13 @@ class CajaDiariaController extends Controller{
                     continue;
                 }
                 
-                // Usar precio exacto para el total (sin recalcular descuento)
-                $montoServicio = $precioServicio;
-                
                 // Distribuir efectivo/tarjeta proporcionalmente
                 $proporcionItem = $sumaTotal > 0 ? ($precioServicio / $sumaTotal) : 0;
                 $montoServicioEfectivo = $montoEfectivo * $proporcionItem;
                 $montoServicioTarjeta = $montoTarjeta * $proporcionItem;
+                
+                // El total por categoría debe ser la suma real cobrada (efectivo+tarjeta), no el precio teórico
+                $montoServicio = $montoPagado * $proporcionItem;
                 
                 if ($servicio->categoria === 'peluqueria') {
                     $totalPeluqueria += $montoServicio;
@@ -318,13 +318,13 @@ class CajaDiariaController extends Controller{
                     continue;
                 }
                 
-                // Usar subtotal exacto para el total (sin recalcular descuento)
-                $montoProducto = $subtotal;
-                
                 // Distribuir efectivo/tarjeta proporcionalmente
                 $proporcionItem = $sumaTotal > 0 ? ($subtotal / $sumaTotal) : 0;
                 $montoProductoEfectivo = $montoEfectivo * $proporcionItem;
                 $montoProductoTarjeta = $montoTarjeta * $proporcionItem;
+                
+                // El total por categoría debe ser la suma real cobrada (efectivo+tarjeta), no el subtotal teórico
+                $montoProducto = $montoPagado * $proporcionItem;
                 
                 if ($producto->categoria === 'peluqueria') {
                     $totalPeluqueria += $montoProducto;

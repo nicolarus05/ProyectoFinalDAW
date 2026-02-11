@@ -56,8 +56,54 @@
                 <input type="number" name="coste" id="coste" required class="w-full border rounded px-3 py-2 bg-gray-50" step="0.01" 
                        value="{{ isset($citaSeleccionada) && $citaSeleccionada ? number_format($citaSeleccionada->servicios->sum('precio'), 2, '.', '') : '0.00' }}" 
                        readonly>
-                <p class="text-xs text-gray-500 mt-1">Este valor se calcula automáticamente según los servicios de la cita</p>
+                <p class="text-xs text-gray-500 mt-1">Este valor se calcula automáticamente según los servicios seleccionados</p>
             </div>
+
+            <!-- Servicios de la cita (editables) -->
+            <div class="bg-purple-50 border border-purple-200 rounded p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-semibold text-purple-800">💇 Servicios</h3>
+                    <button type="button" id="btn-add-servicio" class="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 text-sm">+ Añadir servicio</button>
+                </div>
+                <table class="w-full text-sm" id="servicios-table">
+                    <thead>
+                        <tr class="text-left">
+                            <th class="pb-2">Servicio</th>
+                            <th class="pb-2">Empleado</th>
+                            <th class="pb-2 text-right">Precio</th>
+                            <th class="pb-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="servicios-tbody">
+                        <!-- Se rellena dinámicamente por JS al seleccionar cita -->
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="2" class="text-right font-semibold pt-2">Total servicios:</td>
+                            <td id="servicios-total" class="text-right font-semibold pt-2">€0.00</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+                <p class="text-xs text-gray-500 mt-2">Puedes eliminar o añadir servicios antes de registrar el cobro.</p>
+            </div>
+
+            <!-- Selector de servicio a añadir (oculto, se muestra al pulsar + Añadir servicio) -->
+            <div id="add-servicio-row" class="hidden bg-purple-50 border border-purple-300 rounded p-3 flex items-end gap-3">
+                <div class="flex-1">
+                    <label class="block text-xs text-gray-600 mb-1">Servicio:</label>
+                    <select id="nuevo-servicio-select" class="w-full border rounded px-2 py-1 text-sm">
+                        <option value="">-- Seleccionar servicio --</option>
+                        @foreach($servicios as $servicio)
+                            <option value="{{ $servicio->id }}" data-nombre="{{ $servicio->nombre }}" data-precio="{{ $servicio->precio }}">{{ $servicio->nombre }} (€{{ number_format($servicio->precio, 2) }})</option>
+                        @endforeach
+                    </select>
+                </div>
+                <button type="button" id="btn-confirm-add-servicio" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 text-sm">Añadir</button>
+                <button type="button" id="btn-cancel-add-servicio" class="bg-gray-400 text-white px-3 py-1 rounded hover:bg-gray-500 text-sm">Cancelar</button>
+            </div>
+
+            <input type="hidden" name="servicios_data" id="servicios_data" value="[]">
 
             <div class="flex items-center justify-between">
                 <h2 class="text-lg font-semibold">Productos</h2>
@@ -386,8 +432,9 @@ window.empleadosData = @json($empleados->map(function($empleado) {
 window.citasData = {
     @foreach($citas as $cita)
     {{ $cita->id }}: {
-        servicios: @json($cita->servicios->map(function($servicio) {
-            return ['id' => $servicio->id, 'nombre' => $servicio->nombre, 'precio' => $servicio->precio];
+        empleado_id: {{ $cita->id_empleado ?? 'null' }},
+        servicios: @json($cita->servicios->map(function($servicio) use ($cita) {
+            return ['id' => $servicio->id, 'nombre' => $servicio->nombre, 'precio' => $servicio->precio, 'empleado_id' => $cita->id_empleado];
         })),
         bonos: @json($cita->cliente->bonosActivos->map(function($bono) {
             return [
