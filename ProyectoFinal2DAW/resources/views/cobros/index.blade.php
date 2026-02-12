@@ -287,8 +287,8 @@
                                 @foreach($cobro->productos as $producto)
                                     @php
                                         $cantidad = $producto->pivot->cantidad ?? 1;
-                                        $precioUnitario = $producto->pivot->precio ?? $producto->precio;
-                                        $subtotal = $precioUnitario * $cantidad;
+                                        $precioUnitario = $producto->pivot->precio_unitario ?? $producto->precio;
+                                        $subtotal = $producto->pivot->subtotal ?? ($precioUnitario * $cantidad);
                                     @endphp
                                     <div class="desglose-item producto bg-green-50 p-3 rounded-lg">
                                         <div class="flex justify-between items-start">
