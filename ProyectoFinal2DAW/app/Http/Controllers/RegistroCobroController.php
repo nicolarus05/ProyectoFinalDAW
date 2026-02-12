@@ -1349,8 +1349,8 @@ class RegistroCobroController extends Controller{
             $numCitas = 1;
         }
 
-        // --- Guardar productos asociados (si existen - formato antiguo) ---
-        if ($request->has('products')) {
+        // --- Guardar productos asociados (si existen - formato antiguo, solo si no hay productos_data) ---
+        if ($request->has('products') && !($request->has('productos_data') && !empty($data['productos_data']))) {
             foreach ($request->products as $p) {
                 $cantidad = (int) $p['cantidad'];
                 $precio = (float) $p['precio_venta'];
@@ -1470,6 +1470,9 @@ class RegistroCobroController extends Controller{
 
         $data['cambio'] = $dineroCliente > 0 ? round($dineroCliente - $data['total_final'], 2) : null;
 
+        // Guardar total_final anterior para recalcular pivot
+        $totalFinalAnterior = $cobro->total_final;
+
         // Actualizar la cita asociada (en caso de que se haya cambiado)
         $cobro->update([
             'id_cita' => $data['id_cita'] ?? null,
@@ -1483,6 +1486,35 @@ class RegistroCobroController extends Controller{
             'pago_efectivo' => $data['metodo_pago'] === 'mixto' ? ($data['pago_efectivo'] ?? 0) : null,
             'pago_tarjeta' => $data['metodo_pago'] === 'mixto' ? ($data['pago_tarjeta'] ?? 0) : null,
         ]);
+
+        // --- Recalcular precios del pivot registro_cobro_servicio ---
+        // Si el total_final cambió, los precios del pivot deben ajustarse proporcionalmente
+        // para que FacturacionService calcule correctamente la facturación por empleado
+        if (abs($totalFinalAnterior - $data['total_final']) > 0.01 && $totalFinalAnterior > 0.01) {
+            $factorAjuste = $data['total_final'] / $totalFinalAnterior;
+            
+            $pivotServicios = DB::table('registro_cobro_servicio')
+                ->where('registro_cobro_id', $cobro->id)
+                ->where('precio', '>', 0)
+                ->get();
+            
+            foreach ($pivotServicios as $pivot) {
+                DB::table('registro_cobro_servicio')
+                    ->where('id', $pivot->id)
+                    ->update(['precio' => round($pivot->precio * $factorAjuste, 2)]);
+            }
+
+            // También ajustar subtotales de productos
+            $pivotProductos = DB::table('registro_cobro_productos')
+                ->where('id_registro_cobro', $cobro->id)
+                ->get();
+            
+            foreach ($pivotProductos as $pivot) {
+                DB::table('registro_cobro_productos')
+                    ->where('id', $pivot->id)
+                    ->update(['subtotal' => round($pivot->subtotal * $factorAjuste, 2)]);
+            }
+        }
 
         return $this->redirectWithSuccess('cobros.index', $this->getUpdatedMessage());
     }

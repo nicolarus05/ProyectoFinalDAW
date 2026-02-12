@@ -219,11 +219,21 @@ document.addEventListener('DOMContentLoaded', function() {
         const bonosCliente = citaData.bonos || [];
         
         // Calcular qué servicios están cubiertos por bonos
+        // Clonar disponibilidad para decrementar conforme se asignan servicios
+        const disponibilidadBonos = {};
+        bonosCliente.forEach(bono => {
+          disponibilidadBonos[bono.id] = {};
+          bono.servicios.forEach(s => {
+            disponibilidadBonos[bono.id][s.id] = s.disponibles || 0;
+          });
+        });
+
         serviciosActuales.forEach(servicio => {
           for (let bono of bonosCliente) {
             const servicioEnBono = bono.servicios.find(s => s.id === servicio.id);
-            if (servicioEnBono && servicioEnBono.disponibles > 0) {
+            if (servicioEnBono && disponibilidadBonos[bono.id][servicio.id] > 0) {
               descuentoBonosActivos += servicio.precio;
+              disponibilidadBonos[bono.id][servicio.id]--; // Decrementar para no reutilizar
               break; // Este servicio está cubierto, pasar al siguiente
             }
           }
@@ -687,6 +697,30 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Exponer loadProductos globalmente para búsqueda
     window.loadProductos = loadProductos;
+
+    // --- Serializar productos como JSON al enviar el formulario (unifica con create-direct) ---
+    const cobroForm = document.getElementById('cobro-form');
+    if (cobroForm) {
+      cobroForm.addEventListener('submit', function() {
+        const productosData = [];
+        selectedTbody.querySelectorAll('tr').forEach(row => {
+          const id = row.querySelector('input[name$="[id]"]')?.value;
+          const cantidad = parseInt(row.querySelector('.sel-qty')?.value) || 0;
+          const precio = parseFloat(row.querySelector('.sel-price')?.value) || 0;
+          const empleadoId = row.querySelector('.sel-empleado')?.value || null;
+          if (id && cantidad > 0) {
+            productosData.push({ id: parseInt(id), cantidad, precio, empleado_id: empleadoId ? parseInt(empleadoId) : null });
+          }
+          // Eliminar los inputs products[] para evitar duplicación con productos_data
+          row.querySelectorAll('input[name^="products["]').forEach(inp => inp.remove());
+          row.querySelectorAll('select[name^="products["]').forEach(sel => sel.name = '');
+        });
+        const hiddenProductos = document.getElementById('productos_data');
+        if (hiddenProductos) {
+          hiddenProductos.value = JSON.stringify(productosData);
+        }
+      });
+    }
 });
 
 // Función de búsqueda de productos con debounce

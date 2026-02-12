@@ -57,7 +57,7 @@ class CajaDiariaController extends Controller{
                     $totalTarjeta += $montoPagadoServicios * $proporcionTarjeta;
                 }
             } elseif ($cobro->metodo_pago === 'bono') {
-                $totalBono += $cobro->coste;
+                $totalBono += $cobro->total_final;
             } elseif ($cobro->metodo_pago === 'deuda') {
                 // Si es deuda, no sumamos nada porque no se recibió dinero
                 continue;
@@ -284,10 +284,10 @@ class CajaDiariaController extends Controller{
                 $servicio = $item['servicio'];
                 $precioServicio = $item['precio']; // Precio REAL con descuento ya aplicado
                 
-                // VALIDAR: Solo procesar servicios con categoría válida
-                if (!in_array($servicio->categoria, ['peluqueria', 'estetica'])) {
-                    continue;
-                }
+                // Si no tiene categoría válida, asignar 'peluqueria' por defecto
+                $categoriaServicio = in_array($servicio->categoria, ['peluqueria', 'estetica']) 
+                    ? $servicio->categoria 
+                    : 'peluqueria';
                 
                 // Distribuir efectivo/tarjeta proporcionalmente
                 $proporcionItem = $sumaTotal > 0 ? ($precioServicio / $sumaTotal) : 0;
@@ -297,11 +297,11 @@ class CajaDiariaController extends Controller{
                 // El total por categoría debe ser la suma real cobrada (efectivo+tarjeta), no el precio teórico
                 $montoServicio = $montoPagado * $proporcionItem;
                 
-                if ($servicio->categoria === 'peluqueria') {
+                if ($categoriaServicio === 'peluqueria') {
                     $totalPeluqueria += $montoServicio;
                     $totalPeluqueriaEfectivo += $montoServicioEfectivo;
                     $totalPeluqueriaTarjeta += $montoServicioTarjeta;
-                } elseif ($servicio->categoria === 'estetica') {
+                } else {
                     $totalEstetica += $montoServicio;
                     $totalEsteticaEfectivo += $montoServicioEfectivo;
                     $totalEsteticaTarjeta += $montoServicioTarjeta;
@@ -313,10 +313,10 @@ class CajaDiariaController extends Controller{
                 $producto = $item['producto'];
                 $subtotal = $item['subtotal']; // Subtotal REAL con descuento ya aplicado
                 
-                // VALIDAR: Solo procesar productos con categoría válida
-                if (!in_array($producto->categoria, ['peluqueria', 'estetica'])) {
-                    continue;
-                }
+                // Si no tiene categoría válida, asignar 'peluqueria' por defecto
+                $categoriaProducto = in_array($producto->categoria, ['peluqueria', 'estetica']) 
+                    ? $producto->categoria 
+                    : 'peluqueria';
                 
                 // Distribuir efectivo/tarjeta proporcionalmente
                 $proporcionItem = $sumaTotal > 0 ? ($subtotal / $sumaTotal) : 0;
@@ -326,11 +326,11 @@ class CajaDiariaController extends Controller{
                 // El total por categoría debe ser la suma real cobrada (efectivo+tarjeta), no el subtotal teórico
                 $montoProducto = $montoPagado * $proporcionItem;
                 
-                if ($producto->categoria === 'peluqueria') {
+                if ($categoriaProducto === 'peluqueria') {
                     $totalPeluqueria += $montoProducto;
                     $totalPeluqueriaEfectivo += $montoProductoEfectivo;
                     $totalPeluqueriaTarjeta += $montoProductoTarjeta;
-                } elseif ($producto->categoria === 'estetica') {
+                } else {
                     $totalEstetica += $montoProducto;
                     $totalEsteticaEfectivo += $montoProductoEfectivo;
                     $totalEsteticaTarjeta += $montoProductoTarjeta;

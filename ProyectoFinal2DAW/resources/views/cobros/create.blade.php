@@ -104,6 +104,7 @@
             </div>
 
             <input type="hidden" name="servicios_data" id="servicios_data" value="[]">
+            <input type="hidden" name="productos_data" id="productos_data" value="[]">
 
             <div class="flex items-center justify-between">
                 <h2 class="text-lg font-semibold">Productos</h2>
