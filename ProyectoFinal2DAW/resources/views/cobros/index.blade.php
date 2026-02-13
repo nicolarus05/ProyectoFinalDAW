@@ -289,6 +289,14 @@
                                         $cantidad = $producto->pivot->cantidad ?? 1;
                                         $precioUnitario = $producto->pivot->precio_unitario ?? $producto->precio;
                                         $subtotal = $producto->pivot->subtotal ?? ($precioUnitario * $cantidad);
+                                        $empleadoProducto = 'Sin asignar';
+                                        $empIdProducto = $producto->pivot->empleado_id ?? null;
+                                        if ($empIdProducto) {
+                                            $empModelProd = \App\Models\Empleado::with('user')->find($empIdProducto);
+                                            if ($empModelProd && $empModelProd->user) {
+                                                $empleadoProducto = $empModelProd->user->nombre;
+                                            }
+                                        }
                                     @endphp
                                     <div class="desglose-item producto bg-green-50 p-3 rounded-lg">
                                         <div class="flex justify-between items-start">
@@ -296,6 +304,9 @@
                                                 <div class="font-medium text-gray-800">{{ $producto->nombre }}</div>
                                                 <div class="text-sm text-gray-600 mt-1">
                                                     {{ $cantidad }}x unidad{{ $cantidad > 1 ? 'es' : '' }} × {{ number_format($precioUnitario, 2) }} €
+                                                </div>
+                                                <div class="empleado-tag bg-green-200 text-green-800 mt-1">
+                                                    👨‍💼 {{ $empleadoProducto }}
                                                 </div>
                                             </div>
                                             <div class="text-lg font-bold text-green-700 ml-3">

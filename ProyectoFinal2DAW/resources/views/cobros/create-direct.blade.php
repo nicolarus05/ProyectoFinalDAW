@@ -1587,11 +1587,13 @@ calcularTotales();
     // COBRO AGRUPADO: Cargar servicios de TODAS las citas
     @foreach($citas as $citaItem)
         @foreach($citaItem->servicios as $servicio)
+            servicioUidCounter++;
             serviciosSeleccionados.push({
                 id: {{ $servicio->id }},
                 nombre: "{{ $servicio->nombre }} ({{ \Carbon\Carbon::parse($citaItem->fecha_hora)->format('H:i') }})",
                 precio: {{ $servicio->precio }},
-                empleado_id: {{ $citaItem->id_empleado }}
+                empleado_id: {{ $citaItem->id_empleado }},
+                _uid: servicioUidCounter
             });
         @endforeach
     @endforeach
@@ -1602,11 +1604,13 @@ calcularTotales();
 @elseif(isset($cita) && $cita->servicios->isNotEmpty())
     // COBRO INDIVIDUAL: Cargar servicios de una sola cita
     @foreach($cita->servicios as $servicio)
+        servicioUidCounter++;
         serviciosSeleccionados.push({
             id: {{ $servicio->id }},
             nombre: "{{ $servicio->nombre }}",
             precio: {{ $servicio->precio }},
-            empleado_id: {{ $cita->id_empleado }}
+            empleado_id: {{ $cita->id_empleado }},
+            _uid: servicioUidCounter
         });
     @endforeach
     renderServicios();
