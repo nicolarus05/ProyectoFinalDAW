@@ -1092,6 +1092,94 @@ class RegistroCobroController extends Controller{
             }
         }
 
+        // --- ASIGNACIÓN INTELIGENTE DE DEUDA A SERVICIOS ESPECÍFICOS ---
+        // En vez de dejar todos los servicios a precio completo (lo que causa factor proporcional),
+        // identificamos qué servicios concretos están en deuda y los ponemos a 0€ en el pivot.
+        // Así: sumaPivot = total_final → factorAjuste = 1.0 → facturación correcta por empleado
+        if ($deudaServicios > 0.01) {
+            $pivotEntries = DB::table('registro_cobro_servicio')
+                ->where('registro_cobro_id', $cobro->id)
+                ->where('precio', '>', 0)
+                ->orderBy('precio', 'desc')
+                ->get();
+            
+            $deudaRestante = round($deudaServicios, 2);
+            $serviciosAjustados = [];
+            
+            // 1. Buscar coincidencia EXACTA con un solo servicio
+            $matchExacto = null;
+            foreach ($pivotEntries as $entry) {
+                if (abs(round($entry->precio, 2) - $deudaRestante) < 0.02) {
+                    $matchExacto = $entry;
+                    break;
+                }
+            }
+            
+            if ($matchExacto) {
+                DB::table('registro_cobro_servicio')
+                    ->where('id', $matchExacto->id)
+                    ->update(['precio' => 0]);
+                $serviciosAjustados[] = $matchExacto->id;
+                $deudaRestante = 0;
+                Log::info("Cobro #{$cobro->id}: Deuda asignada a servicio pivot #{$matchExacto->id} (precio={$matchExacto->precio}€ → 0€, match exacto)");
+            } else {
+                // 2. Buscar combinación exacta de 2 servicios
+                $matchPar = null;
+                $entries = $pivotEntries->values();
+                for ($i = 0; $i < $entries->count() && !$matchPar; $i++) {
+                    for ($j = $i + 1; $j < $entries->count(); $j++) {
+                        if (abs(round($entries[$i]->precio + $entries[$j]->precio, 2) - $deudaRestante) < 0.02) {
+                            $matchPar = [$entries[$i], $entries[$j]];
+                            break;
+                        }
+                    }
+                }
+                
+                if ($matchPar) {
+                    foreach ($matchPar as $entry) {
+                        DB::table('registro_cobro_servicio')
+                            ->where('id', $entry->id)
+                            ->update(['precio' => 0]);
+                        $serviciosAjustados[] = $entry->id;
+                    }
+                    $deudaRestante = 0;
+                    Log::info("Cobro #{$cobro->id}: Deuda asignada a par de servicios pivot #{$matchPar[0]->id} + #{$matchPar[1]->id} (match exacto de par)");
+                } else {
+                    // 3. Greedy: servicios más caros primero hasta cubrir la deuda
+                    // El último servicio se reduce parcialmente si es necesario
+                    foreach ($pivotEntries as $entry) {
+                        if ($deudaRestante <= 0.01) break;
+                        if (in_array($entry->id, $serviciosAjustados)) continue;
+                        
+                        $precioActual = round($entry->precio, 2);
+                        
+                        if ($precioActual <= $deudaRestante) {
+                            // Servicio completo va a deuda
+                            DB::table('registro_cobro_servicio')
+                                ->where('id', $entry->id)
+                                ->update(['precio' => 0]);
+                            $deudaRestante = round($deudaRestante - $precioActual, 2);
+                            $serviciosAjustados[] = $entry->id;
+                            Log::info("Cobro #{$cobro->id}: Deuda greedy - servicio pivot #{$entry->id} completo a 0€ (era {$precioActual}€, resta {$deudaRestante}€)");
+                        } else {
+                            // Reducción parcial del servicio
+                            $nuevoPrecio = round($precioActual - $deudaRestante, 2);
+                            DB::table('registro_cobro_servicio')
+                                ->where('id', $entry->id)
+                                ->update(['precio' => $nuevoPrecio]);
+                            Log::info("Cobro #{$cobro->id}: Deuda greedy - servicio pivot #{$entry->id} reducido {$precioActual}€ → {$nuevoPrecio}€ (deuda parcial {$deudaRestante}€)");
+                            $deudaRestante = 0;
+                        }
+                    }
+                }
+            }
+            
+            // Verificación: la suma de precios en pivot debe ser ≈ total_final
+            if ($deudaRestante > 0.01) {
+                Log::warning("Cobro #{$cobro->id}: No se pudo asignar toda la deuda a servicios. Resta: {$deudaRestante}€");
+            }
+        }
+
         // --- Si hay deuda de SERVICIOS, registrarla en el sistema de deudas ---
         // NOTA: La deuda de bonos se registra por separado cuando se crea el BonoCliente
         if ($deudaServicios > 0 && $clienteId) {

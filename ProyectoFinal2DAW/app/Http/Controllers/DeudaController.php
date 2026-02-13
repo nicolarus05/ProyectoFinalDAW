@@ -6,6 +6,8 @@ use App\Models\Cliente;
 use App\Models\Deuda;
 use App\Models\MovimientoDeuda;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Http\Requests\RegistrarPagoDeudaRequest;
 use App\Traits\HasFlashMessages;
 use App\Traits\HasCrudMessages;
@@ -150,13 +152,52 @@ class DeudaController extends Controller
             $cobroOriginal = $ultimoCargo->registroCobro;
             $tieneCobroOriginal = true;
             
+            // --- DISTRIBUCIÓN INTELIGENTE DE DEUDA ---
+            // Si el cobro original tiene servicios en deuda (precio=0 por asignación inteligente),
+            // mostrar la distribución basada en esos servicios, no en los ya pagados.
+            $usarServiciosDeuda = false;
+            $serviciosDeuda = collect();
+            $totalDeuda = 0;
+            
+            if ($cobroOriginal->deuda > 0) {
+                $servicios = $cobroOriginal->servicios ?? collect();
+                
+                foreach ($servicios as $servicio) {
+                    if ($servicio->pivot->precio == 0) {
+                        $esBono = DB::table('bono_uso_detalle')
+                            ->where('servicio_id', $servicio->id)
+                            ->where(function($q) use ($cobroOriginal) {
+                                if ($cobroOriginal->id_cita) {
+                                    $q->where('cita_id', $cobroOriginal->id_cita);
+                                } else {
+                                    $q->whereNull('cita_id')
+                                      ->whereBetween('created_at', [
+                                          $cobroOriginal->created_at->copy()->subMinutes(5),
+                                          $cobroOriginal->created_at->copy()->addMinutes(5)
+                                      ]);
+                                }
+                            })
+                            ->exists();
+                        
+                        if (!$esBono) {
+                            $serviciosDeuda->push($servicio);
+                            $totalDeuda += $servicio->precio;
+                        }
+                    }
+                }
+                
+                if ($serviciosDeuda->count() > 0 && $totalDeuda > 0) {
+                    $usarServiciosDeuda = true;
+                }
+            }
+            
             // Calcular total original
             $totalOriginal = 0;
-            $servicios = $cobroOriginal->servicios ?? collect();
-            $productos = $cobroOriginal->productos ?? collect();
+            $servicios = $usarServiciosDeuda ? $serviciosDeuda : ($cobroOriginal->servicios ?? collect());
+            $productos = $usarServiciosDeuda ? collect() : ($cobroOriginal->productos ?? collect());
             
             foreach ($servicios as $servicio) {
-                $totalOriginal += $servicio->pivot->precio;
+                $totalOriginal += $usarServiciosDeuda ? $servicio->precio : $servicio->pivot->precio;
             }
             
             foreach ($productos as $producto) {
@@ -168,7 +209,7 @@ class DeudaController extends Controller
             
             foreach ($servicios as $servicio) {
                 $empId = $servicio->pivot->empleado_id;
-                $precio = $servicio->pivot->precio;
+                $precio = $usarServiciosDeuda ? $servicio->precio : $servicio->pivot->precio;
                 
                 if (!isset($montoPorEmpleado[$empId])) {
                     $empleado = \App\Models\Empleado::with('user')->find($empId);
@@ -258,22 +299,69 @@ class DeudaController extends Controller
         $serviciosOriginales = collect();
         $productosOriginales = collect();
         $totalOriginal = 0;
+        $usarServiciosDeuda = false; // Flag para distribución inteligente de deuda
         
         // Si hay cobro original con servicios/productos, los usaremos para distribuir automáticamente
         if ($ultimoCargo && $ultimoCargo->registroCobro) {
             $cobroOriginal = $ultimoCargo->registroCobro;
             $citaId = $cobroOriginal->id_cita;
             
-            // Obtener servicios del cobro original CON sus empleados
-            if ($cobroOriginal->servicios && $cobroOriginal->servicios->count() > 0) {
-                $serviciosOriginales = $cobroOriginal->servicios;
-                $totalOriginal += $serviciosOriginales->sum('pivot.precio');
+            // --- DISTRIBUCIÓN INTELIGENTE DE DEUDA ---
+            // Si el cobro original tiene deuda > 0 y servicios con precio = 0 (asignación inteligente),
+            // el pago debe ir a los empleados de los servicios EN DEUDA, no a los ya pagados.
+            // Servicios con precio=0 pueden ser: (1) pagados con bono, (2) en deuda por asignación inteligente.
+            // Distinguimos comprobando bono_uso_detalle.
+            if ($cobroOriginal->deuda > 0 && $cobroOriginal->servicios && $cobroOriginal->servicios->count() > 0) {
+                $serviciosDeuda = collect();
+                $totalDeuda = 0;
+                
+                foreach ($cobroOriginal->servicios as $servicio) {
+                    if ($servicio->pivot->precio == 0) {
+                        // Comprobar si es servicio de bono (NO deuda)
+                        $esBono = DB::table('bono_uso_detalle')
+                            ->where('servicio_id', $servicio->id)
+                            ->where(function($q) use ($cobroOriginal) {
+                                if ($cobroOriginal->id_cita) {
+                                    $q->where('cita_id', $cobroOriginal->id_cita);
+                                } else {
+                                    // Ventas directas: buscar por proximidad temporal
+                                    $q->whereNull('cita_id')
+                                      ->whereBetween('created_at', [
+                                          $cobroOriginal->created_at->copy()->subMinutes(5),
+                                          $cobroOriginal->created_at->copy()->addMinutes(5)
+                                      ]);
+                                }
+                            })
+                            ->exists();
+                        
+                        if (!$esBono) {
+                            // Es un servicio en DEUDA → usar su precio de catálogo
+                            $serviciosDeuda->push($servicio);
+                            $totalDeuda += $servicio->precio;
+                        }
+                    }
+                }
+                
+                // Si encontramos servicios en deuda, usarlos para la distribución
+                if ($serviciosDeuda->count() > 0 && $totalDeuda > 0) {
+                    $serviciosOriginales = $serviciosDeuda;
+                    $totalOriginal = $totalDeuda;
+                    $usarServiciosDeuda = true;
+                    Log::info("Pago deuda cliente #{$cobroOriginal->id_cliente}: Distribución inteligente entre " . $serviciosDeuda->count() . " servicios en deuda (total catálogo: {$totalDeuda}€)");
+                }
             }
             
-            // Obtener productos del cobro original
-            if ($cobroOriginal->productos && $cobroOriginal->productos->count() > 0) {
-                $productosOriginales = $cobroOriginal->productos;
-                $totalOriginal += $productosOriginales->sum('pivot.subtotal');
+            // Si NO hay distribución inteligente, usar el método original
+            if (!$usarServiciosDeuda) {
+                if ($cobroOriginal->servicios && $cobroOriginal->servicios->count() > 0) {
+                    $serviciosOriginales = $cobroOriginal->servicios;
+                    $totalOriginal += $serviciosOriginales->sum('pivot.precio');
+                }
+                
+                if ($cobroOriginal->productos && $cobroOriginal->productos->count() > 0) {
+                    $productosOriginales = $cobroOriginal->productos;
+                    $totalOriginal += $productosOriginales->sum('pivot.subtotal');
+                }
             }
         }
         
@@ -287,7 +375,8 @@ class DeudaController extends Controller
             
             foreach ($serviciosOriginales as $servicio) {
                 $empId = $servicio->pivot->empleado_id;
-                $precio = $servicio->pivot->precio;
+                // Para servicios en deuda: usar precio de catálogo. Para pagados: usar precio del pivot.
+                $precio = $usarServiciosDeuda ? $servicio->precio : $servicio->pivot->precio;
                 $montoPorEmpleado[$empId] = ($montoPorEmpleado[$empId] ?? 0) + $precio;
             }
             
@@ -333,15 +422,18 @@ class DeudaController extends Controller
         // Vincular servicios originales con distribución proporcional al pago
         if ($serviciosOriginales->count() > 0 && $totalOriginal > 0) {
             foreach ($serviciosOriginales as $servicio) {
-                $precioOriginal = $servicio->pivot->precio;
                 $empleadoServicio = $servicio->pivot->empleado_id;
                 
+                // Para servicios en deuda: usar precio de catálogo como referencia
+                // Para servicios pagados normales: usar precio del pivot
+                $precioReferencia = $usarServiciosDeuda ? $servicio->precio : $servicio->pivot->precio;
+                
                 // Calcular precio proporcional al monto pagado
-                $precioProporcion = ($precioOriginal / $totalOriginal) * $monto;
+                $precioProporcion = ($precioReferencia / $totalOriginal) * $monto;
                 
                 $registroCobro->servicios()->attach($servicio->id, [
                     'empleado_id' => $empleadoServicio, // Empleado original del servicio
-                    'precio' => $precioProporcion,
+                    'precio' => round($precioProporcion, 2),
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
