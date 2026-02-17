@@ -35,10 +35,10 @@ class CajaDiariaController extends Controller{
         
         // Calculamos totales por método de pago considerando productos Y bonos vendidos
         foreach($cobrosDelDia as $cobro) {
-            // IMPORTANTE: total_final es el monto real cobrado (sin deuda)
-            // CRÍTICO: Restar bonos vendidos para evitar duplicación (total_final puede incluirlos en algunos casos)
-            // Usar max(0, ...) para evitar valores negativos si total_final ya está corregido
-            $montoPagadoServicios = max(0, $cobro->total_final - ($cobro->total_bonos_vendidos ?? 0));
+            // IMPORTANTE: total_final ya contiene SOLO servicios/productos (sin bonos vendidos, sin deuda)
+            // Los bonos vendidos se almacenan por separado en total_bonos_vendidos
+            // NO restar total_bonos_vendidos aquí porque ya están excluidos de total_final
+            $montoPagadoServicios = $cobro->total_final;
             
             // Sumar servicios/productos según método de pago del COBRO
             if ($cobro->metodo_pago === 'efectivo') {
@@ -109,8 +109,8 @@ class CajaDiariaController extends Controller{
         // coste = precio total de servicios/productos antes de pagos
         // total_final puede incluir bonos vendidos, por eso usamos la suma del coste
         $totalServicios = $cobrosDelDia->sum(function($cobro) {
-            // Restar bonos vendidos del total_final para obtener solo servicios/productos
-            return max(0, $cobro->total_final - ($cobro->total_bonos_vendidos ?? 0));
+            // total_final ya contiene SOLO servicios/productos (bonos vendidos están aparte)
+            return $cobro->total_final;
         });
 
         // Total de deuda del día (dinero que quedó pendiente)
@@ -163,20 +163,34 @@ class CajaDiariaController extends Controller{
         foreach($cobrosDelDia as $cobro) {
             $metodoPago = $cobro->metodo_pago;
             
-            // PUNTO 2: Para cobros pagados con bono, sumar a totalPeluqueriaBono/totalEsteticaBono
+            // Para cobros pagados con bono, sumar a totalPeluqueriaBono/totalEsteticaBono
             if ($metodoPago === 'bono') {
-                // Distribuir el coste entre categorías según servicios
+                $serviciosParaBono = collect();
+                
+                // Prioridad 1: Servicios directos del cobro (pivot)
                 if ($cobro->servicios && $cobro->servicios->count() > 0) {
-                    foreach($cobro->servicios as $servicio) {
-                        $precioServicio = $servicio->pivot->precio ?? $servicio->precio ?? 0;
-                        if ($servicio->categoria === 'peluqueria') {
-                            $totalPeluqueriaBono += $precioServicio;
-                        } elseif ($servicio->categoria === 'estetica') {
-                            $totalEsteticaBono += $precioServicio;
-                        }
+                    $serviciosParaBono = $cobro->servicios;
+                }
+                // Prioridad 2: Servicios de cita individual (fallback - bono no vincula pivot)
+                elseif ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
+                    $serviciosParaBono = $cobro->cita->servicios;
+                }
+                // Prioridad 3: Servicios de citas agrupadas
+                elseif ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                    $serviciosParaBono = $cobro->citasAgrupadas->flatMap(function($c) {
+                        return $c->servicios ?? collect();
+                    });
+                }
+                
+                foreach($serviciosParaBono as $servicio) {
+                    $precioServicio = $servicio->pivot->precio ?? $servicio->precio ?? 0;
+                    if ($servicio->categoria === 'peluqueria') {
+                        $totalPeluqueriaBono += $precioServicio;
+                    } elseif ($servicio->categoria === 'estetica') {
+                        $totalEsteticaBono += $precioServicio;
                     }
                 }
-                continue; // No suma a efectivo/tarjeta
+                continue;
             }
             
             // Cobros de deuda no generan ingreso
@@ -184,156 +198,75 @@ class CajaDiariaController extends Controller{
                 continue;
             }
             
-            // Usar total_final que ya contiene el monto real cobrado (sin deuda)
-            // CRÍTICO: Restar bonos vendidos para evitar duplicación
-            // Usar max(0, ...) para evitar valores negativos si total_final ya está corregido
-            $montoPagado = max(0, $cobro->total_final - ($cobro->total_bonos_vendidos ?? 0));
+            // --- Determinar proporción efectivo/tarjeta del cobro ---
+            $propEfectivo = 0;
+            $propTarjeta = 0;
             
-            // Si no se cobró nada, saltar
-            if ($montoPagado <= 0) {
-                continue;
-            }
-            
-            // Para pagos mixtos, necesitamos distribuir entre categorías
-            $montoEfectivo = $metodoPago === 'mixto' ? ($cobro->pago_efectivo ?? 0) : ($metodoPago === 'efectivo' ? $montoPagado : 0);
-            $montoTarjeta = $metodoPago === 'mixto' ? ($cobro->pago_tarjeta ?? 0) : ($metodoPago === 'tarjeta' ? $montoPagado : 0);
-            
-            // PASO 1: Calcular suma total de servicios y productos del pivot
-            // El pivot registro_cobro_servicio ya tiene los precios con descuentos aplicados
-            $sumaRealServicios = 0;
-            $serviciosDelCobro = [];
-            
-            // PRIORIDAD 1: Servicios directos del cobro (FUENTE DE VERDAD)
-            if ($cobro->servicios && $cobro->servicios->count() > 0) {
-                foreach($cobro->servicios as $servicio) {
-                    // El precio del pivot YA tiene descuentos aplicados - es el precio REAL cobrado
-                    $precioServicio = $servicio->pivot->precio ?? 0;
-                    
-                    // Solo contar servicios con precio > 0 (excluir los pagados con bono)
-                    if ($precioServicio > 0) {
-                        $sumaRealServicios += $precioServicio;
-                        $serviciosDelCobro[] = ['servicio' => $servicio, 'precio' => $precioServicio];
-                    }
-                }
-            }
-            // PRIORIDAD 2: Servicios de cita individual (FALLBACK - datos antiguos)
-            elseif ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
-                foreach($cobro->cita->servicios as $servicio) {
-                    // Para datos antiguos, usar precio base del servicio
-                    $precioServicio = $servicio->precio ?? 0;
-                    
-                    // Solo contar servicios con precio > 0
-                    if ($precioServicio > 0) {
-                        $sumaRealServicios += $precioServicio;
-                        $serviciosDelCobro[] = ['servicio' => $servicio, 'precio' => $precioServicio];
-                    }
-                }
-            }
-            // PRIORIDAD 3: Servicios de citas agrupadas (FALLBACK - datos antiguos)
-            elseif ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
-                foreach($cobro->citasAgrupadas as $citaGrupo) {
-                    if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
-                        foreach($citaGrupo->servicios as $servicio) {
-                            // Para datos antiguos, usar precio base del servicio
-                            $precioServicio = $servicio->precio ?? 0;
-                            
-                            // Solo contar servicios con precio > 0
-                            if ($precioServicio > 0) {
-                                $sumaRealServicios += $precioServicio;
-                                $serviciosDelCobro[] = ['servicio' => $servicio, 'precio' => $precioServicio];
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Calcular suma de productos (el subtotal del pivot YA tiene descuentos aplicados)
-            $sumaRealProductos = 0;
-            $productosDelCobro = [];
-            if ($cobro->productos && $cobro->productos->count() > 0) {
-                foreach($cobro->productos as $producto) {
-                    $subtotal = $producto->pivot->subtotal ?? 0;
-                    $sumaRealProductos += $subtotal;
-                    $productosDelCobro[] = ['producto' => $producto, 'subtotal' => $subtotal];
-                }
-            }
-            
-            // Suma total (servicios + productos) - Esta es la suma de precios REALES con descuentos
-            $sumaTotal = $sumaRealServicios + $sumaRealProductos;
-            
-            if ($sumaTotal <= 0) {
-                continue; // No hay nada que distribuir
-            }
-            
-            // IMPORTANTE: Los precios del pivot YA tienen descuentos aplicados
-            // Solo necesitamos distribuir entre efectivo/tarjeta proporcionalmente
-            // NO aplicamos descuento adicional porque ya está en los precios
-            
-            // PUNTO 5: Usar misma lógica que totales generales para distribuir efectivo/tarjeta
-            // Para mixto, distribuir proporcionalmente según pago_efectivo/pago_tarjeta
-            if ($metodoPago === 'mixto') {
+            if ($metodoPago === 'efectivo') {
+                $propEfectivo = 1;
+            } elseif ($metodoPago === 'tarjeta') {
+                $propTarjeta = 1;
+            } elseif ($metodoPago === 'mixto') {
                 $totalPagoMixto = ($cobro->pago_efectivo ?? 0) + ($cobro->pago_tarjeta ?? 0);
                 if ($totalPagoMixto > 0) {
-                    $montoEfectivo = $montoPagado * (($cobro->pago_efectivo ?? 0) / $totalPagoMixto);
-                    $montoTarjeta = $montoPagado * (($cobro->pago_tarjeta ?? 0) / $totalPagoMixto);
+                    $propEfectivo = ($cobro->pago_efectivo ?? 0) / $totalPagoMixto;
+                    $propTarjeta = ($cobro->pago_tarjeta ?? 0) / $totalPagoMixto;
                 }
             }
             
-            // PASO 2: Distribuir servicios (usar precio exacto del pivot)
-            foreach($serviciosDelCobro as $item) {
-                $servicio = $item['servicio'];
-                $precioServicio = $item['precio']; // Precio REAL con descuento ya aplicado
+            // --- Recopilar servicios (con fallback para datos antiguos) ---
+            $serviciosDelCobro = collect();
+            
+            if ($cobro->servicios && $cobro->servicios->count() > 0) {
+                $serviciosDelCobro = $cobro->servicios;
+            } elseif ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
+                $serviciosDelCobro = $cobro->cita->servicios;
+            } elseif ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                $serviciosDelCobro = $cobro->citasAgrupadas->flatMap(function($c) {
+                    return $c->servicios ?? collect();
+                });
+            }
+            
+            // --- Distribuir servicios por categoría usando precio DIRECTO del pivot ---
+            // El precio del pivot es la fuente de verdad (ya incluye descuentos y ajustes de deuda)
+            foreach($serviciosDelCobro as $servicio) {
+                $precioServicio = $servicio->pivot->precio ?? $servicio->precio ?? 0;
+                if ($precioServicio <= 0) continue; // Excluir pagados con bono o asignados a deuda
                 
-                // Si no tiene categoría válida, asignar 'peluqueria' por defecto
-                $categoriaServicio = in_array($servicio->categoria, ['peluqueria', 'estetica']) 
+                $categoria = in_array($servicio->categoria, ['peluqueria', 'estetica']) 
                     ? $servicio->categoria 
                     : 'peluqueria';
                 
-                // Distribuir efectivo/tarjeta proporcionalmente
-                $proporcionItem = $sumaTotal > 0 ? ($precioServicio / $sumaTotal) : 0;
-                $montoServicioEfectivo = $montoEfectivo * $proporcionItem;
-                $montoServicioTarjeta = $montoTarjeta * $proporcionItem;
-                
-                // El total por categoría debe ser la suma real cobrada (efectivo+tarjeta), no el precio teórico
-                $montoServicio = $montoPagado * $proporcionItem;
-                
-                if ($categoriaServicio === 'peluqueria') {
-                    $totalPeluqueria += $montoServicio;
-                    $totalPeluqueriaEfectivo += $montoServicioEfectivo;
-                    $totalPeluqueriaTarjeta += $montoServicioTarjeta;
+                if ($categoria === 'peluqueria') {
+                    $totalPeluqueria += $precioServicio;
+                    $totalPeluqueriaEfectivo += $precioServicio * $propEfectivo;
+                    $totalPeluqueriaTarjeta += $precioServicio * $propTarjeta;
                 } else {
-                    $totalEstetica += $montoServicio;
-                    $totalEsteticaEfectivo += $montoServicioEfectivo;
-                    $totalEsteticaTarjeta += $montoServicioTarjeta;
+                    $totalEstetica += $precioServicio;
+                    $totalEsteticaEfectivo += $precioServicio * $propEfectivo;
+                    $totalEsteticaTarjeta += $precioServicio * $propTarjeta;
                 }
             }
             
-            // PASO 3: Distribuir productos (usar subtotal exacto del pivot)
-            foreach($productosDelCobro as $item) {
-                $producto = $item['producto'];
-                $subtotal = $item['subtotal']; // Subtotal REAL con descuento ya aplicado
-                
-                // Si no tiene categoría válida, asignar 'peluqueria' por defecto
-                $categoriaProducto = in_array($producto->categoria, ['peluqueria', 'estetica']) 
-                    ? $producto->categoria 
-                    : 'peluqueria';
-                
-                // Distribuir efectivo/tarjeta proporcionalmente
-                $proporcionItem = $sumaTotal > 0 ? ($subtotal / $sumaTotal) : 0;
-                $montoProductoEfectivo = $montoEfectivo * $proporcionItem;
-                $montoProductoTarjeta = $montoTarjeta * $proporcionItem;
-                
-                // El total por categoría debe ser la suma real cobrada (efectivo+tarjeta), no el subtotal teórico
-                $montoProducto = $montoPagado * $proporcionItem;
-                
-                if ($categoriaProducto === 'peluqueria') {
-                    $totalPeluqueria += $montoProducto;
-                    $totalPeluqueriaEfectivo += $montoProductoEfectivo;
-                    $totalPeluqueriaTarjeta += $montoProductoTarjeta;
-                } else {
-                    $totalEstetica += $montoProducto;
-                    $totalEsteticaEfectivo += $montoProductoEfectivo;
-                    $totalEsteticaTarjeta += $montoProductoTarjeta;
+            // --- Distribuir productos por categoría usando subtotal DIRECTO del pivot ---
+            if ($cobro->productos && $cobro->productos->count() > 0) {
+                foreach($cobro->productos as $producto) {
+                    $subtotal = $producto->pivot->subtotal ?? 0;
+                    if ($subtotal <= 0) continue;
+                    
+                    $categoria = in_array($producto->categoria, ['peluqueria', 'estetica']) 
+                        ? $producto->categoria 
+                        : 'peluqueria';
+                    
+                    if ($categoria === 'peluqueria') {
+                        $totalPeluqueria += $subtotal;
+                        $totalPeluqueriaEfectivo += $subtotal * $propEfectivo;
+                        $totalPeluqueriaTarjeta += $subtotal * $propTarjeta;
+                    } else {
+                        $totalEstetica += $subtotal;
+                        $totalEsteticaEfectivo += $subtotal * $propEfectivo;
+                        $totalEsteticaTarjeta += $subtotal * $propTarjeta;
+                    }
                 }
             }
         }
@@ -356,18 +289,18 @@ class CajaDiariaController extends Controller{
                 continue;
             }
             
-            // Contar servicios por categoría en el bono
-            $serviciosPeluqueria = $plantilla->servicios->where('categoria', 'peluqueria')->count();
-            $serviciosEstetica = $plantilla->servicios->where('categoria', 'estetica')->count();
-            $totalServiciosBono = $serviciosPeluqueria + $serviciosEstetica;
+            // Distribuir por PRECIO de servicios (no por cantidad) para mayor precisión
+            $sumaPrecioPeluqueria = $plantilla->servicios->where('categoria', 'peluqueria')->sum('precio');
+            $sumaPrecioEstetica = $plantilla->servicios->where('categoria', 'estetica')->sum('precio');
+            $sumaPrecioTotal = $sumaPrecioPeluqueria + $sumaPrecioEstetica;
             
-            if ($totalServiciosBono <= 0) {
+            if ($sumaPrecioTotal <= 0) {
                 continue;
             }
             
-            // Calcular proporción por categoría
-            $proporcionPeluqueria = $serviciosPeluqueria / $totalServiciosBono;
-            $proporcionEstetica = $serviciosEstetica / $totalServiciosBono;
+            // Calcular proporción por categoría basada en precios reales
+            $proporcionPeluqueria = $sumaPrecioPeluqueria / $sumaPrecioTotal;
+            $proporcionEstetica = $sumaPrecioEstetica / $sumaPrecioTotal;
             
             // Distribuir el precio pagado según proporción
             $montoPeluqueria = $precioPagado * $proporcionPeluqueria;

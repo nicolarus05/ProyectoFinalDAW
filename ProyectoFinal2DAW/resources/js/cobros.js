@@ -702,6 +702,35 @@ document.addEventListener('DOMContentLoaded', function() {
     const cobroForm = document.getElementById('cobro-form');
     if (cobroForm) {
       cobroForm.addEventListener('submit', function() {
+        // --- APLICAR DESCUENTO DE SERVICIOS A PRECIOS INDIVIDUALES ---
+        // Antes de enviar, distribuir el descuento proporcionalmente a cada servicio
+        // para que servicios_data contenga precios finales (no catálogo + descuento aparte).
+        // Esto es CRÍTICO para la correcta facturación por empleado.
+        const descServPct = parseFloat(document.getElementById('descuento_servicios_porcentaje').value) || 0;
+        const descServEur = parseFloat(document.getElementById('descuento_servicios_euro').value) || 0;
+        const descGenPct = parseFloat(document.getElementById('descuento_porcentaje').value) || 0;
+        const descGenEur = parseFloat(document.getElementById('descuento_euro').value) || 0;
+
+        if ((descServPct > 0 || descServEur > 0 || descGenPct > 0 || descGenEur > 0) && serviciosSeleccionados.length > 0) {
+          const sumaPrecios = serviciosSeleccionados.reduce((sum, s) => sum + (parseFloat(s.precio) || 0), 0);
+          if (sumaPrecios > 0.01) {
+            const descuentoTotal = (sumaPrecios * (descServPct / 100)) + descServEur;
+            const sumaObjetivo = Math.max(sumaPrecios - descuentoTotal, 0);
+            const factor = sumaObjetivo / sumaPrecios;
+
+            serviciosSeleccionados.forEach(s => {
+              s.precio = Math.round(parseFloat(s.precio) * factor * 100) / 100;
+            });
+
+            // Actualizar servicios_data con precios ajustados
+            const inputServicios = document.getElementById('servicios_data');
+            if (inputServicios) {
+              inputServicios.value = JSON.stringify(serviciosSeleccionados);
+            }
+          }
+        }
+
+        // --- Serializar productos como JSON ---
         const productosData = [];
         selectedTbody.querySelectorAll('tr').forEach(row => {
           const id = row.querySelector('input[name$="[id]"]')?.value;

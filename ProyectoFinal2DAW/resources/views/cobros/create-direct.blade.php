@@ -1220,6 +1220,15 @@ window.updateServicioEmpleado = function(index, empleadoId) {
     }
 }
 
+window.updateServicioPrecio = function(index, valor) {
+    if (serviciosSeleccionados[index]) {
+        serviciosSeleccionados[index].precio = parseFloat(valor) || 0;
+        document.getElementById('servicios_data').value = JSON.stringify(serviciosSeleccionados);
+        // Recalcular totales (coste + total_final)
+        calcularTotales();
+    }
+}
+
 function renderServicios() {
     const tbody = document.getElementById('services-tbody');
     tbody.innerHTML = '';
@@ -1249,7 +1258,16 @@ function renderServicios() {
                     ${empleadosOptions}
                 </select>
             </td>
-            <td class="p-2 text-right">€${servicio.precio.toFixed(2)}</td>
+            <td class="p-2 text-right">
+                <div class="flex items-center justify-end gap-1">
+                    <span class="text-gray-500">€</span>
+                    <input type="number" step="0.01" min="0"
+                           value="${servicio.precio.toFixed(2)}"
+                           onchange="updateServicioPrecio(${index}, this.value)"
+                           oninput="updateServicioPrecio(${index}, this.value)"
+                           class="w-24 border rounded px-2 py-1 text-right text-sm servicio-precio-edit">
+                </div>
+            </td>
             <td class="p-2 text-center">
                 <button type="button" onclick="removeService(${servicio._uid})" class="text-red-600 hover:text-red-800">✕</button>
             </td>
@@ -1572,6 +1590,29 @@ document.getElementById('cobro-form').addEventListener('submit', function(e) {
         e.preventDefault();
         alert('Debe seleccionar un método de pago');
         return false;
+    }
+
+    // --- APLICAR DESCUENTO DE SERVICIOS A PRECIOS INDIVIDUALES ---
+    // Distribuir el descuento proporcionalmente a cada servicio antes de enviar,
+    // para que servicios_data contenga precios finales (no catálogo + descuento aparte).
+    // Esto es CRÍTICO para la correcta facturación por empleado.
+    const descServPct = parseFloat(document.getElementById('descuento_servicios_porcentaje').value) || 0;
+    const descServEur = parseFloat(document.getElementById('descuento_servicios_euro').value) || 0;
+
+    if ((descServPct > 0 || descServEur > 0) && serviciosSeleccionados.length > 0) {
+        const sumaPrecios = serviciosSeleccionados.reduce((sum, s) => sum + (parseFloat(s.precio) || 0), 0);
+        if (sumaPrecios > 0.01) {
+            const descuentoTotal = (sumaPrecios * (descServPct / 100)) + descServEur;
+            const sumaObjetivo = Math.max(sumaPrecios - descuentoTotal, 0);
+            const factor = sumaObjetivo / sumaPrecios;
+
+            serviciosSeleccionados.forEach(s => {
+                s.precio = Math.round(parseFloat(s.precio) * factor * 100) / 100;
+            });
+
+            // Actualizar servicios_data con precios ajustados
+            document.getElementById('servicios_data').value = JSON.stringify(serviciosSeleccionados);
+        }
     }
     
     return true;

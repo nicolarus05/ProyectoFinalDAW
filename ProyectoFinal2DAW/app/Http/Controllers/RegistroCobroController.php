@@ -970,6 +970,50 @@ class RegistroCobroController extends Controller{
                     'updated_at' => now(),
                 ]);
             }
+
+            // --- AJUSTAR PRECIOS PIVOT SI HAY DESCUENTO EN SERVICIOS ---
+            // Cuando hay descuento_servicios_euro o descuento_servicios_porcentaje,
+            // el frontend envía precios de catálogo pero total_final ya incluye el descuento.
+            // Debemos ajustar los precios del pivot proporcionalmente para que:
+            //   sumaPivotServicios + sumaPivotProductos = total_final (total cobrado)
+            // Esto es CRÍTICO para que FacturacionService distribuya correctamente por empleado.
+            $descServEuro = (float) ($data['descuento_servicios_euro'] ?? 0);
+            $descServPct = (float) ($data['descuento_servicios_porcentaje'] ?? 0);
+            $descGenEuro = (float) ($data['descuento_euro'] ?? 0);
+            $descGenPct = (float) ($data['descuento_porcentaje'] ?? 0);
+
+            if ($descServEuro > 0.01 || $descServPct > 0.01 || $descGenEuro > 0.01 || $descGenPct > 0.01) {
+                $pivotEntries = DB::table('registro_cobro_servicio')
+                    ->where('registro_cobro_id', $cobro->id)
+                    ->where('precio', '>', 0)
+                    ->get();
+
+                $sumaPivotServicios = $pivotEntries->sum('precio');
+
+                // Calcular suma de productos para obtener el objetivo de servicios
+                $sumaPivotProductos = 0;
+                if ($cobro->productos) {
+                    foreach ($cobro->productos as $prod) {
+                        $sumaPivotProductos += $prod->pivot->subtotal;
+                    }
+                }
+
+                // El objetivo es que sumaPivotServicios = totalCobradoServicios - sumaPivotProductos
+                $objetivoServicios = $totalCobradoServicios - $sumaPivotProductos;
+
+                if ($sumaPivotServicios > 0.01 && abs($sumaPivotServicios - $objetivoServicios) > 0.01) {
+                    $factorDescuento = $objetivoServicios / $sumaPivotServicios;
+
+                    foreach ($pivotEntries as $entry) {
+                        $nuevoPrecio = round($entry->precio * $factorDescuento, 2);
+                        DB::table('registro_cobro_servicio')
+                            ->where('id', $entry->id)
+                            ->update(['precio' => $nuevoPrecio]);
+                    }
+
+                    Log::info("Cobro #{$cobro->id}: Precios pivot ajustados por descuento (factor={$factorDescuento}). Pivot {$sumaPivotServicios}€ → {$objetivoServicios}€");
+                }
+            }
         }
         // Si NO hay servicios editados, usar los originales de la cita
         elseif (!$tieneServiciosEditados && $metodoPagoFinal !== 'bono') {
