@@ -213,24 +213,13 @@
                                     }
                                 }
                                 
-                                // Verificar si esta celda está ocupada por alguna cita
+                                // Ya no bloqueamos celdas ocupadas por citas
+                                // Las citas se muestran superpuestas con position:absolute
                                 $celdaOcupada = false;
-                                foreach ($citasEmpleado as $cita) {
-                                    $citaInicio = \Carbon\Carbon::parse($cita->fecha_hora);
-                                    $citaFin = $citaInicio->copy()->addMinutes($cita->duracion_minutos);
-                                    
-                                    // Si el bloque está dentro del rango de la cita, está ocupado
-                                    if ($horaCarbon >= $citaInicio && $horaCarbon < $citaFin) {
-                                        $celdaOcupada = true;
-                                        break;
-                                    }
-                                }
                                 
                                 $claseEstado = '';
                                 if ($bloqueDeshabilitado) {
                                     $claseEstado = 'hora-deshabilitada';
-                                } elseif ($celdaOcupada) {
-                                    $claseEstado = 'celda-ocupada';
                                 } elseif (!$disponible) {
                                     $claseEstado = 'no-disponible';
                                 }
@@ -239,15 +228,13 @@
                             <div class="celda-horario {{ $claseEstado }}"
                                  data-empleado-id="{{ $empleado->id }}"
                                  data-fecha-hora="{{ $horaCarbon->format('Y-m-d H:i:s') }}"
-                                 @if($disponible && !$bloqueDeshabilitado && !$celdaOcupada)
+                                 @if($disponible && !$bloqueDeshabilitado)
                                  ondrop="drop(event)"
                                  ondragover="allowDrop(event)"
                                  onclick="crearCitaRapida({{ $empleado->id }}, '{{ $horaCarbon->format('Y-m-d H:i:s') }}', event)"
                                  @endif
                                  @if($bloqueDeshabilitado)
                                  title="⛔ Hora deshabilitada"
-                                 @elseif($celdaOcupada)
-                                 title="⏱️ Hora ocupada"
                                  @endif
                                  >
                                 @if($bloqueDeshabilitado)
@@ -368,8 +355,8 @@
                                         
                                         @if($mostrarBotones)
                                         <div class="cita-acciones">
-                                            <!-- Botones de ajuste de duración -->
-                                            <button class="btn-accion btn-duracion-menos" 
+                                            {{-- Botones de ajuste de duración (ocultos) --}}
+                                            {{-- <button class="btn-accion btn-duracion-menos" 
                                                     onclick="event.stopPropagation(); ajustarDuracion({{ $cita->id }}, -15);"
                                                     title="Reducir 15 minutos">
                                                 ▼
@@ -378,7 +365,7 @@
                                                     onclick="event.stopPropagation(); ajustarDuracion({{ $cita->id }}, 15);"
                                                     title="Aumentar 15 minutos">
                                                 ▲
-                                            </button>
+                                            </button> --}}
                                             
                                             <form action="{{ route('citas.completarYCobrar', $cita->id) }}" method="POST" style="display: inline;">
                                                 @csrf
