@@ -48,8 +48,9 @@
             <h2 class="text-xl font-semibold mb-2">Resumen de Deuda</h2>
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <p class="text-sm text-gray-600">Deuda Total Acumulada</p>
+                    <p class="text-sm text-gray-600">Deuda Histórica Acumulada</p>
                     <p class="text-2xl font-bold text-gray-800">€{{ number_format($deuda->saldo_total, 2) }}</p>
+                    <p class="text-xs text-gray-400">Total de cargos registrados</p>
                 </div>
                 <div>
                     <p class="text-sm text-gray-600">Deuda Pendiente</p>

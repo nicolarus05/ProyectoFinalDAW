@@ -364,8 +364,8 @@ class CitaController extends Controller{
         $fechaHora = Carbon::parse($cita->fecha_hora);
         $empleadoId = $cita->id_empleado;
         
-        // Calcular duración total de los servicios
-        $duracionTotal = $cita->servicios->sum('tiempo_estimado');
+        // Usar duracion_minutos (respeta duracion_real si existe) para liberar TODOS los bloques
+        $duracionTotal = $cita->duracion_minutos;
         $bloques = ceil($duracionTotal / 15); // Bloques de 15 minutos
         
         // Liberar cada bloque de tiempo
@@ -389,6 +389,14 @@ class CitaController extends Controller{
      * Cancelar una cita
      */
     public function cancelar(Cita $cita){
+        // Guardar datos de la cita ANTES de cambiar estado (para liberar slots correctamente)
+        $fechaHora = Carbon::parse($cita->fecha_hora);
+        $empleadoId = $cita->id_empleado;
+        
+        // Usar duracion_minutos (respeta duracion_real si existe) para liberar TODOS los bloques
+        $duracionTotal = $cita->duracion_minutos;
+        $bloques = ceil($duracionTotal / 15); // Bloques de 15 minutos
+
         // Si la cita tiene un cobro asociado, eliminarlo
         if ($cita->cobro) {
             $cita->cobro->delete();
@@ -398,15 +406,6 @@ class CitaController extends Controller{
         $cita->update(['estado' => 'cancelada']);
 
         // Liberar las horas ocupadas por esta cita
-        // Obtener la fecha y hora de la cita
-        $fechaHora = Carbon::parse($cita->fecha_hora);
-        $empleadoId = $cita->id_empleado;
-        
-        // Calcular duración total de los servicios
-        $duracionTotal = $cita->servicios->sum('tiempo_estimado');
-        $bloques = ceil($duracionTotal / 15); // Bloques de 15 minutos
-        
-        // Liberar cada bloque de tiempo
         $horaActual = $fechaHora->copy();
         for ($i = 0; $i < $bloques; $i++) {
             HorarioTrabajo::where('id_empleado', $empleadoId)
@@ -440,7 +439,7 @@ class CitaController extends Controller{
         $nuevoEmpleadoId = $request->nuevo_empleado_id;
 
         // Validar que todos los bloques necesarios estén disponibles
-        $duracionMinutos = $cita->servicios->sum('tiempo_estimado');
+        $duracionMinutos = $cita->duracion_minutos;
         $bloquesNecesarios = ceil($duracionMinutos / 15);
         
         $horaActual = $nuevaFechaHora->copy();
@@ -471,7 +470,6 @@ class CitaController extends Controller{
         }
 
         // Validar superposición con otras citas del mismo empleado
-        $duracionMinutos = $cita->servicios->sum('tiempo_estimado');
         $horaFin = $nuevaFechaHora->copy()->addMinutes($duracionMinutos);
         
         // Obtener todas las citas del empleado en el día para validar manualmente

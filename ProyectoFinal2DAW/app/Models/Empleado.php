@@ -157,6 +157,7 @@ class Empleado extends Model
             ->whereBetween('created_at', [$fechaInicio, $fechaFin])
             ->where('metodo_pago', '!=', 'bono') // Excluir cobros pagados con bono (son consumos, no ingresos)
             ->where('metodo_pago', '!=', 'deuda') // Excluir cobros que GENERAN deuda (no se cobró nada)
+            ->where('contabilizado', true) // Consistente con facturacionPorFechas()
             ->get();
 
         foreach ($cobros as $cobro) {

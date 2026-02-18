@@ -316,16 +316,20 @@ document.addEventListener('DOMContentLoaded', function() {
       const metodoPago = document.getElementById('metodo_pago').value;
       const efectivoCampos = document.getElementById('efectivo_campos');
       const mixtoCampos = document.getElementById('mixto_campos');
+      const dineroInput = document.getElementById('dinero_cliente');
+      
+      // dinero_cliente es obligatorio solo para efectivo
+      dineroInput.required = (metodoPago === 'efectivo');
       
       if (metodoPago === 'tarjeta') {
         efectivoCampos.style.display = 'none';
         mixtoCampos.classList.add('hidden');
-        document.getElementById('dinero_cliente').value = '';
+        dineroInput.value = '';
         document.getElementById('cambio').value = '';
       } else if (metodoPago === 'mixto') {
         efectivoCampos.style.display = 'none';
         mixtoCampos.classList.remove('hidden');
-        document.getElementById('dinero_cliente').value = '';
+        dineroInput.value = '';
         document.getElementById('cambio').value = '';
         calcularPagoMixto();
       } else {

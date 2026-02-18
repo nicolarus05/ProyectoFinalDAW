@@ -448,20 +448,8 @@ class RegistroCobroController extends Controller{
 
         // --- Lógica según método de pago ---
         if ($data['metodo_pago'] === 'efectivo') {
-            // Si es efectivo, el dinero_cliente puede ser menor que el total (genera deuda)
-            // Solo es obligatorio si no está vacío, validar que sea >= 0
-            if (!isset($data['dinero_cliente'])) {
-                $data['dinero_cliente'] = 0; // Si está vacío, se asume que no paga nada (deuda completa)
-            }
-
-            if ($data['dinero_cliente'] < 0) {
-                DB::rollBack();
-                return back()
-                    ->withErrors(['dinero_cliente' => 'El dinero del cliente no puede ser negativo.'])
-                    ->withInput();
-            }
-
-            // Calcular el cambio (solo si paga más del total)
+            // dinero_cliente es obligatorio para efectivo (validado en StoreRegistroCobroRequest)
+            // Si es menor que total_final, la diferencia se registra como deuda
             $data['cambio'] = max(0, $data['dinero_cliente'] - $data['total_final']);
         } 
         elseif ($data['metodo_pago'] === 'tarjeta') {
@@ -1590,6 +1578,9 @@ class RegistroCobroController extends Controller{
             'pago_tarjeta' => 'nullable|numeric|min:0'
         ]);
 
+        DB::beginTransaction();
+        try {
+
         // Calcular totales
         $coste = $data['coste'];
         $descuentoPorcentaje = $data['descuento_porcentaje'] ?? 0;
@@ -1600,10 +1591,17 @@ class RegistroCobroController extends Controller{
         $totalFinal = $coste - $descuentoTotal;
         $data['total_final'] = round($totalFinal, 2);
 
-        $data['cambio'] = $dineroCliente > 0 ? round($dineroCliente - $data['total_final'], 2) : null;
+        $data['cambio'] = $dineroCliente > 0 ? max(0, round($dineroCliente - $data['total_final'], 2)) : null;
 
-        // Guardar total_final anterior para recalcular pivot
+        // Guardar total_final y deuda anteriores para recalcular
         $totalFinalAnterior = $cobro->total_final;
+        $deudaAnterior = $cobro->deuda ?? 0;
+
+        // Calcular nueva deuda basada en los nuevos valores
+        // Para tarjeta: dineroCliente = total_final → deuda = 0
+        // Para efectivo: deuda = total_final - dineroCliente (si paga menos)
+        // Para mixto: dineroCliente = efectivo + tarjeta → deuda = 0
+        $nuevaDeuda = max(0, round($data['total_final'] - $dineroCliente, 2));
 
         // Actualizar la cita asociada (en caso de que se haya cambiado)
         $cobro->update([
@@ -1617,7 +1615,40 @@ class RegistroCobroController extends Controller{
             'metodo_pago' => $data['metodo_pago'],
             'pago_efectivo' => $data['metodo_pago'] === 'mixto' ? ($data['pago_efectivo'] ?? 0) : null,
             'pago_tarjeta' => $data['metodo_pago'] === 'mixto' ? ($data['pago_tarjeta'] ?? 0) : null,
+            'deuda' => $nuevaDeuda,
         ]);
+
+        // --- Ajustar deuda del cliente si cambió ---
+        $diferenciaDeuda = round($nuevaDeuda - $deudaAnterior, 2);
+        if (abs($diferenciaDeuda) > 0.01 && $cobro->id_cliente) {
+            $cliente = Cliente::find($cobro->id_cliente);
+            if ($cliente) {
+                $deudaCliente = $cliente->obtenerDeuda();
+                $deudaCliente->saldo_total = max(0, round($deudaCliente->saldo_total + $diferenciaDeuda, 2));
+                $deudaCliente->saldo_pendiente = max(0, round($deudaCliente->saldo_pendiente + $diferenciaDeuda, 2));
+                $deudaCliente->save();
+
+                // Actualizar el movimiento de cargo asociado a este cobro (si existe)
+                $movimientoCargo = $deudaCliente->movimientos()
+                    ->where('id_registro_cobro', $cobro->id)
+                    ->where('tipo', 'cargo')
+                    ->first();
+
+                if ($movimientoCargo) {
+                    $movimientoCargo->monto = $nuevaDeuda;
+                    $movimientoCargo->save();
+                } elseif ($nuevaDeuda > 0) {
+                    // Crear movimiento de cargo si el cobro no tenía deuda antes
+                    $deudaCliente->movimientos()->create([
+                        'id_registro_cobro' => $cobro->id,
+                        'tipo' => 'cargo',
+                        'monto' => $nuevaDeuda,
+                        'nota' => 'Cargo por edición de cobro #' . $cobro->id,
+                        'usuario_registro_id' => auth()->id() ?? 1,
+                    ]);
+                }
+            }
+        }
 
         // --- Recalcular precios del pivot registro_cobro_servicio ---
         // Si el total_final cambió, los precios del pivot deben ajustarse proporcionalmente
@@ -1648,7 +1679,15 @@ class RegistroCobroController extends Controller{
             }
         }
 
+        DB::commit();
         return $this->redirectWithSuccess('cobros.index', $this->getUpdatedMessage());
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()
+                ->withErrors(['error' => 'Error al actualizar el cobro: ' . $e->getMessage()])
+                ->withInput();
+        }
     }
 
 
@@ -1656,14 +1695,134 @@ class RegistroCobroController extends Controller{
      * Remove the specified resource from storage.
      */
     public function destroy(RegistroCobro $cobro){
-        // Restaurar el stock de los productos antes de eliminar el cobro
-        foreach ($cobro->productos as $producto) {
-            $cantidad = $producto->pivot->cantidad;
-            $producto->stock += $cantidad;
-            $producto->save();
-        }
+        $cobro->load(['productos', 'servicios', 'bonosVendidos.servicios', 'citasAgrupadas', 'movimientosDeuda.deuda']);
 
-        $cobro->delete();
-        return $this->redirectWithSuccess('cobros.index', 'Cobro eliminado y stock restaurado.');
+        DB::beginTransaction();
+        try {
+            // 1. Restaurar el stock de los productos antes de eliminar el cobro
+            foreach ($cobro->productos as $producto) {
+                $cantidad = $producto->pivot->cantidad;
+                $producto->stock += $cantidad;
+                $producto->save();
+            }
+
+            // 2. Revertir movimientos de deuda asociados a este cobro
+            foreach ($cobro->movimientosDeuda as $movimiento) {
+                $deuda = $movimiento->deuda;
+                if ($deuda) {
+                    if ($movimiento->tipo === 'cargo') {
+                        // Revertir cargo: decrementar saldo_total (siempre) y saldo_pendiente (solo lo que aún está pendiente de ESTE cobro)
+                        $deuda->saldo_total = max(0, $deuda->saldo_total - $movimiento->monto);
+                        $deuda->saldo_pendiente = max(0, $deuda->saldo_pendiente - $cobro->deuda);
+                        $deuda->save();
+                    } elseif ($movimiento->tipo === 'abono') {
+                        // Revertir abono: volver a incrementar saldo_pendiente (el dinero "deja de estar pagado")
+                        $deuda->saldo_pendiente += $movimiento->monto;
+                        $deuda->save();
+                    }
+                }
+                $movimiento->delete();
+            }
+
+            // 3. Revertir usos de bono (servicios que fueron cubiertos por bonos activos del cliente)
+            $citaIds = collect();
+            if ($cobro->id_cita) {
+                $citaIds->push($cobro->id_cita);
+            }
+            if ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                $citaIds = $citaIds->merge($cobro->citasAgrupadas->pluck('id'));
+            }
+
+            $servicioIds = $cobro->servicios->pluck('id')->toArray();
+
+            if (!empty($servicioIds)) {
+                $query = BonoUsoDetalle::whereIn('servicio_id', $servicioIds);
+
+                if ($citaIds->isNotEmpty()) {
+                    $query->whereIn('cita_id', $citaIds);
+                } else {
+                    // Cobro directo sin cita: buscar por proximidad temporal
+                    $query->whereNull('cita_id')
+                          ->whereBetween('created_at', [
+                              $cobro->created_at->copy()->subMinutes(5),
+                              $cobro->created_at->copy()->addMinutes(5)
+                          ]);
+                }
+
+                $usosDetalle = $query->get();
+
+                foreach ($usosDetalle as $uso) {
+                    $bonoCliente = BonoCliente::find($uso->bono_cliente_id);
+                    if ($bonoCliente) {
+                        // Decrementar cantidad_usada en bono_cliente_servicios
+                        $servicioBono = $bonoCliente->servicios()
+                            ->where('servicio_id', $uso->servicio_id)
+                            ->first();
+
+                        if ($servicioBono) {
+                            $nuevaCantidad = max(0, $servicioBono->pivot->cantidad_usada - $uso->cantidad_usada);
+                            $bonoCliente->servicios()->updateExistingPivot($uso->servicio_id, [
+                                'cantidad_usada' => $nuevaCantidad
+                            ]);
+                        }
+
+                        // Si el bono estaba marcado como 'usado', restaurar a 'activo'
+                        if ($bonoCliente->estado === 'usado') {
+                            $bonoCliente->refresh();
+                            if (!$bonoCliente->estaCompletamenteUsado()) {
+                                $bonoCliente->update(['estado' => 'activo']);
+                            }
+                        }
+                    }
+                    $uso->delete();
+                }
+            }
+
+            // 4. Manejar bonos vendidos en este cobro
+            foreach ($cobro->bonosVendidos as $bonoVendido) {
+                // Verificar si algún servicio del bono ya fue utilizado
+                $tieneUsos = $bonoVendido->servicios->contains(function ($servicio) {
+                    return $servicio->pivot->cantidad_usada > 0;
+                });
+
+                if (!$tieneUsos) {
+                    // Bono no usado: eliminar completamente
+                    $bonoVendido->servicios()->detach();
+                    $bonoVendido->delete();
+                    Log::info("Cobro #{$cobro->id}: Bono vendido #{$bonoVendido->id} eliminado (sin usos).");
+                } else {
+                    // Bono parcialmente usado: no eliminar, solo desvincular del cobro
+                    Log::warning("Cobro #{$cobro->id}: Bono vendido #{$bonoVendido->id} tiene usos y no se puede eliminar. Se desvincula del cobro.");
+                }
+            }
+            $cobro->bonosVendidos()->detach();
+
+            // 5. Restaurar estado de citas a 'confirmada'
+            if ($cobro->id_cita) {
+                $cita = Cita::find($cobro->id_cita);
+                if ($cita && $cita->estado === 'completada') {
+                    $cita->update(['estado' => 'confirmada']);
+                }
+            }
+            if ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+                foreach ($cobro->citasAgrupadas as $citaAgrupada) {
+                    if ($citaAgrupada->estado === 'completada') {
+                        $citaAgrupada->update(['estado' => 'confirmada']);
+                    }
+                }
+            }
+
+            $cobro->delete();
+            DB::commit();
+
+            return $this->redirectWithSuccess('cobros.index', 'Cobro eliminado correctamente. Stock, deuda y bonos restaurados.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al eliminar cobro #' . $cobro->id . ': ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return back()->withErrors(['error' => 'Error al eliminar el cobro: ' . $e->getMessage()]);
+        }
     }
 }

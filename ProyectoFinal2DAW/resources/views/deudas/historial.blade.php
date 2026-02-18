@@ -38,7 +38,10 @@
                 </thead>
                 <tbody>
                     @php
-                        $saldoActual = $deuda->saldo_total;
+                        // Usar saldo_pendiente como punto de partida para el saldo resultante
+                        // saldo_pendiente refleja los abonos aplicados, a diferencia de saldo_total
+                        // que solo se incrementa con cargos (historial contable acumulado)
+                        $saldoActual = $deuda->saldo_pendiente;
                     @endphp
                     @forelse ($movimientos as $index => $movimiento)
                     @php
@@ -49,7 +52,7 @@
                         }
                     @endphp
                     <tr class="border-t hover:bg-gray-50">
-                        <td class="px-4 py-2">{{ $movimientos->total() - $index }}</td>
+                        <td class="px-4 py-2">{{ $movimientos->count() - $index }}</td>
                         <td class="px-4 py-2">
                             {{ $movimiento->created_at->format('d/m/Y') }}<br>
                             <span class="text-xs text-gray-500">{{ $movimiento->created_at->format('H:i') }}</span>

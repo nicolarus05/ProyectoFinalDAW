@@ -505,7 +505,7 @@
                 <div id="pago-efectivo" class="hidden space-y-3">
                     <div>
                         <label for="dinero_cliente" class="block font-semibold mb-1">Dinero del cliente:</label>
-                        <input type="number" name="dinero_cliente" id="dinero_cliente" class="w-full border rounded px-3 py-2" step="0.01" min="0" oninput="calcularCambio()">
+                        <input type="number" name="dinero_cliente" id="dinero_cliente" class="w-full border rounded px-3 py-2" step="0.01" min="0" required oninput="calcularCambio()">
                     </div>
                     <div class="bg-white p-3 rounded">
                         <div class="flex justify-between">
@@ -1545,6 +1545,10 @@ window.cambiarMetodoPago = function() {
     
     document.getElementById('pago-efectivo').classList.add('hidden');
     document.getElementById('pago-mixto').classList.add('hidden');
+    
+    // dinero_cliente es obligatorio solo para efectivo
+    const dineroInput = document.getElementById('dinero_cliente');
+    dineroInput.required = (metodo === 'efectivo');
     
     if (metodo === 'efectivo') {
         document.getElementById('pago-efectivo').classList.remove('hidden');

@@ -138,11 +138,17 @@ class DeudaController extends Controller
             return response()->json(['error' => 'No hay deuda pendiente'], 400);
         }
         
-        // Buscar el cobro original
+        // Buscar el cargo MÁS ANTIGUO cuyo cobro aún tiene deuda pendiente
+        // ALINEADO con Deuda::registrarAbono() que distribuye pagos al cobro más antiguo primero
+        // reorder() elimina el ORDER BY DESC por defecto de la relación movimientos()
         $ultimoCargo = $deuda->movimientos()
             ->where('tipo', 'cargo')
+            ->whereHas('registroCobro', function($q) {
+                $q->where('deuda', '>', 0);
+            })
             ->with(['registroCobro.servicios', 'registroCobro.productos'])
-            ->latest()
+            ->reorder()
+            ->orderBy('created_at', 'asc')
             ->first();
         
         $distribucion = [];
@@ -168,7 +174,13 @@ class DeudaController extends Controller
                             ->where('servicio_id', $servicio->id)
                             ->where(function($q) use ($cobroOriginal) {
                                 if ($cobroOriginal->id_cita) {
-                                    $q->where('cita_id', $cobroOriginal->id_cita);
+                                    // Filtrar también por ventana temporal para evitar falsos positivos
+                                    // si la misma cita se reprocesó en otro cobro anterior
+                                    $q->where('cita_id', $cobroOriginal->id_cita)
+                                      ->whereBetween('created_at', [
+                                          $cobroOriginal->created_at->copy()->subMinutes(5),
+                                          $cobroOriginal->created_at->copy()->addMinutes(5)
+                                      ]);
                                 } else {
                                     $q->whereNull('cita_id')
                                       ->whereBetween('created_at', [
@@ -215,7 +227,7 @@ class DeudaController extends Controller
                     $empleado = \App\Models\Empleado::with('user')->find($empId);
                     $montoPorEmpleado[$empId] = [
                         'empleado_id' => $empId,
-                        'nombre' => $empleado ? $empleado->user->name : 'Desconocido',
+                        'nombre' => $empleado ? $empleado->user->nombre : 'Desconocido',
                         'monto_original' => 0,
                         'servicios' => []
                     ];
@@ -234,7 +246,7 @@ class DeudaController extends Controller
                         $empleado = \App\Models\Empleado::with('user')->find($empId);
                         $montoPorEmpleado[$empId] = [
                             'empleado_id' => $empId,
-                            'nombre' => $empleado ? $empleado->user->name : 'Desconocido',
+                            'nombre' => $empleado ? $empleado->user->nombre : 'Desconocido',
                             'monto_original' => 0,
                             'servicios' => []
                         ];
@@ -288,11 +300,17 @@ class DeudaController extends Controller
             ])->withInput();
         }
 
-        // Buscar el cargo original (cuando se generó la deuda) para obtener los servicios y productos originales
+        // Buscar el cargo MÁS ANTIGUO cuyo cobro aún tiene deuda pendiente
+        // ALINEADO con Deuda::registrarAbono() que distribuye pagos al cobro más antiguo primero
+        // reorder() elimina el ORDER BY DESC por defecto de la relación movimientos()
         $ultimoCargo = $deuda->movimientos()
             ->where('tipo', 'cargo')
+            ->whereHas('registroCobro', function($q) {
+                $q->where('deuda', '>', 0);
+            })
             ->with(['registroCobro.servicios', 'registroCobro.productos', 'registroCobro.cita'])
-            ->latest()
+            ->reorder()
+            ->orderBy('created_at', 'asc')
             ->first();
         
         $citaId = null;
@@ -318,11 +336,17 @@ class DeudaController extends Controller
                 foreach ($cobroOriginal->servicios as $servicio) {
                     if ($servicio->pivot->precio == 0) {
                         // Comprobar si es servicio de bono (NO deuda)
+                        // Filtrar también por ventana temporal para evitar falsos positivos
+                        // si la misma cita se reprocesó en otro cobro anterior
                         $esBono = DB::table('bono_uso_detalle')
                             ->where('servicio_id', $servicio->id)
                             ->where(function($q) use ($cobroOriginal) {
                                 if ($cobroOriginal->id_cita) {
-                                    $q->where('cita_id', $cobroOriginal->id_cita);
+                                    $q->where('cita_id', $cobroOriginal->id_cita)
+                                      ->whereBetween('created_at', [
+                                          $cobroOriginal->created_at->copy()->subMinutes(5),
+                                          $cobroOriginal->created_at->copy()->addMinutes(5)
+                                      ]);
                                 } else {
                                     // Ventas directas: buscar por proximidad temporal
                                     $q->whereNull('cita_id')

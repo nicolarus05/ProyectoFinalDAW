@@ -93,29 +93,25 @@ class FacturacionService
         /*
         |--------------------------------------------------------------------------
         | BONOS VENDIDOS - Asignados al empleado que cobra
-        | IMPORTANTE: Solo se contabilizan los bonos que se cobraron
-        | Si el bono está en deuda (dinero_cliente < total_bonos_vendidos), NO se factura
+        | IMPORTANTE: Solo se contabilizan los bonos que se cobraron realmente
+        | Si el bono quedó a deber (metodo_pago='deuda'), NO se factura
+        | LÓGICA UNIFICADA con desglosarCobroPorCategoria()
         |--------------------------------------------------------------------------
         */
         if ($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0) {
-            // Verificar que el cliente pagó los bonos (no están en deuda)
-            // Solo facturar bonos si: dinero_cliente >= (total_final + total_bonos_vendidos)
-            $totalCobrado = $cobro->total_final + ($cobro->total_bonos_vendidos ?? 0);
-            $dineroRecibido = $cobro->dinero_cliente ?? 0;
-            
-            // Si el dinero recibido cubre el total (servicios/productos + bonos), facturar bonos
-            if ($dineroRecibido >= $totalCobrado - 0.01) {
-                $empleadoId = $cobro->id_empleado;
+            foreach ($cobro->bonosVendidos as $bono) {
+                // Solo contar bonos que NO quedaron a deber (consistente con desglosarCobroPorCategoria)
+                if ($bono->metodo_pago !== 'deuda') {
+                    $empleadoId = $cobro->id_empleado;
 
-                if (!isset($resultado[$empleadoId])) {
-                    $resultado[$empleadoId] = $this->estructuraBase();
-                }
+                    if (!isset($resultado[$empleadoId])) {
+                        $resultado[$empleadoId] = $this->estructuraBase();
+                    }
 
-                foreach ($cobro->bonosVendidos as $bono) {
-                    $resultado[$empleadoId]['bonos'] += $bono->pivot->precio;
+                    // Usar precio_pagado (lo cobrado realmente, consistente con desglosarCobroPorCategoria)
+                    $resultado[$empleadoId]['bonos'] += $bono->precio_pagado ?? 0;
                 }
             }
-            // Si hay deuda, los bonos NO se facturan hasta que se cobre la deuda
         }
 
         /*
@@ -204,11 +200,11 @@ class FacturacionService
             }
 
             if ($serviciosFallback->count() > 0) {
-                // Contar servicios por categoría y distribuir proporcionalmente
+                // Sumar precio de servicios por categoría y distribuir proporcionalmente por PRECIO
                 $serviciosPorCategoria = ['peluqueria' => 0, 'estetica' => 0];
                 foreach ($serviciosFallback as $servicio) {
                     $categoria = $servicio->categoria ?? 'peluqueria';
-                    $serviciosPorCategoria[$categoria]++;
+                    $serviciosPorCategoria[$categoria] += $servicio->precio;
                 }
                 
                 $totalServicios = $serviciosPorCategoria['peluqueria'] + $serviciosPorCategoria['estetica'];

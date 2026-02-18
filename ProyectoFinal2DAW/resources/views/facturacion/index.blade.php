@@ -308,6 +308,18 @@
                                         <span class="font-semibold text-blue-700">€{{ number_format($datos['tarjeta'], 2) }}</span>
                                     </div>
                                 </div>
+                                @if(($datos['peluqueria'] ?? 0) > 0 || ($datos['estetica'] ?? 0) > 0)
+                                    <div class="border-t border-green-200 pt-1 space-y-0.5">
+                                        <div class="flex justify-between items-center text-[9px]">
+                                            <span class="text-pink-600">✂️ Pelu.</span>
+                                            <span class="font-semibold text-pink-700">€{{ number_format($datos['peluqueria'] ?? 0, 2) }}</span>
+                                        </div>
+                                        <div class="flex justify-between items-center text-[9px]">
+                                            <span class="text-purple-600">💆 Esté.</span>
+                                            <span class="font-semibold text-purple-700">€{{ number_format($datos['estetica'] ?? 0, 2) }}</span>
+                                        </div>
+                                    </div>
+                                @endif
                             @endif
                         </div>
                     @endforeach

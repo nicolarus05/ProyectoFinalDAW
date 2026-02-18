@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\{RegistroCobro, Cita, Empleado};
+use App\Services\FacturacionService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -40,7 +41,8 @@ class FacturacionController extends Controller
         // CÁLCULO DE CAJAS DIARIAS
         // ============================================================================
         // Obtener todos los cobros del mes para calcular cajas diarias
-        $cobros = RegistroCobro::with(['bonosVendidos'])
+        $cobros = RegistroCobro::with(['bonosVendidos', 'servicios', 'productos', 'cita.servicios', 'citasAgrupadas.servicios'])
+            ->where('contabilizado', true)
             ->whereBetween('created_at', [$fechaInicio, $fechaFin])
             ->get();
         
@@ -53,11 +55,15 @@ class FacturacionController extends Controller
             $cajasDiarias[$fecha] = [
                 'total' => 0,
                 'efectivo' => 0,
-                'tarjeta' => 0
+                'tarjeta' => 0,
+                'peluqueria' => 0,
+                'estetica' => 0,
             ];
         }
 
         // Procesar cada cobro para cajas diarias
+        $facturacionService = new FacturacionService();
+        
         foreach($cobros as $cobro) {
             if ($cobro->metodo_pago !== 'bono') {
                 $fechaCobro = $cobro->created_at->format('Y-m-d');
@@ -77,6 +83,16 @@ class FacturacionController extends Controller
                         // Deuda = dinero NO cobrado, no sumar a ningún método.
                         // Cuando se pague, el DeudaController crea un nuevo cobro
                         // con metodo_pago real (efectivo/tarjeta) que se contará normalmente.
+                    }
+                    
+                    // Desglose peluquería/estética usando FacturacionService
+                    // Solo para cobros contabilizados y que no son deuda pura
+                    if ($cobro->contabilizado && $cobro->metodo_pago !== 'deuda') {
+                        $desglose = $facturacionService->desglosarCobroPorCategoria($cobro);
+                        $cajasDiarias[$fechaCobro]['peluqueria'] += ($desglose['peluqueria']['servicios'] ?? 0)
+                            + ($desglose['peluqueria']['productos'] ?? 0);
+                        $cajasDiarias[$fechaCobro]['estetica'] += ($desglose['estetica']['servicios'] ?? 0)
+                            + ($desglose['estetica']['productos'] ?? 0);
                     }
                     
                     // Sumar bonos vendidos por su propio método de pago

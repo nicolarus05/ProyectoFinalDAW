@@ -215,7 +215,7 @@
             <div id="efectivo_campos">
                 <div>
                     <label for="dinero_cliente" class="block font-semibold mb-1">Dinero del Cliente (Efectivo):</label>
-                    <input type="number" name="dinero_cliente" id="dinero_cliente" class="w-full border rounded px-3 py-2" step="0.01" value="" oninput="calcularTotales()">
+                    <input type="number" name="dinero_cliente" id="dinero_cliente" class="w-full border rounded px-3 py-2" step="0.01" min="0" value="" required oninput="calcularTotales()">
                 </div>
 
                 <div>
