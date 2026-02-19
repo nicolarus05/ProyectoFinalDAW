@@ -37,7 +37,7 @@ class StoreRegistroCobroRequest extends FormRequest
             'descuento_productos_euro' => 'nullable|numeric|min:0',
             'total_final' => 'required|numeric|min:0',
             'metodo_pago' => 'required|in:efectivo,tarjeta,mixto',
-            'dinero_cliente' => 'required_if:metodo_pago,efectivo|numeric|min:0',
+            'dinero_cliente' => 'required_if:metodo_pago,efectivo|nullable|numeric|min:0',
             'cambio' => 'nullable|numeric|min:0',
             'pago_efectivo' => 'nullable|numeric|min:0',
             'pago_tarjeta' => 'nullable|numeric|min:0',
