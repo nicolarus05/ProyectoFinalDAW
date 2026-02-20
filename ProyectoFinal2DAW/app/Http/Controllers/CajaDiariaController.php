@@ -65,19 +65,41 @@ class CajaDiariaController extends Controller{
         }
         
         // PASO SEPARADO: Calcular totales de bonos vendidos del día
-        // IMPORTANTE: Solo contamos bonos que estén asociados a cobros del día
-        // Esto evita contar bonos huérfanos si se eliminan los cobros
-        $idsBonosDelDia = $cobrosDelDia->flatMap(function($cobro) {
-            return $cobro->bonosVendidos->pluck('id');
-        })->unique()->toArray();
-        
-        // Si no hay IDs, crear colección vacía en lugar de hacer query
-        $bonosVendidosDelDia = !empty($idsBonosDelDia) 
-            ? BonoCliente::with(['plantilla.servicios'])->whereIn('id', $idsBonosDelDia)->get()
-            : collect();
+        // IMPORTANTE: Accedemos a bonos a través de la relación del cobro para mantener el pivot (precio original)
+        $bonosVendidosDelDia = collect();
+        foreach ($cobrosDelDia as $cobro) {
+            if ($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0) {
+                foreach ($cobro->bonosVendidos as $bono) {
+                    // Evitar duplicados por ID
+                    if (!$bonosVendidosDelDia->contains('id', $bono->id)) {
+                        // Guardar el precio del pivot como atributo temporal
+                        $bono->_pivot_precio = $bono->pivot->precio ?? 0;
+                        $bonosVendidosDelDia->push($bono);
+                    }
+                }
+            }
+        }
+
+        // Cargar relaciones necesarias para los bonos
+        if ($bonosVendidosDelDia->isNotEmpty()) {
+            $idsBonosDelDia = $bonosVendidosDelDia->pluck('id')->toArray();
+            $bonosConRelaciones = BonoCliente::with(['plantilla.servicios', 'cliente.user', 'empleado.user'])
+                ->whereIn('id', $idsBonosDelDia)->get()->keyBy('id');
+            // Transferir el _pivot_precio a los bonos con relaciones cargadas
+            $bonosVendidosDelDia = $bonosVendidosDelDia->map(function($bono) use ($bonosConRelaciones) {
+                $bonoConRel = $bonosConRelaciones->get($bono->id);
+                if ($bonoConRel) {
+                    $bonoConRel->_pivot_precio = $bono->_pivot_precio;
+                    return $bonoConRel;
+                }
+                return $bono;
+            });
+        }
 
         // Calcular totales de bonos para mostrar en la vista
-        $totalBonosVendidos = $bonosVendidosDelDia->sum('precio_pagado');
+        // Usar pivot precio (precio original de venta) para el total, no solo precio_pagado
+        $totalBonosVendidos = $bonosVendidosDelDia->sum('_pivot_precio');
+        $totalBonosVendidosPagados = $bonosVendidosDelDia->sum('precio_pagado');
         
         // Calcular totales de bonos por método de pago (incluyendo mixtos con desglose)
         $totalBonosEfectivo = 0;
@@ -102,8 +124,13 @@ class CajaDiariaController extends Controller{
             // 'deuda' no suma nada
         }
 
-        // Total pagado: lo que realmente ingresó en caja (servicios + bonos)
-        $totalPagado = $totalEfectivo + $totalTarjeta + $totalBonosVendidos;
+        // Calcular deuda de bonos (precio original - precio pagado)
+        $totalDeudaBonos = $bonosVendidosDelDia->sum(function($bono) {
+            return max(0, ($bono->_pivot_precio ?? 0) - ($bono->precio_pagado ?? 0));
+        });
+
+        // Total pagado: lo que realmente ingresó en caja (servicios + bonos pagados)
+        $totalPagado = $totalEfectivo + $totalTarjeta + $totalBonosVendidosPagados;
 
         // PUNTO 4: Total de servicios realizados = suma de coste de servicios (sin bonos vendidos)
         // coste = precio total de servicios/productos antes de pagos
@@ -114,13 +141,20 @@ class CajaDiariaController extends Controller{
         });
 
         // Total de deuda del día (dinero que quedó pendiente)
-        $totalDeuda = $cobrosDelDia->sum('deuda');
+        // Incluye deuda de servicios/productos + deuda de bonos vendidos
+        $totalDeuda = $cobrosDelDia->sum('deuda') + $totalDeudaBonos;
 
         // Clientes que han dejado deuda ese día
-        $deudas = RegistroCobro::with(['cliente.user', 'cita.cliente.user', 'cita.servicios'])
+        $deudas = RegistroCobro::with(['cliente.user', 'cita.cliente.user', 'cita.servicios', 'servicios'])
             ->whereDate('created_at', $fecha)
             ->where('deuda', '>', 0)
             ->get();
+
+        // Bonos vendidos que quedaron a deber
+        $bonoDeudas = $bonosVendidosDelDia->filter(function($bono) {
+            $deuda = max(0, ($bono->_pivot_precio ?? 0) - ($bono->precio_pagado ?? 0));
+            return $deuda > 0;
+        });
 
         // Detalle de servicios: cliente, servicios (de la cita), empleado, metodo_pago, dinero_pagado, deuda
         $detalleServicios = RegistroCobro::with([
@@ -142,13 +176,8 @@ class CajaDiariaController extends Controller{
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Detalle de bonos vendidos - Solo los que están asociados a cobros del día
-        $bonosVendidos = !empty($idsBonosDelDia)
-            ? BonoCliente::with(['cliente.user', 'empleado.user', 'plantilla'])
-                ->whereIn('id', $idsBonosDelDia)
-                ->orderBy('fecha_compra', 'desc')
-                ->get()
-            : collect();
+        // Detalle de bonos vendidos - Usar la colección ya cargada (con pivot precio)
+        $bonosVendidos = $bonosVendidosDelDia->sortByDesc('fecha_compra')->values();
 
         // Calcular totales por categoría y método de pago
         $totalPeluqueria = 0;
@@ -227,45 +256,74 @@ class CajaDiariaController extends Controller{
                 });
             }
             
-            // --- Distribuir servicios por categoría usando precio DIRECTO del pivot ---
-            // El precio del pivot es la fuente de verdad (ya incluye descuentos y ajustes de deuda)
+            // --- Calcular factor de ajuste para descuentos ---
+            // Si total_final < suma pivot, hay descuento y debemos distribuir proporcionalmente
+            $sumaPivotServicios = 0;
+            $sumaPivotProductos = 0;
+            
+            foreach($serviciosDelCobro as $servicio) {
+                $precio = $servicio->pivot->precio ?? $servicio->precio ?? 0;
+                if ($precio > 0) {
+                    $sumaPivotServicios += $precio;
+                }
+            }
+            
+            if ($cobro->productos && $cobro->productos->count() > 0) {
+                foreach($cobro->productos as $producto) {
+                    $sumaPivotProductos += $producto->pivot->subtotal ?? 0;
+                }
+            }
+            
+            $sumaPivotTotal = $sumaPivotServicios + $sumaPivotProductos;
+            
+            // Factor de ajuste: aplica descuentos/recargos proporcionalmente
+            $factorAjuste = 1.0;
+            if ($sumaPivotTotal > 0.01) {
+                $factorAjuste = $cobro->total_final / $sumaPivotTotal;
+            }
+            
+            // --- Distribuir servicios por categoría con factor de ajuste ---
             foreach($serviciosDelCobro as $servicio) {
                 $precioServicio = $servicio->pivot->precio ?? $servicio->precio ?? 0;
                 if ($precioServicio <= 0) continue; // Excluir pagados con bono o asignados a deuda
+                
+                $precioAjustado = $precioServicio * $factorAjuste;
                 
                 $categoria = in_array($servicio->categoria, ['peluqueria', 'estetica']) 
                     ? $servicio->categoria 
                     : 'peluqueria';
                 
                 if ($categoria === 'peluqueria') {
-                    $totalPeluqueria += $precioServicio;
-                    $totalPeluqueriaEfectivo += $precioServicio * $propEfectivo;
-                    $totalPeluqueriaTarjeta += $precioServicio * $propTarjeta;
+                    $totalPeluqueria += $precioAjustado;
+                    $totalPeluqueriaEfectivo += $precioAjustado * $propEfectivo;
+                    $totalPeluqueriaTarjeta += $precioAjustado * $propTarjeta;
                 } else {
-                    $totalEstetica += $precioServicio;
-                    $totalEsteticaEfectivo += $precioServicio * $propEfectivo;
-                    $totalEsteticaTarjeta += $precioServicio * $propTarjeta;
+                    $totalEstetica += $precioAjustado;
+                    $totalEsteticaEfectivo += $precioAjustado * $propEfectivo;
+                    $totalEsteticaTarjeta += $precioAjustado * $propTarjeta;
                 }
             }
             
-            // --- Distribuir productos por categoría usando subtotal DIRECTO del pivot ---
+            // --- Distribuir productos por categoría con factor de ajuste ---
             if ($cobro->productos && $cobro->productos->count() > 0) {
                 foreach($cobro->productos as $producto) {
                     $subtotal = $producto->pivot->subtotal ?? 0;
                     if ($subtotal <= 0) continue;
+                    
+                    $subtotalAjustado = $subtotal * $factorAjuste;
                     
                     $categoria = in_array($producto->categoria, ['peluqueria', 'estetica']) 
                         ? $producto->categoria 
                         : 'peluqueria';
                     
                     if ($categoria === 'peluqueria') {
-                        $totalPeluqueria += $subtotal;
-                        $totalPeluqueriaEfectivo += $subtotal * $propEfectivo;
-                        $totalPeluqueriaTarjeta += $subtotal * $propTarjeta;
+                        $totalPeluqueria += $subtotalAjustado;
+                        $totalPeluqueriaEfectivo += $subtotalAjustado * $propEfectivo;
+                        $totalPeluqueriaTarjeta += $subtotalAjustado * $propTarjeta;
                     } else {
-                        $totalEstetica += $subtotal;
-                        $totalEsteticaEfectivo += $subtotal * $propEfectivo;
-                        $totalEsteticaTarjeta += $subtotal * $propTarjeta;
+                        $totalEstetica += $subtotalAjustado;
+                        $totalEsteticaEfectivo += $subtotalAjustado * $propEfectivo;
+                        $totalEsteticaTarjeta += $subtotalAjustado * $propTarjeta;
                     }
                 }
             }
@@ -347,6 +405,8 @@ class CajaDiariaController extends Controller{
             'totalBonosEfectivo',
             'totalBonosTarjeta',
             'totalBonosVendidos',
+            'totalBonosVendidosPagados',
+            'totalDeudaBonos',
             'totalPagado',
             'totalServicios',
             'totalDeuda',
@@ -359,6 +419,7 @@ class CajaDiariaController extends Controller{
             'totalEsteticaTarjeta',
             'totalEsteticaBono',
             'deudas',
+            'bonoDeudas',
             'detalleServicios',
             'bonosVendidos'
         ));

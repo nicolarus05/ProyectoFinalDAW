@@ -134,6 +134,12 @@
                     <div>
                         <p class="text-lg font-bold text-indigo-900 dark:text-indigo-100">€{{ number_format($totalBonosVendidos, 2) }}</p>
                         <p class="text-xs text-indigo-700 dark:text-indigo-300">Bonos Vendidos</p>
+                        @if($totalDeudaBonos > 0)
+                            <div class="text-xs space-y-0.5 mt-1">
+                                <div class="text-green-600 dark:text-green-400">✓ Cobrado: €{{ number_format($totalBonosVendidosPagados, 2) }}</div>
+                                <div class="text-red-600 dark:text-red-400">⚠ A deber: €{{ number_format($totalDeudaBonos, 2) }}</div>
+                            </div>
+                        @endif
                     </div>
                 </div>
                 <div class="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-100 dark:border-amber-800">
@@ -738,10 +744,15 @@
                     @if($bonosVendidos->count() > 0)
                         <div class="space-y-3">
                             @foreach($bonosVendidos as $bono)
+                                @php
+                                    $precioOriginalBono = $bono->_pivot_precio ?? $bono->precio_pagado ?? 0;
+                                    $precioPagadoBono = $bono->precio_pagado ?? 0;
+                                    $deudaBono = max(0, $precioOriginalBono - $precioPagadoBono);
+                                @endphp
                                 <div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors border border-purple-200 dark:border-purple-800">
                                     <div class="flex justify-between items-start mb-3">
                                         <div class="flex-1">
-                                            <div class="font-bold text-gray-900 dark:text-gray-100 mb-1">{{ $bono->plantilla->nombre }}</div>
+                                            <div class="font-bold text-gray-900 dark:text-gray-100 mb-1">{{ $bono->plantilla->nombre ?? 'Bono' }}</div>
                                             <div class="text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
                                                 @if($bono->cliente && $bono->cliente->user)
                                                     <div>👤 {{ $bono->cliente->user->nombre }} {{ $bono->cliente->user->apellidos }}</div>
@@ -752,24 +763,37 @@
                                             </div>
                                         </div>
                                         <div class="text-right ml-4">
-                                            <div class="text-xl font-bold text-purple-700 dark:text-purple-300">€{{ number_format($bono->precio_pagado, 2) }}</div>
+                                            <div class="text-xl font-bold text-purple-700 dark:text-purple-300">€{{ number_format($precioOriginalBono, 2) }}</div>
                                             <div class="text-xs text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::parse($bono->created_at)->format('H:i') }}</div>
                                         </div>
                                     </div>
                                     <div class="flex justify-between items-center pt-3 border-t border-purple-200 dark:border-purple-700">
-                                        <div>
+                                        <div class="flex flex-wrap gap-1">
                                             @if($bono->metodo_pago === 'efectivo')
                                                 <span class="inline-flex items-center px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">💵 Efectivo</span>
                                             @elseif($bono->metodo_pago === 'tarjeta')
                                                 <span class="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full text-xs font-semibold">💳 Tarjeta</span>
+                                            @elseif($bono->metodo_pago === 'mixto')
+                                                <span class="inline-flex items-center px-2 py-1 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-semibold">💳💵 Mixto</span>
+                                            @elseif($bono->metodo_pago === 'deuda')
+                                                <span class="inline-flex items-center px-2 py-1 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded-full text-xs font-semibold">⚠️ A deber</span>
+                                            @endif
+                                            @if($deudaBono > 0 && $bono->metodo_pago !== 'deuda')
+                                                <span class="inline-flex items-center px-2 py-1 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded-full text-xs font-semibold">⚠ Deuda: €{{ number_format($deudaBono, 2) }}</span>
                                             @endif
                                         </div>
-                                        @if($bono->plantilla->duracion_dias)
+                                        @if($bono->plantilla && $bono->plantilla->duracion_dias)
                                             <span class="text-xs text-gray-500 dark:text-gray-400">⏰ {{ $bono->plantilla->duracion_dias }} días</span>
                                         @else
                                             <span class="text-xs text-purple-600 dark:text-purple-400 font-semibold">♾️ Sin límite</span>
                                         @endif
                                     </div>
+                                    @if($precioPagadoBono > 0 && $deudaBono > 0)
+                                        <div class="mt-2 text-xs text-gray-600 dark:text-gray-400 flex justify-between">
+                                            <span class="text-green-600 dark:text-green-400">✓ Pagado: €{{ number_format($precioPagadoBono, 2) }}</span>
+                                            <span class="text-red-600 dark:text-red-400">⚠ Deuda: €{{ number_format($deudaBono, 2) }}</span>
+                                        </div>
+                                    @endif
                                 </div>
                             @endforeach
                         </div>
@@ -792,8 +816,9 @@
                 </div>
                 
                 <div class="p-6">
-                    @if($deudas->count() > 0)
+                    @if($deudas->count() > 0 || $bonoDeudas->count() > 0)
                         <div class="space-y-3">
+                            {{-- Deudas de servicios/productos --}}
                             @foreach($deudas as $deuda)
                                 <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors border border-red-200 dark:border-red-800">
                                     <div class="flex justify-between items-start mb-3">
@@ -840,6 +865,43 @@
                                         </div>
                                         <div class="font-semibold text-green-600 dark:text-green-400">
                                             Pagado: €{{ number_format($deuda->total_final, 2) }}
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+
+                            {{-- Deudas de bonos vendidos --}}
+                            @foreach($bonoDeudas as $bono)
+                                @php
+                                    $precioOriginal = $bono->_pivot_precio ?? 0;
+                                    $pagado = $bono->precio_pagado ?? 0;
+                                    $deudaBono = max(0, $precioOriginal - $pagado);
+                                @endphp
+                                <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors border border-red-200 dark:border-red-800">
+                                    <div class="flex justify-between items-start mb-3">
+                                        <div class="flex-1">
+                                            <div class="font-bold text-gray-900 dark:text-gray-100 mb-2">
+                                                @if($bono->cliente && $bono->cliente->user)
+                                                    {{ $bono->cliente->user->nombre }} {{ $bono->cliente->user->apellidos }}
+                                                @else
+                                                    Cliente desconocido
+                                                @endif
+                                            </div>
+                                            <div class="flex flex-wrap gap-1">
+                                                <span class="inline-flex items-center px-2 py-0.5 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded text-xs border border-purple-200 dark:border-purple-700">🎫 Bono: {{ $bono->plantilla->nombre ?? 'Bono' }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="text-right ml-4">
+                                            <div class="text-xl font-bold text-red-600 dark:text-red-400">€{{ number_format($deudaBono, 2) }}</div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">Deuda (Bono)</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex justify-between items-center pt-3 border-t border-red-200 dark:border-red-700 text-sm">
+                                        <div class="text-gray-600 dark:text-gray-400">
+                                            Total: <span class="font-semibold text-gray-900 dark:text-gray-100">€{{ number_format($precioOriginal, 2) }}</span>
+                                        </div>
+                                        <div class="font-semibold text-green-600 dark:text-green-400">
+                                            Pagado: €{{ number_format($pagado, 2) }}
                                         </div>
                                     </div>
                                 </div>
