@@ -827,34 +827,51 @@ window.calcularDescuentoBono = function() {
     if (!bonoSeleccionado) return;
     
     // Primero marcar qué servicios están cubiertos por bonos ACTIVOS del cliente
-    const serviciosCubiertosporBonosActivos = new Set();
+    // Usar CONTADOR por ID (no Set) para manejar servicios duplicados correctamente
+    const contadorCubiertosActivos = {};
     
     if (bonosActivosCliente && bonosActivosCliente.length > 0) {
+        // Crear mapa de disponibilidad local
+        const disponibilidadActivos = {};
+        bonosActivosCliente.forEach(bono => {
+            disponibilidadActivos[bono.id] = {};
+            if (bono.servicios) {
+                bono.servicios.forEach(s => {
+                    disponibilidadActivos[bono.id][s.id] = s.pivot.cantidad_total - s.pivot.cantidad_usada;
+                });
+            }
+        });
+        
         serviciosSeleccionados.forEach(servicio => {
             for (let bono of bonosActivosCliente) {
                 if (!bono.servicios || bono.servicios.length === 0) continue;
                 
-                const servicioEnBono = bono.servicios.find(s => 
-                    s.id === servicio.id && 
-                    (s.pivot.cantidad_usada < s.pivot.cantidad_total)
-                );
-                
-                if (servicioEnBono) {
-                    serviciosCubiertosporBonosActivos.add(servicio.id);
+                if ((disponibilidadActivos[bono.id][servicio.id] || 0) > 0) {
+                    disponibilidadActivos[bono.id][servicio.id]--;
+                    contadorCubiertosActivos[servicio.id] = (contadorCubiertosActivos[servicio.id] || 0) + 1;
                     break;
                 }
             }
         });
     }
     
-    console.log('🎫 Servicios ya cubiertos por bonos activos:', Array.from(serviciosCubiertosporBonosActivos));
+    console.log('🎫 Servicios cubiertos por bonos activos (contador):', contadorCubiertosActivos);
     
     // Ahora calcular servicios que coinciden con el NUEVO bono a vender
-    // EXCLUYENDO los que ya están cubiertos por bonos activos
-    let serviciosCoincidentes = serviciosSeleccionados.filter(s => 
-        bonoSeleccionado.servicios.includes(s.id) && 
-        !serviciosCubiertosporBonosActivos.has(s.id) // IMPORTANTE: Excluir los ya cubiertos
-    );
+    // EXCLUYENDO los que ya están cubiertos por bonos activos (usando contador)
+    const contadorUsadosActivos = {};
+    let serviciosCoincidentes = serviciosSeleccionados.filter(s => {
+        if (!bonoSeleccionado.servicios.includes(s.id)) return false;
+        
+        // Verificar si este servicio está cubierto por un bono activo
+        const cubiertos = contadorCubiertosActivos[s.id] || 0;
+        const usados = contadorUsadosActivos[s.id] || 0;
+        if (usados < cubiertos) {
+            contadorUsadosActivos[s.id] = usados + 1;
+            return false; // Esta instancia está cubierta por bono activo
+        }
+        return true;
+    });
     
     console.log('🆕 Servicios que se cubrirán con el NUEVO bono:', serviciosCoincidentes);
     
@@ -882,6 +899,18 @@ window.detectarBonosActivos = function() {
     
     let totalDescuentoBonosActivos = 0;
     
+    // Crear mapa de disponibilidad LOCAL para no modificar los datos originales
+    // Estructura: { bonoId: { servicioId: usosDisponibles } }
+    const disponibilidadBonos = {};
+    bonosActivosCliente.forEach(bono => {
+        disponibilidadBonos[bono.id] = {};
+        if (bono.servicios) {
+            bono.servicios.forEach(s => {
+                disponibilidadBonos[bono.id][s.id] = s.pivot.cantidad_total - s.pivot.cantidad_usada;
+            });
+        }
+    });
+    
     // Por cada servicio seleccionado, buscar si hay un bono activo que lo cubra
     serviciosSeleccionados.forEach(servicio => {
         console.log(`\n🔍 Verificando servicio: ${servicio.nombre} (ID: ${servicio.id}, Precio: €${servicio.precio})`);
@@ -889,23 +918,20 @@ window.detectarBonosActivos = function() {
         // Buscar si algún bono activo incluye este servicio
         for (let bono of bonosActivosCliente) {
             if (!bono.servicios || bono.servicios.length === 0) {
-                console.log(`  ⚠️ Bono ${bono.id} no tiene servicios`);
                 continue;
             }
             
-            console.log(`  🎫 Revisando bono ${bono.id} con ${bono.servicios.length} servicios`);
-            
-            // Verificar si el servicio está en el bono y tiene usos disponibles
+            // Verificar si el servicio está en el bono y tiene usos disponibles LOCALMENTE
             const servicioEnBono = bono.servicios.find(s => {
                 const coincide = s.id === servicio.id;
-                const disponible = s.pivot.cantidad_usada < s.pivot.cantidad_total;
-                console.log(`    - Servicio "${s.nombre}" (ID: ${s.id}): coincide=${coincide}, disponible=${disponible} (${s.pivot.cantidad_total - s.pivot.cantidad_usada} restantes)`);
+                const disponible = (disponibilidadBonos[bono.id][s.id] || 0) > 0;
                 return coincide && disponible;
             });
             
             if (servicioEnBono) {
-                // Este servicio está cubierto por un bono activo
-                console.log(`  ✅ Servicio cubierto por bono! Descuento: €${servicio.precio}`);
+                // Decrementar disponibilidad LOCAL
+                disponibilidadBonos[bono.id][servicio.id]--;
+                console.log(`  ✅ Servicio cubierto por bono! Descuento: €${servicio.precio} (quedan ${disponibilidadBonos[bono.id][servicio.id]} usos)`);
                 totalDescuentoBonosActivos += servicio.precio;
                 servicio.pagadoConBono = true; // Marcar el servicio
                 break; // No buscar en más bonos para este servicio
@@ -1319,19 +1345,25 @@ async function loadProducts(searchQuery = '') {
             productos.forEach(producto => {
                 const tr = document.createElement('tr');
                 tr.className = 'border-b hover:bg-gray-50 producto-row';
+                // Escapar nombre del producto para evitar XSS
+                const nombreSeguro = producto.nombre.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                 tr.innerHTML = `
-                    <td class="p-2">${producto.nombre}</td>
+                    <td class="p-2">${nombreSeguro}</td>
                     <td class="p-2 text-center">${producto.stock}</td>
                     <td class="p-2 text-right">€${parseFloat(producto.precio_venta).toFixed(2)}</td>
                     <td class="p-2 text-center">
                         <input type="number" id="qty-${producto.id}" min="1" max="${producto.stock}" value="1" class="w-16 border rounded px-2 py-1 text-center">
                     </td>
                     <td class="p-2">
-                        <button type="button" onclick="addProduct(${producto.id}, '${producto.nombre}', ${producto.precio_venta}, ${producto.stock})" class="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 text-sm">
+                        <button type="button" data-product-id="${producto.id}" data-product-name="${nombreSeguro}" data-product-price="${producto.precio_venta}" data-product-stock="${producto.stock}" class="btn-add-product bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 text-sm">
                             Añadir
                         </button>
                     </td>
                 `;
+                // Vincular evento con addEventListener en lugar de onclick inline
+                tr.querySelector('.btn-add-product').addEventListener('click', function() {
+                    addProduct(producto.id, producto.nombre, producto.precio_venta, producto.stock);
+                });
                 tbody.appendChild(tr);
             });
         }
@@ -1614,8 +1646,33 @@ document.getElementById('cobro-form').addEventListener('submit', function(e) {
                 s.precio = Math.round(parseFloat(s.precio) * factor * 100) / 100;
             });
 
+            // Ajustar el último servicio para que la suma sea exactamente sumaObjetivo
+            const sumaRedondeada = serviciosSeleccionados.reduce((sum, s) => sum + s.precio, 0);
+            const diff = Math.round((sumaObjetivo - sumaRedondeada) * 100) / 100;
+            if (Math.abs(diff) > 0 && serviciosSeleccionados.length > 0) {
+                const ultimo = serviciosSeleccionados[serviciosSeleccionados.length - 1];
+                ultimo.precio = Math.round((ultimo.precio + diff) * 100) / 100;
+            }
+
             // Actualizar servicios_data con precios ajustados
             document.getElementById('servicios_data').value = JSON.stringify(serviciosSeleccionados);
+
+            // Actualizar coste para que coincida con los precios ya ajustados
+            const nuevoCoste = serviciosSeleccionados.reduce((sum, s) => sum + (parseFloat(s.precio) || 0), 0);
+            document.getElementById('coste').value = nuevoCoste.toFixed(2);
+
+            // Resetear campos de descuento de servicios ya que el descuento
+            // se ha aplicado directamente a los precios individuales
+            document.getElementById('descuento_servicios_porcentaje').value = '0';
+            document.getElementById('descuento_servicios_euro').value = '0';
+
+            // Actualizar descuentos generales (ocultos) para que solo reflejen productos
+            const descProdPorRestante = parseFloat(document.getElementById('descuento_productos_porcentaje')?.value || 0);
+            const descProdEurRestante = parseFloat(document.getElementById('descuento_productos_euro')?.value || 0);
+            const hiddenPor = document.getElementById('descuento_porcentaje');
+            const hiddenEur = document.getElementById('descuento_euro');
+            if (hiddenPor) hiddenPor.value = descProdPorRestante.toFixed(2);
+            if (hiddenEur) hiddenEur.value = descProdEurRestante.toFixed(2);
         }
     }
     

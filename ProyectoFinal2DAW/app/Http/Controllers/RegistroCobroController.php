@@ -537,11 +537,12 @@ class RegistroCobroController extends Controller{
                 
                 foreach ($citasAProcesar as $cita) {
                     if ($cita && $cita->cliente) {
-                        // Obtener bonos activos del cliente
+                        // Obtener bonos activos del cliente (con lock para evitar race conditions)
                         $bonosActivos = BonoCliente::with('servicios')
                             ->where('cliente_id', $cita->cliente->id)
                             ->where('estado', 'activo')
                             ->where('fecha_expiracion', '>=', Carbon::now())
+                            ->lockForUpdate()
                             ->get();
 
                         Log::info('🔍 Bonos activos encontrados', [
@@ -642,11 +643,12 @@ class RegistroCobroController extends Controller{
                 ]);
                 
                 if (is_array($serviciosData) && count($serviciosData) > 0) {
-                    // Obtener bonos activos del cliente
+                    // Obtener bonos activos del cliente (con lock para evitar race conditions)
                     $bonosActivos = BonoCliente::with('servicios')
                         ->where('cliente_id', $clienteId)
                         ->where('estado', 'activo')
                         ->where('fecha_expiracion', '>=', Carbon::now())
+                        ->lockForUpdate()
                         ->get();
 
                     Log::info('🔍 Bonos activos encontrados (cobro directo)', [
@@ -944,6 +946,14 @@ class RegistroCobroController extends Controller{
                         ->where('servicio_id', $servicioId)
                         ->whereIn('cita_id', $data['citas_ids'])
                         ->exists();
+                } else {
+                    // CASO COBRO DIRECTO (sin cita): buscar uso de bono registrado sin cita_id
+                    // para este servicio, creado recientemente (dentro de la misma transacción)
+                    $usoBono = DB::table('bono_uso_detalle')
+                        ->where('servicio_id', $servicioId)
+                        ->whereNull('cita_id')
+                        ->where('created_at', '>=', now()->subMinutes(2))
+                        ->exists();
                 }
 
                 if ($usoBono) {
@@ -978,11 +988,15 @@ class RegistroCobroController extends Controller{
 
                 $sumaPivotServicios = $pivotEntries->sum('precio');
 
-                // Calcular suma de productos para obtener el objetivo de servicios
+                // Calcular suma de productos desde el request (los productos aún no están
+                // adjuntados al cobro en este punto, se adjuntan más adelante)
                 $sumaPivotProductos = 0;
-                if ($cobro->productos) {
-                    foreach ($cobro->productos as $prod) {
-                        $sumaPivotProductos += $prod->pivot->subtotal;
+                if ($request->has('productos_data') && !empty($data['productos_data'])) {
+                    $prodsTmp = json_decode($data['productos_data'], true);
+                    if (is_array($prodsTmp)) {
+                        foreach ($prodsTmp as $pTmp) {
+                            $sumaPivotProductos += (float)($pTmp['precio'] ?? 0) * (int)($pTmp['cantidad'] ?? 1);
+                        }
                     }
                 }
 
@@ -1416,7 +1430,7 @@ class RegistroCobroController extends Controller{
                     $cantidad = (int) $p['cantidad'];
                     $precio = (float) $p['precio'];
                     $subtotal = $cantidad * $precio;
-                    $empleadoIdProducto = isset($p['empleado_id']) && $p['empleado_id'] ? (int) $p['empleado_id'] : null;
+                    $empleadoIdProducto = isset($p['empleado_id']) && $p['empleado_id'] ? (int) $p['empleado_id'] : ($cobro->id_empleado ?? null);
 
                     $producto = Productos::find($p['id']);
                     
@@ -1569,9 +1583,13 @@ class RegistroCobroController extends Controller{
             'id_cita' => 'nullable|exists:citas,id',
             'coste' => 'required|numeric|min:0',
             'total_final' => 'required|numeric|min:0',
-            'dinero_cliente' => 'required|numeric|min:0',
+            'dinero_cliente' => 'nullable|numeric|min:0',
             'descuento_porcentaje' => 'nullable|numeric|min:0|max:100',
             'descuento_euro' => 'nullable|numeric|min:0',
+            'descuento_servicios_porcentaje' => 'nullable|numeric|min:0|max:100',
+            'descuento_servicios_euro' => 'nullable|numeric|min:0',
+            'descuento_productos_porcentaje' => 'nullable|numeric|min:0|max:100',
+            'descuento_productos_euro' => 'nullable|numeric|min:0',
             'metodo_pago' => 'required|in:efectivo,tarjeta,mixto,bono,deuda',
             'cambio' => 'nullable|numeric|min:0',
             'pago_efectivo' => 'nullable|numeric|min:0',
@@ -1581,27 +1599,49 @@ class RegistroCobroController extends Controller{
         DB::beginTransaction();
         try {
 
-        // Calcular totales
+        // Calcular totales (CONSISTENTE con store(): total_final = lo cobrado, deuda = lo que falta)
         $coste = $data['coste'];
+        // Soportar tanto descuentos legacy (general) como separados (servicios/productos)
         $descuentoPorcentaje = $data['descuento_porcentaje'] ?? 0;
         $descuentoEuro = $data['descuento_euro'] ?? 0;
+        $descServPct = $data['descuento_servicios_porcentaje'] ?? 0;
+        $descServEur = $data['descuento_servicios_euro'] ?? 0;
+        $descProdPct = $data['descuento_productos_porcentaje'] ?? 0;
+        $descProdEur = $data['descuento_productos_euro'] ?? 0;
         $dineroCliente = $data['dinero_cliente'] ?? 0;
 
-        $descuentoTotal = ($coste * ($descuentoPorcentaje / 100)) + $descuentoEuro;
-        $totalFinal = $coste - $descuentoTotal;
-        $data['total_final'] = round($totalFinal, 2);
+        // Si hay descuentos separados, usar esos; si no, usar el descuento general legacy
+        if ($descServPct > 0 || $descServEur > 0 || $descProdPct > 0 || $descProdEur > 0) {
+            $descuentoTotal = ($coste * ($descServPct / 100)) + $descServEur + ($coste * ($descProdPct / 100)) + $descProdEur;
+        } else {
+            $descuentoTotal = ($coste * ($descuentoPorcentaje / 100)) + $descuentoEuro;
+        }
+        $precioConDescuento = round(max(0, $coste - $descuentoTotal), 2);
 
-        $data['cambio'] = $dineroCliente > 0 ? max(0, round($dineroCliente - $data['total_final'], 2)) : null;
+        // Lógica según método de pago (misma que store())
+        if ($data['metodo_pago'] === 'tarjeta') {
+            $dineroCliente = $precioConDescuento;
+            $data['dinero_cliente'] = $dineroCliente;
+            $data['cambio'] = 0;
+        } elseif ($data['metodo_pago'] === 'mixto') {
+            $pagoEfectivo = $data['pago_efectivo'] ?? 0;
+            $pagoTarjeta = $data['pago_tarjeta'] ?? 0;
+            $dineroCliente = $pagoEfectivo + $pagoTarjeta;
+            $data['dinero_cliente'] = $dineroCliente;
+            $data['cambio'] = 0;
+        } elseif ($data['metodo_pago'] === 'efectivo') {
+            $data['cambio'] = max(0, round($dineroCliente - $precioConDescuento, 2));
+        } else {
+            $data['cambio'] = 0;
+        }
+
+        // CRÍTICO: total_final = lo que se cobró realmente (excluye deuda), igual que en store()
+        $data['total_final'] = min($dineroCliente, $precioConDescuento);
+        $nuevaDeuda = max(0, round($precioConDescuento - $dineroCliente, 2));
 
         // Guardar total_final y deuda anteriores para recalcular
         $totalFinalAnterior = $cobro->total_final;
         $deudaAnterior = $cobro->deuda ?? 0;
-
-        // Calcular nueva deuda basada en los nuevos valores
-        // Para tarjeta: dineroCliente = total_final → deuda = 0
-        // Para efectivo: deuda = total_final - dineroCliente (si paga menos)
-        // Para mixto: dineroCliente = efectivo + tarjeta → deuda = 0
-        $nuevaDeuda = max(0, round($data['total_final'] - $dineroCliente, 2));
 
         // Actualizar la cita asociada (en caso de que se haya cambiado)
         $cobro->update([
@@ -1609,6 +1649,10 @@ class RegistroCobroController extends Controller{
             'coste' => $data['coste'],
             'descuento_porcentaje' => $descuentoPorcentaje,
             'descuento_euro' => $descuentoEuro,
+            'descuento_servicios_porcentaje' => $descServPct,
+            'descuento_servicios_euro' => $descServEur,
+            'descuento_productos_porcentaje' => $descProdPct,
+            'descuento_productos_euro' => $descProdEur,
             'total_final' => $data['total_final'],
             'dinero_cliente' => $dineroCliente,
             'cambio' => $data['cambio'],
@@ -1742,10 +1786,11 @@ class RegistroCobroController extends Controller{
                     $query->whereIn('cita_id', $citaIds);
                 } else {
                     // Cobro directo sin cita: buscar por proximidad temporal
+                    // Usamos ±30 segundos ya que los registros se crean en la misma transacción
                     $query->whereNull('cita_id')
                           ->whereBetween('created_at', [
-                              $cobro->created_at->copy()->subMinutes(5),
-                              $cobro->created_at->copy()->addMinutes(5)
+                              $cobro->created_at->copy()->subSeconds(30),
+                              $cobro->created_at->copy()->addSeconds(30)
                           ]);
                 }
 

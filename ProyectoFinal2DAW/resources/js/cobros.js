@@ -726,11 +726,37 @@ document.addEventListener('DOMContentLoaded', function() {
               s.precio = Math.round(parseFloat(s.precio) * factor * 100) / 100;
             });
 
+            // Ajustar el último servicio para que la suma sea exactamente sumaObjetivo
+            // Esto evita que el error de redondeo acumulado supere 0.01€
+            const sumaRedondeada = serviciosSeleccionados.reduce((sum, s) => sum + s.precio, 0);
+            const diff = Math.round((sumaObjetivo - sumaRedondeada) * 100) / 100;
+            if (Math.abs(diff) > 0 && serviciosSeleccionados.length > 0) {
+              const ultimo = serviciosSeleccionados[serviciosSeleccionados.length - 1];
+              ultimo.precio = Math.round((ultimo.precio + diff) * 100) / 100;
+            }
+
             // Actualizar servicios_data con precios ajustados
             const inputServicios = document.getElementById('servicios_data');
             if (inputServicios) {
               inputServicios.value = JSON.stringify(serviciosSeleccionados);
             }
+
+            // Actualizar coste para que coincida con los precios ya ajustados
+            const nuevoCoste = serviciosSeleccionados.reduce((sum, s) => sum + (parseFloat(s.precio) || 0), 0);
+            document.getElementById('coste').value = nuevoCoste.toFixed(2);
+
+            // Resetear campos de descuento de servicios ya que el descuento
+            // se ha aplicado directamente a los precios individuales
+            document.getElementById('descuento_servicios_porcentaje').value = '0';
+            document.getElementById('descuento_servicios_euro').value = '0';
+
+            // Actualizar descuentos generales (ocultos) para que solo reflejen productos
+            const descProdPorRestante = parseFloat(document.getElementById('descuento_productos_porcentaje')?.value || 0);
+            const descProdEurRestante = parseFloat(document.getElementById('descuento_productos_euro')?.value || 0);
+            const hiddenPor = document.getElementById('descuento_porcentaje');
+            const hiddenEur = document.getElementById('descuento_euro');
+            if (hiddenPor) hiddenPor.value = descProdPorRestante.toFixed(2);
+            if (hiddenEur) hiddenEur.value = descProdEurRestante.toFixed(2);
           }
         }
 

@@ -16,6 +16,10 @@
     </style>
 </head>
 <body class="bg-gray-100 p-8">
+    @php
+        // Precargar TODOS los empleados para evitar N+1 queries en los loops
+        $empleadosMap = \App\Models\Empleado::with('user')->get()->keyBy('id');
+    @endphp
     <div class="max-w-7xl mx-auto bg-white p-6 rounded shadow">
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-3xl font-bold">📋 Registros de Cobro</h1>
@@ -164,7 +168,7 @@
                                         $empleadoIdPivot = $servicio->pivot->empleado_id;
                                         $empleado = 'Sin asignar';
                                         if ($empleadoIdPivot) {
-                                            $empModel = \App\Models\Empleado::with('user')->find($empleadoIdPivot);
+                                            $empModel = $empleadosMap[$empleadoIdPivot] ?? null;
                                             if ($empModel && $empModel->user) {
                                                 $empleado = $empModel->user->nombre;
                                             }
@@ -290,9 +294,9 @@
                                         $precioUnitario = $producto->pivot->precio_unitario ?? $producto->precio;
                                         $subtotal = $producto->pivot->subtotal ?? ($precioUnitario * $cantidad);
                                         $empleadoProducto = 'Sin asignar';
-                                        $empIdProducto = $producto->pivot->empleado_id ?? null;
+                                        $empIdProducto = $producto->pivot->empleado_id ?? $cobro->id_empleado ?? null;
                                         if ($empIdProducto) {
-                                            $empModelProd = \App\Models\Empleado::with('user')->find($empIdProducto);
+                                            $empModelProd = $empleadosMap[$empIdProducto] ?? null;
                                             if ($empModelProd && $empModelProd->user) {
                                                 $empleadoProducto = $empModelProd->user->nombre;
                                             }
