@@ -551,8 +551,17 @@ document.addEventListener('DOMContentLoaded', function() {
       const dineroCliente = parseFloat(document.getElementById('dinero_cliente').value) || 0;
       const metodoPago = document.getElementById('metodo_pago').value;
       
-      // Si es tarjeta, el dinero del cliente es igual al total
-      const dineroReal = metodoPago === 'tarjeta' ? totalFinal : dineroCliente;
+      // Calcular dinero real según método de pago
+      let dineroReal;
+      if (metodoPago === 'tarjeta') {
+        dineroReal = totalFinal;
+      } else if (metodoPago === 'mixto') {
+        const pagoEfectivo = parseFloat(document.getElementById('pago_efectivo')?.value) || 0;
+        const pagoTarjeta = parseFloat(document.getElementById('pago_tarjeta')?.value) || 0;
+        dineroReal = pagoEfectivo + pagoTarjeta;
+      } else {
+        dineroReal = dineroCliente;
+      }
       
       // Calcular nueva deuda
       const nuevaDeuda = Math.max(0, totalFinal - dineroReal);
@@ -757,6 +766,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const hiddenEur = document.getElementById('descuento_euro');
             if (hiddenPor) hiddenPor.value = descProdPorRestante.toFixed(2);
             if (hiddenEur) hiddenEur.value = descProdEurRestante.toFixed(2);
+
+            // CRÍTICO: Recalcular total_final con los precios ya ajustados
+            // para que coincida con lo que el backend calculará
+            calcularTotales();
           }
         }
 

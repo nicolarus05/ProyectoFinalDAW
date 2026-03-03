@@ -32,6 +32,7 @@
             <div>
                 <label for="id_cita" class="block font-semibold mb-1">Cita:</label>
                 <select name="id_cita" id="id_cita" required class="w-full border rounded px-3 py-2" onchange="actualizarClienteInfo()">
+                    <option value="">-- Seleccionar cita --</option>
                     @foreach($citas as $cita)
                         @php
                             $costeTotal = $cita->servicios->sum('precio');

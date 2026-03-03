@@ -386,11 +386,9 @@
                 </div>
             </div>
 
-            {{-- Campos ocultos para tarjeta/bono --}}
-            @if($cobro->metodo_pago !== 'efectivo' && $cobro->metodo_pago !== 'mixto')
-                <input type="hidden" id="dinero_cliente" name="dinero_cliente" value="{{ $cobro->dinero_cliente }}">
-                <input type="hidden" id="cambio" name="cambio" value="{{ $cobro->cambio }}">
-            @endif
+            {{-- Los inputs dinero_cliente y cambio ya están en #campos-efectivo.
+                 Inputs con display:none (Tailwind hidden) siguen enviándose en el form,
+                 por lo que no necesitamos duplicados ocultos. --}}
 
             {{-- Total Final y Deuda --}}
             <div class="mb-4 flex flex-col md:flex-row md:space-x-4">

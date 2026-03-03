@@ -125,7 +125,7 @@
                             $totalBonosVendidosCobro += $bono->pivot->precio ?? 0;
                         }
                     }
-                    $totalFacturadoCobro = $cobro->total_final + $totalBonosVendidosCobro;
+                    $totalFacturadoCobro = $cobro->total_final + ($cobro->deuda ?? 0) + $totalBonosVendidosCobro;
                 @endphp
                 
                 <div class="cobro-card bg-white border-2 border-gray-200 rounded-lg p-5 hover:border-blue-300">

@@ -589,7 +589,7 @@
                             </td>
                             <td class="p-2 text-right">€{{ number_format($servicio->precio, 2) }}</td>
                             <td class="p-2">
-                                <button type="button" onclick="addService({{ $servicio->id }}, '{{ $servicio->nombre }}', {{ $servicio->precio }})" class="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 text-sm">
+                                <button type="button" onclick='addService({{ $servicio->id }}, @json($servicio->nombre), {{ $servicio->precio }})' class="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 text-sm">
                                     Añadir
                                 </button>
                             </td>
@@ -669,6 +669,13 @@
 </div>
 
 <script>
+// Utilidad para escapar HTML y prevenir XSS en inserciones innerHTML
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function(m) {
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m];
+    });
+}
+
 // Variables globales (fuera del DOMContentLoaded para que las funciones window puedan acceder)
 let serviciosSeleccionados = [];
 let productosSeleccionados = [];
@@ -714,18 +721,18 @@ window.mostrarModalBonos = function() {
                 <div id="bonos-lista" class="space-y-3">
                     ${bonosDisponibles.map(bono => `
                         <div class="bono-item border rounded p-3 hover:bg-yellow-50 cursor-pointer transition" 
-                             data-nombre="${bono.nombre.toLowerCase()}"
-                             data-descripcion="${(bono.descripcion || '').toLowerCase()}"
-                             data-servicios="${bono.servicios.map(s => s.nombre.toLowerCase()).join(' ')}"
+                             data-nombre="${escapeHtml(bono.nombre.toLowerCase())}"
+                             data-descripcion="${escapeHtml((bono.descripcion || '').toLowerCase())}"
+                             data-servicios="${escapeHtml(bono.servicios.map(s => s.nombre.toLowerCase()).join(' '))}"
                              onclick="seleccionarBono(${bono.id})">
                             <div class="flex justify-between items-start">
                                 <div class="flex-1">
-                                    <h4 class="font-semibold text-lg">${bono.nombre}</h4>
-                                    <p class="text-sm text-gray-600 mb-2">${bono.descripcion || ''}</p>
+                                    <h4 class="font-semibold text-lg">${escapeHtml(bono.nombre)}</h4>
+                                    <p class="text-sm text-gray-600 mb-2">${escapeHtml(bono.descripcion || '')}</p>
                                     <div class="text-sm">
                                         <strong>Servicios incluidos:</strong>
                                         <ul class="list-disc ml-5 mt-1">
-                                            ${bono.servicios.map(s => `<li>${s.nombre} (${s.pivot.cantidad}x)</li>`).join('')}
+                                            ${bono.servicios.map(s => `<li>${escapeHtml(s.nombre)} (${s.pivot.cantidad}x)</li>`).join('')}
                                         </ul>
                                     </div>
                                     <p class="text-sm mt-2"><strong>Validez:</strong> ${bono.duracion_dias} días</p>
@@ -784,11 +791,11 @@ window.seleccionarBono = function(bonoId) {
     
     // Crear fila en la tabla
     const tbody = document.getElementById('bonos-tbody');
-    const serviciosTexto = bono.servicios.map(s => `${s.nombre} (${s.pivot.cantidad}x)`).join(', ');
+    const serviciosTexto = bono.servicios.map(s => `${escapeHtml(s.nombre)} (${s.pivot.cantidad}x)`).join(', ');
     
     const row = document.createElement('tr');
     row.innerHTML = `
-        <td class="p-2 font-semibold">${bono.nombre}</td>
+        <td class="p-2 font-semibold">${escapeHtml(bono.nombre)}</td>
         <td class="p-2 text-sm">${serviciosTexto}</td>
         <td class="p-2 text-right">€${parseFloat(bono.precio).toFixed(2)}</td>
         <td class="p-2 text-center text-sm">${bono.duracion_dias} días</td>
@@ -1056,7 +1063,7 @@ window.mostrarPanelBonos = async function() {
                 
                 html += '<div class="bono-card">';
                 html += '<div class="flex justify-between items-start mb-2">';
-                html += '<h4 class="font-bold text-purple-700">' + plantilla.nombre + '</h4>';
+                html += '<h4 class="font-bold text-purple-700">' + escapeHtml(plantilla.nombre) + '</h4>';
                 html += '<span class="text-xs">' + alertaVencimiento + '</span>';
                 html += '</div>';
                 html += '<div class="text-sm text-gray-600 space-y-1">';
@@ -1279,7 +1286,7 @@ function renderServicios() {
         `;
         
         tr.innerHTML = `
-            <td class="p-2">${servicio.nombre}</td>
+            <td class="p-2">${escapeHtml(servicio.nombre)}</td>
             <td class="p-2">
                 <select onchange="updateServicioEmpleado(${index}, this.value)" class="w-full border rounded px-2 py-1 text-sm">
                     ${empleadosOptions}
@@ -1453,7 +1460,7 @@ function renderProductos() {
         `;
         
         tr.innerHTML = `
-            <td class="p-2">${producto.nombre}</td>
+            <td class="p-2">${escapeHtml(producto.nombre)}</td>
             <td class="p-2">
                 <select onchange="updateProductoEmpleado(${index}, this.value)" class="w-full border rounded px-2 py-1 text-sm">
                     ${empleadosOptions}
@@ -1678,6 +1685,10 @@ document.getElementById('cobro-form').addEventListener('submit', function(e) {
             const hiddenEur = document.getElementById('descuento_euro');
             if (hiddenPor) hiddenPor.value = descProdPorRestante.toFixed(2);
             if (hiddenEur) hiddenEur.value = descProdEurRestante.toFixed(2);
+
+            // CRÍTICO: Recalcular total_final con los precios ya ajustados
+            // para que coincida con lo que el backend calculará
+            calcularTotales();
         }
     }
     

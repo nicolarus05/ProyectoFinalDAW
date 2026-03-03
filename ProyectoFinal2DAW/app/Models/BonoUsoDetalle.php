@@ -10,6 +10,7 @@ class BonoUsoDetalle extends Model
 
     protected $fillable = [
         'bono_cliente_id',
+        'registro_cobro_id',
         'cita_id',
         'servicio_id',
         'cantidad_usada'

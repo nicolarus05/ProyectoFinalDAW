@@ -477,6 +477,8 @@ class RegistroCobroController extends Controller{
 
         // --- VERIFICAR Y APLICAR BONOS ---
         $serviciosAplicados = [];
+        $servicioIdsCubiertosporBonoActivo = []; // IDs de servicios ya cubiertos por bonos activos (evita doble consumo)
+        $bonoUsoDetalleIds = []; // IDs de bono_uso_detalle creados antes del cobro, para vincularlos después
         $descuentoBonos = 0; // Total descontado por bonos
         
         // Determinar las citas a procesar (puede ser una sola o múltiples agrupadas)
@@ -509,14 +511,15 @@ class RegistroCobroController extends Controller{
             $clienteId = $primeraCita ? $primeraCita->id_cliente : null;
         }
         
-        // Procesar bonos (solo si NO se está vendiendo un bono nuevo)
+        // Procesar bonos activos del cliente (independiente de si se vende un bono nuevo,
+        // ya que el nuevo bono aún no se ha creado y no hay riesgo de consumirlo)
         Log::info('🎫 PROCESANDO BONOS', [
             'se_vende_bono' => $seVendeBono,
             'cliente_id' => $clienteId,
             'tiene_citas' => $citasAProcesar->isNotEmpty()
         ]);
         
-        if (!$seVendeBono && $clienteId) {
+        if ($clienteId) {
             // CASO A: Cobro con citas
             if ($citasAProcesar->isNotEmpty()) {
                 // Determinar qué servicios procesar: si hay servicios_data, usar esos (editados por el usuario)
@@ -594,20 +597,22 @@ class RegistroCobroController extends Controller{
                                     ]);
 
                                     $serviciosAplicados[] = $servicioCita->nombre;
+                                    $servicioIdsCubiertosporBonoActivo[] = $servicioCita->id;
                                     
                                     // Acumular el descuento del servicio cubierto por el bono
                                     $descuentoBonos += $servicioCita->precio;
 
                                     // Registrar el uso detallado del bono
-                                    BonoUsoDetalle::create([
+                                    $budCasoA = BonoUsoDetalle::create([
                                         'bono_cliente_id' => $bono->id,
                                         'cita_id' => $cita->id,
                                         'servicio_id' => $servicioCita->id,
                                         'cantidad_usada' => 1
                                     ]);
+                                    $bonoUsoDetalleIds[] = $budCasoA->id;
 
                                     Log::info('📝 Uso de bono registrado', [
-                                        'bono_uso_detalle_id' => 'creado',
+                                        'bono_uso_detalle_id' => $budCasoA->id,
                                         'bono_id' => $bono->id
                                     ]);
 
@@ -696,17 +701,19 @@ class RegistroCobroController extends Controller{
                                     ]);
 
                                     $serviciosAplicados[] = $servicio->nombre;
+                                    $servicioIdsCubiertosporBonoActivo[] = $servicioId;
                                     
                                     // Acumular el descuento del servicio cubierto por el bono
                                     $descuentoBonos += $servicio->precio;
 
                                     // Registrar el uso detallado del bono (sin cita_id porque no hay cita)
-                                    BonoUsoDetalle::create([
+                                    $budCasoB = BonoUsoDetalle::create([
                                         'bono_cliente_id' => $bono->id,
                                         'cita_id' => null,
                                         'servicio_id' => $servicioId,
                                         'cantidad_usada' => 1
                                     ]);
+                                    $bonoUsoDetalleIds[] = $budCasoB->id;
 
                                     // NOTA: El precio a 0 se aplicará al guardar los servicios en el pivot
 
@@ -906,6 +913,13 @@ class RegistroCobroController extends Controller{
             'deuda' => $deudaServicios, // SOLO la deuda de servicios/productos (la deuda de bonos se maneja en bonos_clientes)
         ]);
 
+        // --- Vincular bono_uso_detalle creados antes del cobro con su registro_cobro_id ---
+        if (!empty($bonoUsoDetalleIds)) {
+            DB::table('bono_uso_detalle')
+                ->whereIn('id', $bonoUsoDetalleIds)
+                ->update(['registro_cobro_id' => $cobro->id]);
+        }
+
         // --- Vincular citas agrupadas si existen ---
         if (!empty($data['citas_ids']) && is_array($data['citas_ids'])) {
             $cobro->citasAgrupadas()->attach($data['citas_ids']);
@@ -934,27 +948,9 @@ class RegistroCobroController extends Controller{
                     $empleadoServicio = $empleadoId;
                 }
 
-                // Verificar si este servicio fue pagado con bono
-                $usoBono = false;
-                if (!empty($data['id_cita'])) {
-                    $usoBono = DB::table('bono_uso_detalle')
-                        ->where('servicio_id', $servicioId)
-                        ->where('cita_id', $data['id_cita'])
-                        ->exists();
-                } elseif (!empty($data['citas_ids']) && is_array($data['citas_ids'])) {
-                    $usoBono = DB::table('bono_uso_detalle')
-                        ->where('servicio_id', $servicioId)
-                        ->whereIn('cita_id', $data['citas_ids'])
-                        ->exists();
-                } else {
-                    // CASO COBRO DIRECTO (sin cita): buscar uso de bono registrado sin cita_id
-                    // para este servicio, creado recientemente (dentro de la misma transacción)
-                    $usoBono = DB::table('bono_uso_detalle')
-                        ->where('servicio_id', $servicioId)
-                        ->whereNull('cita_id')
-                        ->where('created_at', '>=', now()->subMinutes(2))
-                        ->exists();
-                }
+                // Verificar si este servicio fue pagado con bono activo
+                // Usamos el array construido durante el procesamiento de bonos activos (CASO A/B)
+                $usoBono = in_array($servicioId, $servicioIdsCubiertosporBonoActivo);
 
                 if ($usoBono) {
                     $precio = 0;
@@ -1376,6 +1372,11 @@ class RegistroCobroController extends Controller{
                     $servicioId = $servicioData['id'];
                     $citaId = $servicioData['cita_id'];
                     
+                    // SKIP si este servicio ya fue cubierto por un bono activo del cliente
+                    if (in_array($servicioId, $servicioIdsCubiertosporBonoActivo)) {
+                        continue;
+                    }
+                    
                     // Verificar si el bono incluye este servicio
                     $servicioBono = $bonoCliente->servicios()
                         ->where('servicio_id', $servicioId)
@@ -1392,6 +1393,7 @@ class RegistroCobroController extends Controller{
                         // Registrar el uso detallado del bono
                         \App\Models\BonoUsoDetalle::create([
                             'bono_cliente_id' => $bonoCliente->id,
+                            'registro_cobro_id' => $cobro->id,
                             'cita_id' => $citaId,
                             'servicio_id' => $servicioId,
                             'cantidad_usada' => 1
@@ -1610,13 +1612,25 @@ class RegistroCobroController extends Controller{
         $descProdEur = $data['descuento_productos_euro'] ?? 0;
         $dineroCliente = $data['dinero_cliente'] ?? 0;
 
-        // Si hay descuentos separados, usar esos; si no, usar el descuento general legacy
-        if ($descServPct > 0 || $descServEur > 0 || $descProdPct > 0 || $descProdEur > 0) {
-            $descuentoTotal = ($coste * ($descServPct / 100)) + $descServEur + ($coste * ($descProdPct / 100)) + $descProdEur;
-        } else {
-            $descuentoTotal = ($coste * ($descuentoPorcentaje / 100)) + $descuentoEuro;
+        // Cargar total de productos desde el cobro (no editable desde edit)
+        $cobro->load('productos');
+        $totalProductos = 0;
+        if ($cobro->productos && $cobro->productos->count() > 0) {
+            foreach ($cobro->productos as $p) {
+                $totalProductos += $p->pivot->subtotal ?? 0;
+            }
         }
-        $precioConDescuento = round(max(0, $coste - $descuentoTotal), 2);
+
+        // Si hay descuentos separados, aplicar cada descuento a su categoría correspondiente
+        if ($descServPct > 0 || $descServEur > 0 || $descProdPct > 0 || $descProdEur > 0) {
+            $subtotalServicios = max(0, $coste - ($coste * ($descServPct / 100)) - $descServEur);
+            $subtotalProductos = max(0, $totalProductos - ($totalProductos * ($descProdPct / 100)) - $descProdEur);
+            $precioConDescuento = round($subtotalServicios + $subtotalProductos, 2);
+        } else {
+            // Legacy: descuento general solo sobre servicios
+            $descuentoTotal = ($coste * ($descuentoPorcentaje / 100)) + $descuentoEuro;
+            $precioConDescuento = round(max(0, $coste - $descuentoTotal) + $totalProductos, 2);
+        }
 
         // Lógica según método de pago (misma que store())
         if ($data['metodo_pago'] === 'tarjeta') {
@@ -1695,31 +1709,29 @@ class RegistroCobroController extends Controller{
         }
 
         // --- Recalcular precios del pivot registro_cobro_servicio ---
-        // Si el total_final cambió, los precios del pivot deben ajustarse proporcionalmente
-        // para que FacturacionService calcule correctamente la facturación por empleado
+        // Si el total_final cambió, los precios de SERVICIOS del pivot deben ajustarse proporcionalmente
+        // para que FacturacionService calcule correctamente la facturación por empleado.
+        // Los productos NO se escalan — sus subtotales reflejan la venta original (no son editables).
         if (abs($totalFinalAnterior - $data['total_final']) > 0.01 && $totalFinalAnterior > 0.01) {
-            $factorAjuste = $data['total_final'] / $totalFinalAnterior;
-            
-            $pivotServicios = DB::table('registro_cobro_servicio')
+            $sumaServiciosPivot = DB::table('registro_cobro_servicio')
                 ->where('registro_cobro_id', $cobro->id)
                 ->where('precio', '>', 0)
-                ->get();
-            
-            foreach ($pivotServicios as $pivot) {
-                DB::table('registro_cobro_servicio')
-                    ->where('id', $pivot->id)
-                    ->update(['precio' => round($pivot->precio * $factorAjuste, 2)]);
-            }
+                ->sum('precio');
 
-            // También ajustar subtotales de productos
-            $pivotProductos = DB::table('registro_cobro_productos')
-                ->where('id_registro_cobro', $cobro->id)
-                ->get();
-            
-            foreach ($pivotProductos as $pivot) {
-                DB::table('registro_cobro_productos')
-                    ->where('id', $pivot->id)
-                    ->update(['subtotal' => round($pivot->subtotal * $factorAjuste, 2)]);
+            if ($sumaServiciosPivot > 0.01) {
+                $nuevoTotalServicios = max(0, $data['total_final'] - $totalProductos);
+                $factorAjuste = $nuevoTotalServicios / $sumaServiciosPivot;
+
+                $pivotServicios = DB::table('registro_cobro_servicio')
+                    ->where('registro_cobro_id', $cobro->id)
+                    ->where('precio', '>', 0)
+                    ->get();
+
+                foreach ($pivotServicios as $pivot) {
+                    DB::table('registro_cobro_servicio')
+                        ->where('id', $pivot->id)
+                        ->update(['precio' => round($pivot->precio * $factorAjuste, 2)]);
+                }
             }
         }
 
@@ -1780,21 +1792,28 @@ class RegistroCobroController extends Controller{
             $servicioIds = $cobro->servicios->pluck('id')->toArray();
 
             if (!empty($servicioIds)) {
-                $query = BonoUsoDetalle::whereIn('servicio_id', $servicioIds);
-
-                if ($citaIds->isNotEmpty()) {
-                    $query->whereIn('cita_id', $citaIds);
-                } else {
-                    // Cobro directo sin cita: buscar por proximidad temporal
-                    // Usamos ±30 segundos ya que los registros se crean en la misma transacción
-                    $query->whereNull('cita_id')
-                          ->whereBetween('created_at', [
-                              $cobro->created_at->copy()->subSeconds(30),
-                              $cobro->created_at->copy()->addSeconds(30)
-                          ]);
-                }
-
+                // Intentar buscar por registro_cobro_id (migración 2026_03_03)
+                // Si no hay resultados (datos antiguos sin registro_cobro_id), usar fallback por cita o temporal
+                $query = BonoUsoDetalle::where('registro_cobro_id', $cobro->id);
                 $usosDetalle = $query->get();
+
+                // Fallback para datos anteriores a la migración (sin registro_cobro_id)
+                if ($usosDetalle->isEmpty()) {
+                    $queryFallback = BonoUsoDetalle::whereIn('servicio_id', $servicioIds);
+
+                    if ($citaIds->isNotEmpty()) {
+                        $queryFallback->whereIn('cita_id', $citaIds);
+                    } else {
+                        // Cobro directo sin cita: fallback por proximidad temporal
+                        $queryFallback->whereNull('cita_id')
+                              ->whereBetween('created_at', [
+                                  $cobro->created_at->copy()->subSeconds(30),
+                                  $cobro->created_at->copy()->addSeconds(30)
+                              ]);
+                    }
+
+                    $usosDetalle = $queryFallback->get();
+                }
 
                 foreach ($usosDetalle as $uso) {
                     $bonoCliente = BonoCliente::find($uso->bono_cliente_id);
