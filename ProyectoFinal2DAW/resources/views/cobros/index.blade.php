@@ -117,6 +117,15 @@
                     
                     // Verificar si hay bonos vendidos
                     $tieneBonos = $cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0;
+                    
+                    // Calcular total facturado incluyendo bonos vendidos
+                    $totalBonosVendidosCobro = 0;
+                    if ($tieneBonos) {
+                        foreach ($cobro->bonosVendidos as $bono) {
+                            $totalBonosVendidosCobro += $bono->pivot->precio ?? 0;
+                        }
+                    }
+                    $totalFacturadoCobro = $cobro->total_final + $totalBonosVendidosCobro;
                 @endphp
                 
                 <div class="cobro-card bg-white border-2 border-gray-200 rounded-lg p-5 hover:border-blue-300">
@@ -138,7 +147,7 @@
                         
                         <div class="text-right">
                             <div class="text-2xl font-bold text-green-600">
-                                {{ number_format($cobro->total_final, 2) }} €
+                                {{ number_format($totalFacturadoCobro, 2) }} €
                             </div>
                             <div class="text-xs text-gray-500">Total Facturado</div>
                             @if($deudaTotal > 0)

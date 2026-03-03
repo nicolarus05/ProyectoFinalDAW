@@ -678,10 +678,11 @@ let descuentoPorBono = 0;
 let bonosActivosCliente = @json($bonosCliente ?? collect()); // Bonos activos del cliente
 
 document.addEventListener('DOMContentLoaded', function() {
-csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+try {
+csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
 // Bonos disponibles
-const bonosDisponibles = @json($bonosPlantilla);
+const bonosDisponibles = @json($bonosPlantilla ?? []);
 
 // Modal para seleccionar bono
 window.mostrarModalBonos = function() {
@@ -944,7 +945,7 @@ window.detectarBonosActivos = function() {
 }
 
 // Botón añadir bono
-document.getElementById('btn-add-bono').addEventListener('click', function() {
+document.getElementById('btn-add-bono')?.addEventListener('click', function() {
     mostrarModalBonos();
 });
 
@@ -1201,8 +1202,8 @@ window.filtrarProductos = function() {
 }
 
 // Modal de servicios
-document.getElementById('btn-add-service').addEventListener('click', function() {
-    document.getElementById('modal-services').classList.remove('hidden');
+document.getElementById('btn-add-service')?.addEventListener('click', function() {
+    document.getElementById('modal-services')?.classList.remove('hidden');
 });
 
 window.closeModalServices = function() {
@@ -1306,8 +1307,8 @@ function renderServicios() {
 }
 
 // Modal de productos
-document.getElementById('btn-add-product').addEventListener('click', async function() {
-    document.getElementById('modal-products').classList.remove('hidden');
+document.getElementById('btn-add-product')?.addEventListener('click', async function() {
+    document.getElementById('modal-products')?.classList.remove('hidden');
     await loadProducts();
 });
 
@@ -1389,6 +1390,9 @@ window.addProduct = function(id, nombre, precio, stock) {
     const empleadoSelect = document.getElementById('id_empleado');
     const empleadoId = empleadoSelect.value ? parseInt(empleadoSelect.value) : null;
     
+    // Asegurar que precio sea numérico
+    precio = parseFloat(precio) || 0;
+    
     // Verificar si ya está añadido
     const existente = productosSeleccionados.find(p => p.id === id);
     if (existente) {
@@ -1434,7 +1438,8 @@ function renderProductos() {
     }
     
     productosSeleccionados.forEach((producto, index) => {
-        const subtotal = producto.precio * producto.cantidad;
+        const precioNum = parseFloat(producto.precio) || 0;
+        const subtotal = precioNum * producto.cantidad;
         const tr = document.createElement('tr');
         tr.className = 'border-b';
         
@@ -1457,7 +1462,7 @@ function renderProductos() {
             <td class="p-2 text-center">
                 <input type="number" min="1" value="${producto.cantidad}" onchange="updateProductQty(${producto.id}, this.value)" class="w-16 border rounded px-2 py-1 text-center">
             </td>
-            <td class="p-2 text-right">€${producto.precio.toFixed(2)}</td>
+            <td class="p-2 text-right">€${precioNum.toFixed(2)}</td>
             <td class="p-2 text-right">€${subtotal.toFixed(2)}</td>
             <td class="p-2 text-center">
                 <button type="button" onclick="removeProduct(${producto.id})" class="text-red-600 hover:text-red-800">✕</button>
@@ -1836,6 +1841,25 @@ document.getElementById('btn-entendido')?.addEventListener('click', cerrarAlerta
     console.log('ℹ️ No hay bonos del cliente o $bonosCliente no está definido');
 @endif
 
+} catch(e) {
+    console.error('Error en inicialización de cobro directo:', e);
+    
+    // Fallback: Intentar registrar listeners críticos aunque haya fallado la inicialización
+    try {
+        document.getElementById('btn-add-product')?.addEventListener('click', async function() {
+            document.getElementById('modal-products')?.classList.remove('hidden');
+            if (typeof loadProducts === 'function') await loadProducts();
+        });
+        document.getElementById('btn-add-service')?.addEventListener('click', function() {
+            document.getElementById('modal-services')?.classList.remove('hidden');
+        });
+        document.getElementById('btn-add-bono')?.addEventListener('click', function() {
+            if (typeof mostrarModalBonos === 'function') mostrarModalBonos();
+        });
+    } catch(e2) {
+        console.error('Error en fallback:', e2);
+    }
+}
 }); // Fin DOMContentLoaded
 </script>
 
