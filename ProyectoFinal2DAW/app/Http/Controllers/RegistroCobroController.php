@@ -49,7 +49,13 @@ class RegistroCobroController extends Controller{
             'cliente.user',
             'empleado.user',
             'productos',
-            'bonosVendidos' // Cargar bonos vendidos para calcular deuda correctamente
+            'bonosVendidos', // Cargar bonos vendidos para calcular deuda correctamente
+            'movimientosDeuda.deuda.cliente.user', // Para identificar pagos de deuda
+            // Para mostrar servicios/productos/bonos del cobro ORIGINAL en pagos de deuda
+            'movimientosDeuda.deuda.movimientos.registroCobro.servicios',
+            'movimientosDeuda.deuda.movimientos.registroCobro.productos',
+            'movimientosDeuda.deuda.movimientos.registroCobro.bonosVendidos.plantilla.servicios',
+            'movimientosDeuda.deuda.movimientos.registroCobro.empleado.user',
         ])
         ->whereDate('created_at', $fecha)
         ->orderBy('created_at', 'desc')
@@ -935,9 +941,15 @@ class RegistroCobroController extends Controller{
             $serviciosDataArray = json_decode($data['servicios_data'], true);
             $tieneServiciosEditados = is_array($serviciosDataArray) && count($serviciosDataArray) > 0;
         }
+
+        Log::info("Cobro #{$cobro->id}: Vinculando servicios", [
+            'tieneServiciosEditados' => $tieneServiciosEditados,
+            'metodoPago' => $metodoPagoFinal,
+            'serviciosCubiertosConBono' => $servicioIdsCubiertosporBonoActivo,
+        ]);
         
         // Si hay servicios editados por el usuario, usar esos
-        if ($tieneServiciosEditados && $metodoPagoFinal !== 'bono') {
+        if ($tieneServiciosEditados) {
             foreach ($serviciosDataArray as $s) {
                 $servicioId = (int) $s['id'];
                 $precio = (float) $s['precio'];
@@ -1014,7 +1026,7 @@ class RegistroCobroController extends Controller{
             }
         }
         // Si NO hay servicios editados, usar los originales de la cita
-        elseif (!$tieneServiciosEditados && $metodoPagoFinal !== 'bono') {
+        elseif (!$tieneServiciosEditados) {
             if (!empty($data['id_cita'])) {
                 // Caso 1: Cobro de una sola cita
                 $cita = Cita::with('servicios', 'empleado')->find($data['id_cita']);
@@ -1280,11 +1292,16 @@ class RegistroCobroController extends Controller{
                 }
                 
                 // Crear el bono del cliente
+                // IMPORTANTE: Si duracion_dias es NULL (sin límite), usar 100 años en lugar de addDays(null)=hoy
+                $fechaExpiracionBono = $bonoPlantilla->duracion_dias
+                    ? Carbon::now()->addDays($bonoPlantilla->duracion_dias)
+                    : Carbon::now()->addYears(100);
+
                 $bonoCliente = \App\Models\BonoCliente::create([
                     'cliente_id' => $clienteId,
                     'bono_plantilla_id' => $bonoPlantilla->id,
                     'fecha_compra' => Carbon::now(),
-                    'fecha_expiracion' => Carbon::now()->addDays($bonoPlantilla->duracion_dias),
+                    'fecha_expiracion' => $fechaExpiracionBono,
                     'estado' => 'activo',
                     'metodo_pago' => $metodoPagoBono,
                     'precio_pagado' => $dineroPagadoBono,

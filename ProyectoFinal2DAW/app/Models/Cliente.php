@@ -54,7 +54,9 @@ class Cliente extends Model{
     {
         return $this->hasMany(BonoCliente::class, 'cliente_id')
             ->where('estado', 'activo')
-            ->whereRaw('cantidad_usada < cantidad_total');
+            ->whereHas('servicios', function($query) {
+                $query->whereRaw('cantidad_usada < cantidad_total');
+            });
     }
 
     public function obtenerDeuda()
