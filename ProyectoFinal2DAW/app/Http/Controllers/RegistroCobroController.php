@@ -987,8 +987,16 @@ class RegistroCobroController extends Controller{
             $descServPct = (float) ($data['descuento_servicios_porcentaje'] ?? 0);
             $descGenEuro = (float) ($data['descuento_euro'] ?? 0);
             $descGenPct = (float) ($data['descuento_porcentaje'] ?? 0);
+            $descProdEuro = (float) ($data['descuento_productos_euro'] ?? 0);
+            $descProdPct = (float) ($data['descuento_productos_porcentaje'] ?? 0);
 
-            if ($descServEuro > 0.01 || $descServPct > 0.01 || $descGenEuro > 0.01 || $descGenPct > 0.01) {
+            // Ajustar servicios solo cuando realmente hay descuento de servicios.
+            // Si solo hay descuento en productos, NO tocar precios de servicios.
+            $hayDescuentoProductos = ($descProdEuro > 0.01 || $descProdPct > 0.01);
+            $hayDescuentoServicios = ($descServEuro > 0.01 || $descServPct > 0.01);
+            $hayDescuentoGeneralLegacy = ($descGenEuro > 0.01 || $descGenPct > 0.01) && !$hayDescuentoProductos;
+
+            if ($hayDescuentoServicios || $hayDescuentoGeneralLegacy) {
                 $pivotEntries = DB::table('registro_cobro_servicio')
                     ->where('registro_cobro_id', $cobro->id)
                     ->where('precio', '>', 0)
@@ -996,20 +1004,12 @@ class RegistroCobroController extends Controller{
 
                 $sumaPivotServicios = $pivotEntries->sum('precio');
 
-                // Calcular suma de productos desde el request (los productos aún no están
-                // adjuntados al cobro en este punto, se adjuntan más adelante)
-                $sumaPivotProductos = 0;
-                if ($request->has('productos_data') && !empty($data['productos_data'])) {
-                    $prodsTmp = json_decode($data['productos_data'], true);
-                    if (is_array($prodsTmp)) {
-                        foreach ($prodsTmp as $pTmp) {
-                            $sumaPivotProductos += (float)($pTmp['precio'] ?? 0) * (int)($pTmp['cantidad'] ?? 1);
-                        }
-                    }
-                }
+                // Usar productos YA descontados para no trasladar descuentos de productos a servicios.
+                $sumaPivotProductosConDescuento = $totalProductosConDescuento ?? 0;
 
-                // El objetivo es que sumaPivotServicios = totalCobradoServicios - sumaPivotProductos
-                $objetivoServicios = $totalCobradoServicios - $sumaPivotProductos;
+                // El objetivo es que sumaPivotServicios = totalCobradoServicios - productos_con_descuento
+                $objetivoServicios = $totalCobradoServicios - $sumaPivotProductosConDescuento;
+                $objetivoServicios = max(0, $objetivoServicios);
 
                 if ($sumaPivotServicios > 0.01 && abs($sumaPivotServicios - $objetivoServicios) > 0.01) {
                     $factorDescuento = $objetivoServicios / $sumaPivotServicios;
@@ -1038,21 +1038,15 @@ class RegistroCobroController extends Controller{
                     
                     if ($costoTotalServicios > 0) {
                         // Calcular el total de productos para restar del total_final
-                        $totalProductos = 0;
-                        if (isset($data['productos']) && is_array($data['productos'])) {
-                            foreach ($data['productos'] as $producto) {
-                                if (isset($producto['subtotal'])) {
-                                    $totalProductos += $producto['subtotal'];
-                                }
-                            }
-                        }
+                        // Usar total de productos DESCONTADOS para aislar el descuento de servicios.
+                        $totalProductos = $totalProductosConDescuento ?? 0;
                         
                         // Calcular proporción de servicios del coste total
                         $proporcionServicios = $data['coste'] > 0 ? $costoTotalServicios / $data['coste'] : 1;
                         
                         // Aplicar proporción al total facturado MENOS productos (que ya tiene descuentos aplicados)
                         // Usar total facturado (incluyendo deuda) para cálculo proporcional
-                        $totalServiciosConDescuento = ($totalFacturadoServicios - $totalProductos) * $proporcionServicios;
+                        $totalServiciosConDescuento = max(0, ($totalFacturadoServicios - $totalProductos) * $proporcionServicios);
                         
                         foreach ($cita->servicios as $servicio) {
                             // Calcular precio proporcional del servicio considerando descuentos
@@ -1097,21 +1091,15 @@ class RegistroCobroController extends Controller{
                 
                 if ($costoTotalTodosServicios > 0) {
                     // Calcular el total de productos para restar del total_final
-                    $totalProductos = 0;
-                    if (isset($data['productos']) && is_array($data['productos'])) {
-                        foreach ($data['productos'] as $producto) {
-                            if (isset($producto['subtotal'])) {
-                                $totalProductos += $producto['subtotal'];
-                            }
-                        }
-                    }
+                    // Usar total de productos DESCONTADOS para aislar el descuento de servicios.
+                    $totalProductos = $totalProductosConDescuento ?? 0;
                     
                     // Calcular proporción de servicios del coste total
                     $proporcionServicios = $data['coste'] > 0 ? $costoTotalTodosServicios / $data['coste'] : 1;
                     
                     // Aplicar proporción al total facturado MENOS productos (que ya tiene descuentos aplicados)
                     // Usar total facturado (incluyendo deuda) para cálculo proporcional
-                    $totalServiciosConDescuento = ($totalFacturadoServicios - $totalProductos) * $proporcionServicios;
+                    $totalServiciosConDescuento = max(0, ($totalFacturadoServicios - $totalProductos) * $proporcionServicios);
                     
                     foreach ($citasAgrupadas as $citaGrupo) {
                         if ($citaGrupo->servicios && $citaGrupo->servicios->count() > 0) {
@@ -1736,7 +1724,9 @@ class RegistroCobroController extends Controller{
                 ->sum('precio');
 
             if ($sumaServiciosPivot > 0.01) {
-                $nuevoTotalServicios = max(0, $data['total_final'] - $totalProductos);
+                // Restar productos YA descontados, no los brutos del pivot.
+                $totalProductosConDescuentoEdit = max(0, $totalProductos - ($totalProductos * ($descProdPct / 100)) - $descProdEur);
+                $nuevoTotalServicios = max(0, $data['total_final'] - $totalProductosConDescuentoEdit);
                 $factorAjuste = $nuevoTotalServicios / $sumaServiciosPivot;
 
                 $pivotServicios = DB::table('registro_cobro_servicio')

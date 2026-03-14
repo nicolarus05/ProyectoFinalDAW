@@ -170,6 +170,50 @@
                                 }
                             }
                         }
+
+                        // Ajuste visual de precios de servicios cuando hay descuentos.
+                        // No altera datos en BD; solo muestra importes netos por linea.
+                        $sumServiciosDetalle = 0;
+                        foreach ($serviciosDetalle as $srvTmp) {
+                            if (!($srvTmp['es_bono'] ?? false)) {
+                                $sumServiciosDetalle += (float) ($srvTmp['precio'] ?? 0);
+                            }
+                        }
+
+                        $sumProductosBruto = 0;
+                        if ($cobro->productos && $cobro->productos->count() > 0) {
+                            foreach ($cobro->productos as $pTmp) {
+                                $sumProductosBruto += (float) ($pTmp->pivot->subtotal ?? 0);
+                            }
+                        }
+
+                        $descProdPorVista = (float) ($cobro->descuento_productos_porcentaje ?? 0);
+                        $descProdEurVista = (float) ($cobro->descuento_productos_euro ?? 0);
+                        $descProdTotalVista = ($sumProductosBruto * ($descProdPorVista / 100)) + $descProdEurVista;
+                        $sumProductosNetoVista = max(0, $sumProductosBruto - $descProdTotalVista);
+
+                        $descServPorVista = (float) ($cobro->descuento_servicios_porcentaje ?? 0);
+                        $descServEurVista = (float) ($cobro->descuento_servicios_euro ?? 0);
+                        $descLegacyPorVista = (float) ($cobro->descuento_porcentaje ?? 0);
+                        $descLegacyEurVista = (float) ($cobro->descuento_euro ?? 0);
+                        $hayDescuentoServiciosVista =
+                            $descServPorVista > 0 ||
+                            $descServEurVista > 0 ||
+                            $descLegacyPorVista > 0 ||
+                            $descLegacyEurVista > 0;
+
+                        $serviciosEsperadoNetoVista = max(0, (float) ($cobro->total_final ?? 0) - $sumProductosNetoVista);
+
+                        if ($hayDescuentoServiciosVista && $sumServiciosDetalle > 0.01) {
+                            $factorServiciosVista = $serviciosEsperadoNetoVista / $sumServiciosDetalle;
+                            if (abs($factorServiciosVista - 1) > 0.01) {
+                                foreach ($serviciosDetalle as $idxSrv => $srvTmp) {
+                                    if (!($srvTmp['es_bono'] ?? false)) {
+                                        $serviciosDetalle[$idxSrv]['precio'] = round(((float) $srvTmp['precio']) * $factorServiciosVista, 2);
+                                    }
+                                }
+                            }
+                        }
                     @endphp
                     
                     @if(count($serviciosDetalle) > 0)
@@ -199,6 +243,21 @@
                     <div class="font-semibold text-gray-700 mb-3 flex items-center gap-2 text-lg">
                         <span class="text-green-600">🛍️</span> PRODUCTOS
                     </div>
+
+                    @php
+                        $sumProductosBrutoVista = 0;
+                        if ($cobro->productos && $cobro->productos->count() > 0) {
+                            foreach ($cobro->productos as $pTmp) {
+                                $sumProductosBrutoVista += (float) ($pTmp->pivot->subtotal ?? 0);
+                            }
+                        }
+
+                        $descProdPorVista = (float) ($cobro->descuento_productos_porcentaje ?? 0);
+                        $descProdEurVista = (float) ($cobro->descuento_productos_euro ?? 0);
+                        $descProdTotalVista = ($sumProductosBrutoVista * ($descProdPorVista / 100)) + $descProdEurVista;
+                        $sumProductosNetoVista = max(0, $sumProductosBrutoVista - $descProdTotalVista);
+                        $factorProductosVista = $sumProductosBrutoVista > 0.01 ? ($sumProductosNetoVista / $sumProductosBrutoVista) : 1;
+                    @endphp
                     
                     @if($cobro->productos && $cobro->productos->count() > 0)
                         <div class="space-y-3">
@@ -207,14 +266,16 @@
                                     $cantidad = $producto->pivot->cantidad ?? 1;
                                     $precioUnitario = $producto->pivot->precio_unitario ?? $producto->precio;
                                     $subtotal = $producto->pivot->subtotal ?? ($precioUnitario * $cantidad);
+                                    $subtotalMostrado = round($subtotal * $factorProductosVista, 2);
+                                    $precioUnitarioMostrado = $cantidad > 0 ? round($subtotalMostrado / $cantidad, 2) : 0;
                                 @endphp
                                 <div class="desglose-item producto bg-green-50 p-3 rounded-lg">
                                     <div class="font-medium text-gray-800 text-sm mb-1">{{ $producto->nombre }}</div>
                                     <div class="text-xs text-gray-600 mb-2">
-                                        {{ $cantidad }}x unidad{{ $cantidad > 1 ? 'es' : '' }} × {{ number_format($precioUnitario, 2) }} €
+                                        {{ $cantidad }}x unidad{{ $cantidad > 1 ? 'es' : '' }} × {{ number_format($precioUnitarioMostrado, 2) }} €
                                     </div>
                                     <div class="text-lg font-bold text-green-700">
-                                        {{ number_format($subtotal, 2) }} €
+                                        {{ number_format($subtotalMostrado, 2) }} €
                                     </div>
                                 </div>
                             @endforeach
