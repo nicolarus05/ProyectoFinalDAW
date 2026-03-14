@@ -27,7 +27,8 @@ class RegisterClienteController extends Controller
             'genero' => 'required|in:Hombre,Mujer,Otro',
             'edad' => 'required|integer|min:0|max:120',
             'direccion' => 'required|string|max:255',
-            'notas_adicionales' => 'nullable|string|max:5000',
+            // Sin límite práctico en validación; el límite real lo marca la BD (LONGTEXT)
+            'notas_adicionales' => 'nullable|string',
         ]);
 
         // Asignar fecha de registro automáticamente

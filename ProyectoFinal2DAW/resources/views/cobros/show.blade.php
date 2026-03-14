@@ -2,485 +2,271 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Detalle del Cobro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle del cobro #{{ $cobro->id }}</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <style>
-        .desglose-item { border-left: 3px solid #e5e7eb; padding-left: 0.75rem; }
-        .desglose-item.servicio { border-left-color: #3b82f6; }
-        .desglose-item.producto { border-left-color: #10b981; }
-        .desglose-item.bono { border-left-color: #f59e0b; }
-        .bono-badge { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: white; padding: 2px 8px; border-radius: 9999px; font-size: 0.7rem; font-weight: 700; }
-        .section-card { background: white; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        :root {
+            --bg-soft: #f4f6f8;
+            --ink: #1e293b;
+            --teal: #0f766e;
+            --sand: #f6ede4;
+            --mint: #e6f6ef;
+        }
+        body {
+            background: radial-gradient(circle at 8% 0%, #e6fffa 0%, #f8fafc 35%, #eef2ff 100%);
+            color: var(--ink);
+        }
+        .hero {
+            background: linear-gradient(135deg, #0f766e 0%, #155e75 65%, #1f2937 100%);
+        }
+        .glass {
+            backdrop-filter: blur(8px);
+            background: rgba(255, 255, 255, 0.88);
+        }
+        .section-title {
+            letter-spacing: .02em;
+        }
+        .pill {
+            border-radius: 9999px;
+        }
     </style>
 </head>
-<body class="bg-gray-100 p-8">
-    <div class="max-w-4xl mx-auto">
-        <div class="bg-white p-8 rounded-lg shadow-lg">
-            <div class="flex justify-between items-center mb-6 border-b-2 pb-4">
-                <h1 class="text-3xl font-bold text-gray-800">📋 Detalle del Cobro #{{ $cobro->id }}</h1>
-                <div class="text-right">
-                    <div class="text-sm text-gray-500">
-                        {{ \Carbon\Carbon::parse($cobro->created_at)->format('d/m/Y H:i') }}
+<body class="min-h-screen p-4 md:p-8">
+    @php
+        $clienteNombre = '-';
+        if ($cobro->cliente && $cobro->cliente->user) {
+            $clienteNombre = trim(($cobro->cliente->user->nombre ?? '') . ' ' . ($cobro->cliente->user->apellidos ?? ''));
+        } elseif ($cobro->cita && $cobro->cita->cliente && $cobro->cita->cliente->user) {
+            $clienteNombre = trim(($cobro->cita->cliente->user->nombre ?? '') . ' ' . ($cobro->cita->cliente->user->apellidos ?? ''));
+        } elseif ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+            $citaRef = $cobro->citasAgrupadas->first();
+            if ($citaRef && $citaRef->cliente && $citaRef->cliente->user) {
+                $clienteNombre = trim(($citaRef->cliente->user->nombre ?? '') . ' ' . ($citaRef->cliente->user->apellidos ?? ''));
+            }
+        }
+
+        $empleadoPrincipal = '-';
+        if ($cobro->empleado && $cobro->empleado->user) {
+            $empleadoPrincipal = trim(($cobro->empleado->user->nombre ?? '') . ' ' . ($cobro->empleado->user->apellidos ?? ''));
+        } elseif ($cobro->cita && $cobro->cita->empleado && $cobro->cita->empleado->user) {
+            $empleadoPrincipal = trim(($cobro->cita->empleado->user->nombre ?? '') . ' ' . ($cobro->cita->empleado->user->apellidos ?? ''));
+        }
+
+        $citasRelacionadas = collect();
+        if ($cobro->cita) {
+            $citasRelacionadas->push($cobro->cita);
+        }
+        if ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
+            foreach ($cobro->citasAgrupadas as $citaAgrupada) {
+                $citasRelacionadas->push($citaAgrupada);
+            }
+        }
+        $citasRelacionadas = $citasRelacionadas->unique('id')->values();
+
+        $sumServicios = 0;
+        $sumProductos = 0;
+        $sumBonos = 0;
+        $sumBonosPagado = 0;
+
+        foreach ($cobro->servicios ?? [] as $servicio) {
+            $sumServicios += (float) ($servicio->pivot->precio ?? 0);
+        }
+
+        foreach ($cobro->productos ?? [] as $producto) {
+            $sumProductos += (float) ($producto->pivot->subtotal ?? 0);
+        }
+
+        foreach ($cobro->bonosVendidos ?? [] as $bono) {
+            $sumBonos += (float) ($bono->pivot->precio ?? 0);
+            $sumBonosPagado += (float) ($bono->precio_pagado ?? 0);
+        }
+
+        $descServPct = (float) ($cobro->descuento_servicios_porcentaje ?? 0);
+        $descServEur = (float) ($cobro->descuento_servicios_euro ?? 0);
+        $descProdPct = (float) ($cobro->descuento_productos_porcentaje ?? 0);
+        $descProdEur = (float) ($cobro->descuento_productos_euro ?? 0);
+        $descLegacyPct = (float) ($cobro->descuento_porcentaje ?? 0);
+        $descLegacyEur = (float) ($cobro->descuento_euro ?? 0);
+
+        $totalDescuentoServicios = ($sumServicios * ($descServPct / 100)) + $descServEur;
+        $totalDescuentoProductos = ($sumProductos * ($descProdPct / 100)) + $descProdEur;
+        $deudaBonos = max(0, $sumBonos - $sumBonosPagado);
+        $deudaTotal = (float) ($cobro->deuda ?? 0) + $deudaBonos;
+
+        $movs = $cobro->movimientosDeuda ?? collect();
+        $esPagoDeuda = $movs->where('tipo', 'abono')->count() > 0;
+    @endphp
+
+    <div class="max-w-6xl mx-auto space-y-6">
+        <section class="hero text-white rounded-3xl p-6 md:p-8 shadow-2xl">
+            <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                <div>
+                    <p class="text-sm uppercase tracking-widest opacity-80">Resumen de cobro</p>
+                    <h1 class="text-3xl md:text-4xl font-black mt-1">Cobro #{{ $cobro->id }}</h1>
+                    <p class="text-teal-100 mt-3">Informacion completa y clara del cobro para uso de cliente y recepcion.</p>
+                </div>
+                <div class="bg-white/15 rounded-2xl p-4 text-sm leading-6">
+                    <div><span class="font-semibold">Fecha:</span> {{ optional($cobro->created_at)->format('d/m/Y H:i') }}</div>
+                    <div><span class="font-semibold">Metodo de pago:</span> {{ $cobro->metodo_pago ?? '-' }}</div>
+                    <div><span class="font-semibold">Estado:</span>
+                        @if($cobro->contabilizado)
+                            Confirmado
+                        @else
+                            Pendiente de cierre
+                        @endif
                     </div>
                 </div>
             </div>
+        </section>
 
-            <!-- Información General -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <!-- Cliente -->
-                <div class="section-card">
-                    <div class="text-sm text-gray-500 mb-1">👤 Cliente</div>
-                    <div class="text-lg font-semibold text-gray-800">
-                        @php
-                            $nombreCliente = '-';
-                            if ($cobro->cita && $cobro->cita->cliente && $cobro->cita->cliente->user) {
-                                $nombreCliente = $cobro->cita->cliente->user->nombre . ' ' . $cobro->cita->cliente->user->apellidos;
-                            } elseif ($cobro->cliente && $cobro->cliente->user) {
-                                $nombreCliente = $cobro->cliente->user->nombre . ' ' . $cobro->cliente->user->apellidos;
-                            } elseif ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
-                                $primeraCita = $cobro->citasAgrupadas->first();
-                                if ($primeraCita && $primeraCita->cliente && $primeraCita->cliente->user) {
-                                    $nombreCliente = $primeraCita->cliente->user->nombre . ' ' . $primeraCita->cliente->user->apellidos;
-                                }
-                            }
-                        @endphp
-                        {{ $nombreCliente }}
-                    </div>
-                </div>
-                
-                <!-- Empleado -->
-                <div class="section-card">
-                    <div class="text-sm text-gray-500 mb-1">👨‍💼 Empleado Principal</div>
-                    <div class="text-lg font-semibold text-gray-800">
-                        @php
-                            $nombreEmpleado = '-';
-                            if ($cobro->cita && $cobro->cita->empleado && $cobro->cita->empleado->user) {
-                                $nombreEmpleado = $cobro->cita->empleado->user->nombre . ' ' . $cobro->cita->empleado->user->apellidos;
-                            } elseif ($cobro->empleado && $cobro->empleado->user) {
-                                $nombreEmpleado = $cobro->empleado->user->nombre . ' ' . $cobro->empleado->user->apellidos;
-                            } elseif ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
-                                $primeraCita = $cobro->citasAgrupadas->first();
-                                if ($primeraCita && $primeraCita->empleado && $primeraCita->empleado->user) {
-                                    $nombreEmpleado = $primeraCita->empleado->user->nombre . ' ' . $primeraCita->empleado->user->apellidos;
-                                }
-                            }
-                        @endphp
-                        {{ $nombreEmpleado }}
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Servicios, Productos y Bonos -->
-            <div class="grid grid-cols-1 {{ ($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0) ? 'lg:grid-cols-3' : 'lg:grid-cols-2' }} gap-4 mb-6">
-                <!-- SERVICIOS -->
-                <div class="section-card">
-                    <div class="font-semibold text-gray-700 mb-3 flex items-center gap-2 text-lg">
-                        <span class="text-blue-600">✂️</span> SERVICIOS
-                    </div>
-                    
-                    @php
-                        // Obtener servicios con información detallada
-                        $serviciosDetalle = [];
-                        
-                        // PRIORIDAD: Usar servicios vinculados al cobro (registro_cobro_servicio)
-                        // Esto incluye cobros de citas con servicios editados Y cobros directos
-                        if ($cobro->servicios && $cobro->servicios->count() > 0) {
-                            // Precargar empleados para evitar N+1
-                            $empleadoIds = $cobro->servicios->pluck('pivot.empleado_id')->filter()->unique();
-                            $empleadosMap = \App\Models\Empleado::with('user')->whereIn('id', $empleadoIds)->get()->keyBy('id');
-                            
-                            foreach ($cobro->servicios as $servicio) {
-                                $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
-                                $empleadoId = $servicio->pivot->empleado_id;
-                                $empleado = 'Sin asignar';
-                                if ($empleadoId && isset($empleadosMap[$empleadoId])) {
-                                    $empleado = $empleadosMap[$empleadoId]->user->nombre ?? 'Sin asignar';
-                                }
-                                
-                                // Detectar si fue pagado con bono
-                                $pagadoConBono = false;
-                                if ($precioServicio == 0) {
-                                    // Precio 0 indica pago con bono
-                                    $pagadoConBono = true;
-                                } elseif ($cobro->id_cita) {
-                                    $pagadoConBono = \DB::table('bono_uso_detalle')
-                                        ->where('cita_id', $cobro->id_cita)
-                                        ->where('servicio_id', $servicio->id)
-                                        ->exists();
-                                } elseif ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
-                                    $pagadoConBono = \DB::table('bono_uso_detalle')
-                                        ->whereIn('cita_id', $cobro->citasAgrupadas->pluck('id'))
-                                        ->where('servicio_id', $servicio->id)
-                                        ->exists();
-                                }
-                                
-                                $serviciosDetalle[] = [
-                                    'nombre' => $servicio->nombre,
-                                    'precio' => $precioServicio,
-                                    'empleado' => $empleado,
-                                    'es_bono' => $pagadoConBono
-                                ];
-                            }
-                        }
-                        // FALLBACK: Para cobros antiguos sin servicios en pivot, usar cita
-                        elseif ($cobro->cita && $cobro->cita->servicios && $cobro->cita->servicios->count() > 0) {
-                            $empleado = $cobro->cita->empleado && $cobro->cita->empleado->user 
-                                ? $cobro->cita->empleado->user->nombre 
-                                : 'Sin asignar';
-                            
-                            foreach ($cobro->cita->servicios as $servicio) {
-                                $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
-                                
-                                $pagadoConBono = \DB::table('bono_uso_detalle')
-                                    ->where('cita_id', $cobro->cita->id)
-                                    ->where('servicio_id', $servicio->id)
-                                    ->exists();
-                                
-                                $serviciosDetalle[] = [
-                                    'nombre' => $servicio->nombre,
-                                    'precio' => $precioServicio,
-                                    'empleado' => $empleado,
-                                    'es_bono' => $pagadoConBono
-                                ];
-                            }
-                        }
-                        // FALLBACK 2: Citas agrupadas sin servicios en pivot
-                        elseif ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
-                            foreach ($cobro->citasAgrupadas as $citaGrupo) {
-                                $empleado = $citaGrupo->empleado && $citaGrupo->empleado->user 
-                                    ? $citaGrupo->empleado->user->nombre 
-                                    : 'Sin asignar';
-                                
-                                if ($citaGrupo->servicios) {
-                                    foreach ($citaGrupo->servicios as $servicio) {
-                                        $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
-                                        
-                                        $pagadoConBono = \DB::table('bono_uso_detalle')
-                                            ->where('cita_id', $citaGrupo->id)
-                                            ->where('servicio_id', $servicio->id)
-                                            ->exists();
-                                        
-                                        $serviciosDetalle[] = [
-                                            'nombre' => $servicio->nombre,
-                                            'precio' => $precioServicio,
-                                            'empleado' => $empleado,
-                                            'es_bono' => $pagadoConBono
-                                        ];
-                                    }
-                                }
-                            }
-                        }
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <article class="glass rounded-2xl shadow-lg p-5">
+                <p class="text-xs uppercase text-gray-500 tracking-wide">Cliente</p>
+                <h2 class="text-2xl font-bold mt-1">{{ $clienteNombre ?: '-' }}</h2>
+                <p class="mt-3 text-sm text-gray-600">Empleado principal: <span class="font-semibold text-gray-800">{{ $empleadoPrincipal ?: '-' }}</span></p>
+            </article>
 
-                        // Ajuste visual de precios de servicios cuando hay descuentos.
-                        // No altera datos en BD; solo muestra importes netos por linea.
-                        $sumServiciosDetalle = 0;
-                        foreach ($serviciosDetalle as $srvTmp) {
-                            if (!($srvTmp['es_bono'] ?? false)) {
-                                $sumServiciosDetalle += (float) ($srvTmp['precio'] ?? 0);
-                            }
-                        }
-
-                        $sumProductosBruto = 0;
-                        if ($cobro->productos && $cobro->productos->count() > 0) {
-                            foreach ($cobro->productos as $pTmp) {
-                                $sumProductosBruto += (float) ($pTmp->pivot->subtotal ?? 0);
-                            }
-                        }
-
-                        $descProdPorVista = (float) ($cobro->descuento_productos_porcentaje ?? 0);
-                        $descProdEurVista = (float) ($cobro->descuento_productos_euro ?? 0);
-                        $descProdTotalVista = ($sumProductosBruto * ($descProdPorVista / 100)) + $descProdEurVista;
-                        $sumProductosNetoVista = max(0, $sumProductosBruto - $descProdTotalVista);
-
-                        $descServPorVista = (float) ($cobro->descuento_servicios_porcentaje ?? 0);
-                        $descServEurVista = (float) ($cobro->descuento_servicios_euro ?? 0);
-                        $descLegacyPorVista = (float) ($cobro->descuento_porcentaje ?? 0);
-                        $descLegacyEurVista = (float) ($cobro->descuento_euro ?? 0);
-                        $hayDescuentoServiciosVista =
-                            $descServPorVista > 0 ||
-                            $descServEurVista > 0 ||
-                            $descLegacyPorVista > 0 ||
-                            $descLegacyEurVista > 0;
-
-                        $serviciosEsperadoNetoVista = max(0, (float) ($cobro->total_final ?? 0) - $sumProductosNetoVista);
-
-                        if ($hayDescuentoServiciosVista && $sumServiciosDetalle > 0.01) {
-                            $factorServiciosVista = $serviciosEsperadoNetoVista / $sumServiciosDetalle;
-                            if (abs($factorServiciosVista - 1) > 0.01) {
-                                foreach ($serviciosDetalle as $idxSrv => $srvTmp) {
-                                    if (!($srvTmp['es_bono'] ?? false)) {
-                                        $serviciosDetalle[$idxSrv]['precio'] = round(((float) $srvTmp['precio']) * $factorServiciosVista, 2);
-                                    }
-                                }
-                            }
-                        }
-                    @endphp
-                    
-                    @if(count($serviciosDetalle) > 0)
-                        <div class="space-y-3">
-                            @foreach($serviciosDetalle as $servicio)
-                                <div class="desglose-item servicio bg-blue-50 p-3 rounded-lg {{ $servicio['es_bono'] ? 'border-2 border-yellow-400' : '' }}">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <div class="font-medium text-gray-800 text-sm">{{ $servicio['nombre'] }}</div>
-                                        @if($servicio['es_bono'])
-                                            <span class="bono-badge">🎫 BONO</span>
-                                        @endif
-                                    </div>
-                                    <div class="text-xs text-gray-600 mb-2">👨‍💼 {{ $servicio['empleado'] }}</div>
-                                    <div class="text-lg font-bold {{ $servicio['es_bono'] ? 'text-yellow-600' : 'text-blue-700' }}">
-                                        {{ number_format($servicio['precio'], 2) }} €
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    @else
-                        <div class="text-gray-400 italic text-sm">Sin servicios</div>
-                    @endif
-                </div>
-                
-                <!-- PRODUCTOS -->
-                <div class="section-card">
-                    <div class="font-semibold text-gray-700 mb-3 flex items-center gap-2 text-lg">
-                        <span class="text-green-600">🛍️</span> PRODUCTOS
-                    </div>
-
-                    @php
-                        $sumProductosBrutoVista = 0;
-                        if ($cobro->productos && $cobro->productos->count() > 0) {
-                            foreach ($cobro->productos as $pTmp) {
-                                $sumProductosBrutoVista += (float) ($pTmp->pivot->subtotal ?? 0);
-                            }
-                        }
-
-                        $descProdPorVista = (float) ($cobro->descuento_productos_porcentaje ?? 0);
-                        $descProdEurVista = (float) ($cobro->descuento_productos_euro ?? 0);
-                        $descProdTotalVista = ($sumProductosBrutoVista * ($descProdPorVista / 100)) + $descProdEurVista;
-                        $sumProductosNetoVista = max(0, $sumProductosBrutoVista - $descProdTotalVista);
-                        $factorProductosVista = $sumProductosBrutoVista > 0.01 ? ($sumProductosNetoVista / $sumProductosBrutoVista) : 1;
-                    @endphp
-                    
-                    @if($cobro->productos && $cobro->productos->count() > 0)
-                        <div class="space-y-3">
-                            @foreach($cobro->productos as $producto)
-                                @php
-                                    $cantidad = $producto->pivot->cantidad ?? 1;
-                                    $precioUnitario = $producto->pivot->precio_unitario ?? $producto->precio;
-                                    $subtotal = $producto->pivot->subtotal ?? ($precioUnitario * $cantidad);
-                                    $subtotalMostrado = round($subtotal * $factorProductosVista, 2);
-                                    $precioUnitarioMostrado = $cantidad > 0 ? round($subtotalMostrado / $cantidad, 2) : 0;
-                                @endphp
-                                <div class="desglose-item producto bg-green-50 p-3 rounded-lg">
-                                    <div class="font-medium text-gray-800 text-sm mb-1">{{ $producto->nombre }}</div>
-                                    <div class="text-xs text-gray-600 mb-2">
-                                        {{ $cantidad }}x unidad{{ $cantidad > 1 ? 'es' : '' }} × {{ number_format($precioUnitarioMostrado, 2) }} €
-                                    </div>
-                                    <div class="text-lg font-bold text-green-700">
-                                        {{ number_format($subtotalMostrado, 2) }} €
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    @else
-                        <div class="text-gray-400 italic text-sm">Sin productos</div>
-                    @endif
-                </div>
-                
-                <!-- BONOS VENDIDOS -->
-                @if($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0)
-                <div class="section-card">
-                    <div class="font-semibold text-gray-700 mb-3 flex items-center gap-2 text-lg">
-                        <span class="text-yellow-600">🎫</span> BONOS VENDIDOS
-                    </div>
-                    
-                    <div class="space-y-3">
-                        @foreach($cobro->bonosVendidos as $bono)
-                            @php
-                                $precioTotal = $bono->pivot->precio ?? 0;
-                                $precioPagado = $bono->precio_pagado ?? 0;
-                                $deudaBono = max(0, $precioTotal - $precioPagado);
-                                
-                                $plantilla = $bono->plantilla ?? null;
-                                $serviciosBono = [];
-                                if ($plantilla && $plantilla->servicios) {
-                                    foreach ($plantilla->servicios as $servicioBono) {
-                                        $cantidad = $servicioBono->pivot->cantidad ?? 1;
-                                        $serviciosBono[] = $servicioBono->nombre . ' (x' . $cantidad . ')';
-                                    }
-                                }
-                            @endphp
-                            <div class="desglose-item bono bg-yellow-50 p-3 rounded-lg border-2 border-yellow-300">
-                                <div class="font-medium text-gray-800 text-sm mb-1">
-                                    {{ $plantilla ? $plantilla->nombre : 'Bono #' . $bono->id }}
-                                </div>
-                                @if(count($serviciosBono) > 0)
-                                    <div class="text-xs text-gray-600 mb-2">
-                                        {{ implode(', ', $serviciosBono) }}
-                                    </div>
-                                @endif
-                                <div class="flex flex-wrap gap-2 mb-2">
-                                    <span class="text-xs px-2 py-1 rounded-full
-                                        {{ $bono->metodo_pago === 'efectivo' ? 'bg-green-200 text-green-800' : '' }}
-                                        {{ $bono->metodo_pago === 'tarjeta' ? 'bg-blue-200 text-blue-800' : '' }}
-                                        {{ $bono->metodo_pago === 'deuda' ? 'bg-red-200 text-red-800' : '' }}">
-                                        @if($bono->metodo_pago === 'efectivo')
-                                            💵 Efectivo
-                                        @elseif($bono->metodo_pago === 'tarjeta')
-                                            💳 Tarjeta
-                                        @elseif($bono->metodo_pago === 'deuda')
-                                            ⚠️ A deber
-                                        @else
-                                            {{ ucfirst($bono->metodo_pago) }}
-                                        @endif
-                                    </span>
-                                    @if($deudaBono > 0)
-                                        <span class="text-xs px-2 py-1 rounded-full bg-red-200 text-red-800 font-semibold">
-                                            Deuda: {{ number_format($deudaBono, 2) }} €
-                                        </span>
-                                    @endif
-                                </div>
-                                <div class="text-lg font-bold text-yellow-700">
-                                    {{ number_format($precioTotal, 2) }} €
-                                </div>
-                                @if($precioPagado > 0 && $precioPagado < $precioTotal)
-                                    <div class="text-xs text-green-600 mt-1">
-                                        Pagado: {{ number_format($precioPagado, 2) }} €
-                                    </div>
-                                @endif
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-                @endif
-            </div>
-            
-            <!-- Resumen Financiero -->
-            <div class="section-card bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-300">
-                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <span>💰</span> RESUMEN FINANCIERO
+            <article class="glass rounded-2xl shadow-lg p-5" style="background: linear-gradient(145deg, #ffffff 0%, var(--sand) 100%);">
+                <p class="text-xs uppercase text-gray-500 tracking-wide">Estado de deuda</p>
+                <h2 class="text-2xl font-extrabold mt-1 {{ $deudaTotal > 0 ? 'text-red-700' : 'text-emerald-700' }}">
+                    {{ number_format($deudaTotal, 2) }} EUR
                 </h2>
-                
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <!-- Coste Base -->
-                    <div class="bg-white p-3 rounded-lg">
-                        <div class="text-xs text-gray-500 mb-1">Coste Base</div>
-                        <div class="text-xl font-bold text-gray-700">
-                            {{ number_format($cobro->coste, 2) }} €
-                        </div>
-                    </div>
-                    
-                    <!-- Descuentos -->
-                    @if(($cobro->descuento_porcentaje ?? 0) > 0 || ($cobro->descuento_euro ?? 0) > 0)
-                    <div class="bg-white p-3 rounded-lg">
-                        <div class="text-xs text-gray-500 mb-1">Descuentos</div>
-                        <div class="text-xl font-bold text-orange-600">
-                            @if(($cobro->descuento_porcentaje ?? 0) > 0)
-                                {{ $cobro->descuento_porcentaje }}%
-                            @endif
-                            @if(($cobro->descuento_euro ?? 0) > 0)
-                                -{{ number_format($cobro->descuento_euro, 2) }} €
-                            @endif
-                        </div>
-                    </div>
-                    @endif
-                    
-                    <!-- Total Facturado -->
-                    <div class="bg-white p-3 rounded-lg">
-                        <div class="text-xs text-gray-500 mb-1">Total Facturado</div>
-                        <div class="text-xl font-bold text-green-600">
-                            @php
-                                $totalBonosVendidos = 0;
-                                if ($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0) {
-                                    foreach ($cobro->bonosVendidos as $bono) {
-                                        $totalBonosVendidos += $bono->pivot->precio ?? 0;
-                                    }
-                                }
-                                $totalFacturado = $cobro->total_final + ($cobro->deuda ?? 0) + $totalBonosVendidos;
-                            @endphp
-                            {{ number_format($totalFacturado, 2) }} €
-                        </div>
-                    </div>
-                    
-                    <!-- Deuda -->
-                    @if(($cobro->deuda ?? 0) > 0 || $totalBonosVendidos > 0)
-                    <div class="bg-white p-3 rounded-lg">
-                        <div class="text-xs text-gray-500 mb-1">Deuda</div>
-                        <div class="text-xl font-bold text-red-600">
-                            @php
-                                $deudaTotal = $cobro->deuda ?? 0;
-                                if ($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0) {
-                                    foreach ($cobro->bonosVendidos as $bono) {
-                                        $precioTotal = $bono->pivot->precio ?? 0;
-                                        $precioPagado = $bono->precio_pagado ?? 0;
-                                        $deudaTotal += max(0, $precioTotal - $precioPagado);
-                                    }
-                                }
-                            @endphp
-                            {{ number_format($deudaTotal, 2) }} €
-                        </div>
-                    </div>
-                    @endif
+                @if($esPagoDeuda)
+                    <p class="mt-3 text-sm text-orange-700">Este cobro incluye un abono de deuda.</p>
+                @else
+                    <p class="mt-3 text-sm text-gray-600">No se han registrado abonos de deuda en este cobro.</p>
+                @endif
+            </article>
+        </section>
+
+        <section class="glass rounded-2xl shadow-lg p-6">
+            <h3 class="section-title text-xl font-bold mb-4">Importes del cobro</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div class="rounded-xl p-4" style="background: var(--bg-soft);">
+                    <p class="text-xs uppercase text-gray-500">Total final</p>
+                    <p class="text-2xl font-extrabold text-emerald-700 mt-1">{{ number_format((float)($cobro->total_final ?? 0), 2) }} EUR</p>
                 </div>
-                
-                <!-- Información de Pago -->
-                <div class="mt-4 pt-4 border-t border-gray-300">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-600">Método de Pago:</span>
-                            <span class="font-semibold px-3 py-1 rounded-full
-                                {{ $cobro->metodo_pago === 'efectivo' ? 'bg-green-100 text-green-700' : '' }}
-                                {{ $cobro->metodo_pago === 'tarjeta' ? 'bg-blue-100 text-blue-700' : '' }}
-                                {{ $cobro->metodo_pago === 'mixto' ? 'bg-purple-100 text-purple-700' : '' }}
-                                {{ $cobro->metodo_pago === 'bono' ? 'bg-yellow-100 text-yellow-700' : '' }}">
-                                @if($cobro->metodo_pago === 'efectivo')
-                                    💵 Efectivo
-                                @elseif($cobro->metodo_pago === 'tarjeta')
-                                    💳 Tarjeta
-                                @elseif($cobro->metodo_pago === 'mixto')
-                                    💵💳 Mixto
-                                @elseif($cobro->metodo_pago === 'bono')
-                                    🎫 Bono
-                                @else
-                                    {{ ucfirst($cobro->metodo_pago) }}
-                                @endif
-                            </span>
-                        </div>
-                        
-                        @if($cobro->metodo_pago === 'mixto')
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-600">Efectivo:</span>
-                                <span class="font-semibold text-green-700">{{ number_format($cobro->pago_efectivo ?? 0, 2) }} €</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-600">Tarjeta:</span>
-                                <span class="font-semibold text-blue-700">{{ number_format($cobro->pago_tarjeta ?? 0, 2) }} €</span>
-                            </div>
-                        @endif
-                        
-                        @if($cobro->cambio > 0)
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-600">Cambio:</span>
-                                <span class="font-semibold text-gray-700">{{ number_format($cobro->cambio, 2) }} €</span>
-                            </div>
-                        @endif
-                    </div>
+                <div class="rounded-xl p-4" style="background: var(--bg-soft);">
+                    <p class="text-xs uppercase text-gray-500">Dinero recibido</p>
+                    <p class="text-2xl font-extrabold mt-1">{{ number_format((float)($cobro->dinero_cliente ?? 0), 2) }} EUR</p>
+                </div>
+                <div class="rounded-xl p-4" style="background: var(--bg-soft);">
+                    <p class="text-xs uppercase text-gray-500">Cambio entregado</p>
+                    <p class="text-2xl font-extrabold mt-1">{{ number_format((float)($cobro->cambio ?? 0), 2) }} EUR</p>
+                </div>
+                <div class="rounded-xl p-4" style="background: var(--bg-soft);">
+                    <p class="text-xs uppercase text-gray-500">Coste</p>
+                    <p class="text-2xl font-extrabold mt-1">{{ number_format((float)($cobro->coste ?? 0), 2) }} EUR</p>
                 </div>
             </div>
 
-            <!-- Botones de Navegación -->
-            <div class="mt-6 flex justify-between items-center">
-                <a href="{{ route('cobros.index') }}" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold shadow-md hover:shadow-lg transition">
-                    ← Volver al Listado
-                </a>
-                <div class="flex gap-3">
-                    <a href="{{ route('cobros.edit', $cobro->id) }}" class="bg-yellow-500 text-white px-6 py-3 rounded-lg hover:bg-yellow-600 font-semibold shadow-md hover:shadow-lg transition">
-                        ✏️ Editar
-                    </a>
-                    <a href="{{ route('dashboard') }}" class="bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 font-semibold shadow-md hover:shadow-lg transition">
-                        🏠 Dashboard
-                    </a>
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                <div class="rounded-xl p-4" style="background: var(--mint);">
+                    <p class="font-semibold text-gray-800">Resumen por concepto</p>
+                    <p class="mt-2">Servicios: <span class="font-bold">{{ number_format($sumServicios, 2) }} EUR</span></p>
+                    <p>Productos: <span class="font-bold">{{ number_format($sumProductos, 2) }} EUR</span></p>
+                    <p>Bonos vendidos: <span class="font-bold">{{ number_format($sumBonos, 2) }} EUR</span></p>
+                </div>
+                <div class="rounded-xl p-4 bg-yellow-50 border border-yellow-100">
+                    <p class="font-semibold text-gray-800">Descuentos aplicados</p>
+                    <p class="mt-2">Servicios: {{ number_format($descServPct, 2) }}% + {{ number_format($descServEur, 2) }} EUR</p>
+                    <p>Productos: {{ number_format($descProdPct, 2) }}% + {{ number_format($descProdEur, 2) }} EUR</p>
+                    <p>General: {{ number_format($descLegacyPct, 2) }}% + {{ number_format($descLegacyEur, 2) }} EUR</p>
+                    <p class="mt-2 text-gray-700">Total descontado servicios: <span class="font-semibold">{{ number_format($totalDescuentoServicios, 2) }} EUR</span></p>
+                    <p class="text-gray-700">Total descontado productos: <span class="font-semibold">{{ number_format($totalDescuentoProductos, 2) }} EUR</span></p>
                 </div>
             </div>
-        </div>
+        </section>
+
+        <section class="glass rounded-2xl shadow-lg p-6">
+            <h3 class="section-title text-xl font-bold mb-4">Servicios incluidos</h3>
+            @if($cobro->servicios && $cobro->servicios->count() > 0)
+                <div class="flex flex-wrap gap-2">
+                    @foreach($cobro->servicios as $servicio)
+                        <span class="pill px-4 py-2 text-sm bg-teal-50 text-teal-800 border border-teal-100">{{ $servicio->nombre }}</span>
+                    @endforeach
+                </div>
+            @else
+                <p class="text-gray-500">No hay servicios registrados en este cobro.</p>
+            @endif
+        </section>
+
+        <section class="glass rounded-2xl shadow-lg p-6">
+            <h3 class="section-title text-xl font-bold mb-4">Productos vendidos</h3>
+            @if($cobro->productos && $cobro->productos->count() > 0)
+                <div class="space-y-3">
+                    @foreach($cobro->productos as $producto)
+                        <article class="rounded-xl border border-gray-100 p-4 bg-white/70">
+                            <p class="font-bold text-lg">{{ $producto->nombre }}</p>
+                            <p class="text-sm text-gray-600 mt-1">Cantidad: {{ (int)($producto->pivot->cantidad ?? 1) }}</p>
+                        </article>
+                    @endforeach
+                </div>
+            @else
+                <p class="text-gray-500">No hay productos asociados a este cobro.</p>
+            @endif
+        </section>
+
+        <section class="glass rounded-2xl shadow-lg p-6">
+            <h3 class="section-title text-xl font-bold mb-4">Bonos vendidos</h3>
+            @if($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0)
+                <div class="space-y-3">
+                    @foreach($cobro->bonosVendidos as $bono)
+                        <article class="rounded-xl border border-yellow-100 p-4 bg-yellow-50/80">
+                            <p class="font-bold text-lg">{{ optional($bono->plantilla)->nombre ?? 'Bono sin plantilla' }}</p>
+                            <p class="text-sm text-gray-700 mt-1">Estado: {{ $bono->estado ?? '-' }}</p>
+                            <p class="text-sm text-gray-700">Metodo de pago: {{ $bono->metodo_pago ?? '-' }}</p>
+                            <p class="text-sm text-gray-700">Fecha compra: {{ optional($bono->fecha_compra)->format('d/m/Y') ?: '-' }}</p>
+                            <p class="text-sm text-gray-700">Fecha expiracion: {{ optional($bono->fecha_expiracion)->format('d/m/Y') ?: '-' }}</p>
+                        </article>
+                    @endforeach
+                </div>
+            @else
+                <p class="text-gray-500">No se vendieron bonos en este cobro.</p>
+            @endif
+        </section>
+
+        <section class="glass rounded-2xl shadow-lg p-6">
+            <h3 class="section-title text-xl font-bold mb-4">Citas relacionadas</h3>
+            @if($citasRelacionadas->count() > 0)
+                <div class="space-y-3">
+                    @foreach($citasRelacionadas as $cita)
+                        <article class="rounded-xl border border-cyan-100 p-4 bg-cyan-50/70">
+                            <p class="font-bold">Cita #{{ $cita->id }}</p>
+                            <p class="text-sm text-gray-700 mt-1">Fecha: {{ optional($cita->fecha_hora)->format('d/m/Y H:i') ?: '-' }}</p>
+                            <p class="text-sm text-gray-700">Estado: {{ $cita->estado ?? '-' }}</p>
+                        </article>
+                    @endforeach
+                </div>
+            @else
+                <p class="text-gray-500">Este cobro no tiene citas vinculadas.</p>
+            @endif
+        </section>
+
+        <section class="glass rounded-2xl shadow-lg p-6">
+            <h3 class="section-title text-xl font-bold mb-4">Movimientos de deuda</h3>
+            @if($movs->count() > 0)
+                <div class="space-y-3">
+                    @foreach($movs as $mv)
+                        <article class="rounded-xl border border-orange-100 p-4 bg-orange-50/70">
+                            <p class="font-bold">{{ strtoupper($mv->tipo ?? '-') }} - {{ number_format((float)($mv->monto ?? 0), 2) }} EUR</p>
+                            <p class="text-sm text-gray-700 mt-1">Metodo de pago: {{ $mv->metodo_pago ?? '-' }}</p>
+                            <p class="text-sm text-gray-700">Nota: {{ $mv->nota ?? '-' }}</p>
+                            <p class="text-sm text-gray-700">Fecha: {{ optional($mv->created_at)->format('d/m/Y H:i') ?: '-' }}</p>
+                        </article>
+                    @endforeach
+                </div>
+            @else
+                <p class="text-gray-500">No hay movimientos de deuda en este cobro.</p>
+            @endif
+        </section>
+
+        <section class="flex flex-wrap gap-3 pb-8">
+            <a href="{{ route('cobros.index') }}" class="px-5 py-3 rounded-xl text-white font-semibold shadow" style="background:#155e75;">Volver a cobros</a>
+            <a href="{{ route('cobros.edit', $cobro->id) }}" class="px-5 py-3 rounded-xl text-white font-semibold shadow" style="background:#b45309;">Editar cobro</a>
+            <a href="{{ route('dashboard') }}" class="px-5 py-3 rounded-xl text-white font-semibold shadow" style="background:#334155;">Dashboard</a>
+        </section>
     </div>
 </body>
 </html>

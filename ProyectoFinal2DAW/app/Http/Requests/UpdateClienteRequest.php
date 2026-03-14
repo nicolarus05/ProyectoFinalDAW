@@ -34,7 +34,8 @@ class UpdateClienteRequest extends FormRequest
             'genero' => 'required|string|max:20',
             'edad' => 'required|integer|min:0|max:120',
             'direccion' => 'required|string|max:255',
-            'notas_adicionales' => 'nullable|string|max:255',
+            // Sin límite práctico en validación; el límite real lo marca la BD (LONGTEXT)
+            'notas_adicionales' => 'nullable|string',
             'fecha_registro' => 'required|date|before_or_equal:today',
             'password' => 'nullable|string|min:8',
         ];

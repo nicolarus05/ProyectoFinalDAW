@@ -15,6 +15,7 @@ use App\Models\Servicio;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Requests\StoreRegistroCobroRequest;
 use App\Services\CacheService;
 use App\Http\Resources\RegistroCobroResource;
@@ -795,7 +796,7 @@ class RegistroCobroController extends Controller{
         // --- Determinar id_empleado (nunca debe ser null) ---
         $empleadoId = $data['id_empleado'] ?? null;
         if (!$empleadoId) {
-            $user = auth()->user();
+            $user = Auth::user();
             if ($user && $user->empleado) {
                 $empleadoId = $user->empleado->id;
             }
@@ -1563,7 +1564,23 @@ class RegistroCobroController extends Controller{
      * Display the specified resource.
      */
     public function show(RegistroCobro $cobro){
-        $cobro->load(['cita.servicios', 'citasAgrupadas.servicios', 'servicios', 'cliente.user', 'empleado.user', 'productos']);
+        $cobro->load([
+            'cita.cliente.user',
+            'cita.empleado.user',
+            'cita.servicios',
+            'citasAgrupadas.cliente.user',
+            'citasAgrupadas.empleado.user',
+            'citasAgrupadas.servicios',
+            'servicios',
+            'cliente.user',
+            'empleado.user',
+            'productos',
+            'bonosVendidos.plantilla.servicios',
+            'movimientosDeuda.deuda.cliente.user',
+            'movimientosDeuda.deuda.movimientos.usuarioRegistro',
+            'movimientosDeuda.deuda.movimientos.registroCobro',
+            'movimientosDeuda.usuarioRegistro',
+        ]);
         return view('cobros.show', compact('cobro'));
     }
 
@@ -1578,7 +1595,10 @@ class RegistroCobroController extends Controller{
             ->with('cliente.user', 'servicios')
             ->get();
 
-        return view('cobros.edit', compact('cobro', 'citas'));
+        $clientes = Cliente::with('user')->get();
+        $empleados = Empleado::with('user')->get();
+
+        return view('cobros.edit', compact('cobro', 'citas', 'clientes', 'empleados'));
     }
 
 
@@ -1588,6 +1608,12 @@ class RegistroCobroController extends Controller{
     public function update(Request $request, RegistroCobro $cobro){
         $data = $request->validate([
             'id_cita' => 'nullable|exists:citas,id',
+            'id_cliente' => 'nullable|exists:clientes,id',
+            'id_empleado' => 'nullable|exists:empleados,id',
+            'servicios_empleado' => 'nullable|array',
+            'servicios_empleado.*' => 'nullable|exists:empleados,id',
+            'productos_empleado' => 'nullable|array',
+            'productos_empleado.*' => 'nullable|exists:empleados,id',
             'coste' => 'required|numeric|min:0',
             'total_final' => 'required|numeric|min:0',
             'dinero_cliente' => 'nullable|numeric|min:0',
@@ -1661,10 +1687,16 @@ class RegistroCobroController extends Controller{
         // Guardar total_final y deuda anteriores para recalcular
         $totalFinalAnterior = $cobro->total_final;
         $deudaAnterior = $cobro->deuda ?? 0;
+        $clienteAnteriorId = $cobro->id_cliente;
+
+        $clienteNuevoId = $data['id_cliente'] ?? $cobro->id_cliente;
+        $empleadoNuevoId = $data['id_empleado'] ?? $cobro->id_empleado;
 
         // Actualizar la cita asociada (en caso de que se haya cambiado)
         $cobro->update([
             'id_cita' => $data['id_cita'] ?? null,
+            'id_cliente' => $clienteNuevoId,
+            'id_empleado' => $empleadoNuevoId,
             'coste' => $data['coste'],
             'descuento_porcentaje' => $descuentoPorcentaje,
             'descuento_euro' => $descuentoEuro,
@@ -1681,34 +1713,116 @@ class RegistroCobroController extends Controller{
             'deuda' => $nuevaDeuda,
         ]);
 
-        // --- Ajustar deuda del cliente si cambió ---
-        $diferenciaDeuda = round($nuevaDeuda - $deudaAnterior, 2);
-        if (abs($diferenciaDeuda) > 0.01 && $cobro->id_cliente) {
-            $cliente = Cliente::find($cobro->id_cliente);
-            if ($cliente) {
-                $deudaCliente = $cliente->obtenerDeuda();
-                $deudaCliente->saldo_total = max(0, round($deudaCliente->saldo_total + $diferenciaDeuda, 2));
-                $deudaCliente->saldo_pendiente = max(0, round($deudaCliente->saldo_pendiente + $diferenciaDeuda, 2));
-                $deudaCliente->save();
-
-                // Actualizar el movimiento de cargo asociado a este cobro (si existe)
-                $movimientoCargo = $deudaCliente->movimientos()
-                    ->where('id_registro_cobro', $cobro->id)
-                    ->where('tipo', 'cargo')
-                    ->first();
-
-                if ($movimientoCargo) {
-                    $movimientoCargo->monto = $nuevaDeuda;
-                    $movimientoCargo->save();
-                } elseif ($nuevaDeuda > 0) {
-                    // Crear movimiento de cargo si el cobro no tenía deuda antes
-                    $deudaCliente->movimientos()->create([
-                        'id_registro_cobro' => $cobro->id,
-                        'tipo' => 'cargo',
-                        'monto' => $nuevaDeuda,
-                        'nota' => 'Cargo por edición de cobro #' . $cobro->id,
-                        'usuario_registro_id' => auth()->id() ?? 1,
+        // --- Actualizar empleado por servicio (pivot) ---
+        if (isset($data['servicios_empleado']) && is_array($data['servicios_empleado'])) {
+            foreach ($data['servicios_empleado'] as $servicioId => $empleadoIdServicio) {
+                DB::table('registro_cobro_servicio')
+                    ->where('registro_cobro_id', $cobro->id)
+                    ->where('servicio_id', (int) $servicioId)
+                    ->update([
+                        'empleado_id' => $empleadoIdServicio ? (int) $empleadoIdServicio : null,
+                        'updated_at' => now(),
                     ]);
+            }
+        }
+
+        // --- Actualizar empleado por producto (pivot) ---
+        if (isset($data['productos_empleado']) && is_array($data['productos_empleado'])) {
+            foreach ($data['productos_empleado'] as $productoId => $empleadoIdProducto) {
+                DB::table('registro_cobro_productos')
+                    ->where('id_registro_cobro', $cobro->id)
+                    ->where('id_producto', (int) $productoId)
+                    ->update([
+                        'empleado_id' => $empleadoIdProducto ? (int) $empleadoIdProducto : null,
+                        'updated_at' => now(),
+                    ]);
+            }
+        }
+
+        // --- Ajustar deuda del cliente (incluye cambio de cliente del cobro) ---
+        if ($clienteAnteriorId != $clienteNuevoId) {
+            if ($clienteAnteriorId) {
+                $clienteAnterior = Cliente::find($clienteAnteriorId);
+                if ($clienteAnterior) {
+                    $deudaAnteriorCliente = $clienteAnterior->obtenerDeuda();
+                    $movimientoAnterior = $deudaAnteriorCliente->movimientos()
+                        ->where('id_registro_cobro', $cobro->id)
+                        ->where('tipo', 'cargo')
+                        ->first();
+
+                    $montoARevertir = $movimientoAnterior ? (float) $movimientoAnterior->monto : (float) $deudaAnterior;
+                    if ($montoARevertir > 0.01) {
+                        $deudaAnteriorCliente->saldo_total = max(0, round($deudaAnteriorCliente->saldo_total - $montoARevertir, 2));
+                        $deudaAnteriorCliente->saldo_pendiente = max(0, round($deudaAnteriorCliente->saldo_pendiente - $montoARevertir, 2));
+                        $deudaAnteriorCliente->save();
+                    }
+
+                    if ($movimientoAnterior) {
+                        $movimientoAnterior->delete();
+                    }
+                }
+            }
+
+            if ($clienteNuevoId) {
+                $clienteNuevo = Cliente::find($clienteNuevoId);
+                if ($clienteNuevo) {
+                    $deudaClienteNuevo = $clienteNuevo->obtenerDeuda();
+                    $movimientoNuevo = $deudaClienteNuevo->movimientos()
+                        ->where('id_registro_cobro', $cobro->id)
+                        ->where('tipo', 'cargo')
+                        ->first();
+
+                    if ($movimientoNuevo) {
+                        $diferenciaMovimiento = round($nuevaDeuda - (float) $movimientoNuevo->monto, 2);
+                        if (abs($diferenciaMovimiento) > 0.01) {
+                            $deudaClienteNuevo->saldo_total = max(0, round($deudaClienteNuevo->saldo_total + $diferenciaMovimiento, 2));
+                            $deudaClienteNuevo->saldo_pendiente = max(0, round($deudaClienteNuevo->saldo_pendiente + $diferenciaMovimiento, 2));
+                            $deudaClienteNuevo->save();
+                        }
+                        $movimientoNuevo->monto = $nuevaDeuda;
+                        $movimientoNuevo->save();
+                    } elseif ($nuevaDeuda > 0) {
+                        $deudaClienteNuevo->saldo_total = max(0, round($deudaClienteNuevo->saldo_total + $nuevaDeuda, 2));
+                        $deudaClienteNuevo->saldo_pendiente = max(0, round($deudaClienteNuevo->saldo_pendiente + $nuevaDeuda, 2));
+                        $deudaClienteNuevo->save();
+
+                        $deudaClienteNuevo->movimientos()->create([
+                            'id_registro_cobro' => $cobro->id,
+                            'tipo' => 'cargo',
+                            'monto' => $nuevaDeuda,
+                            'nota' => 'Cargo por edición de cobro #' . $cobro->id,
+                            'usuario_registro_id' => Auth::id() ?? 1,
+                        ]);
+                    }
+                }
+            }
+        } else {
+            $diferenciaDeuda = round($nuevaDeuda - $deudaAnterior, 2);
+            if (abs($diferenciaDeuda) > 0.01 && $cobro->id_cliente) {
+                $cliente = Cliente::find($cobro->id_cliente);
+                if ($cliente) {
+                    $deudaCliente = $cliente->obtenerDeuda();
+                    $deudaCliente->saldo_total = max(0, round($deudaCliente->saldo_total + $diferenciaDeuda, 2));
+                    $deudaCliente->saldo_pendiente = max(0, round($deudaCliente->saldo_pendiente + $diferenciaDeuda, 2));
+                    $deudaCliente->save();
+
+                    $movimientoCargo = $deudaCliente->movimientos()
+                        ->where('id_registro_cobro', $cobro->id)
+                        ->where('tipo', 'cargo')
+                        ->first();
+
+                    if ($movimientoCargo) {
+                        $movimientoCargo->monto = $nuevaDeuda;
+                        $movimientoCargo->save();
+                    } elseif ($nuevaDeuda > 0) {
+                        $deudaCliente->movimientos()->create([
+                            'id_registro_cobro' => $cobro->id,
+                            'tipo' => 'cargo',
+                            'monto' => $nuevaDeuda,
+                            'nota' => 'Cargo por edición de cobro #' . $cobro->id,
+                            'usuario_registro_id' => Auth::id() ?? 1,
+                        ]);
+                    }
                 }
             }
         }

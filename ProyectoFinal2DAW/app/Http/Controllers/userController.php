@@ -44,7 +44,8 @@ class userController extends Controller
             'categoria' => 'required_if:rol,empleado|nullable|in:peluqueria,estetica',
             'fecha_registro' => 'required_if:rol,cliente|nullable|date',
             'direccion' => 'required_if:rol,cliente|nullable|string|max:255',
-            'notas_adicionales' => 'nullable|string|max:5000',
+            // Sin límite práctico en validación; el límite real lo marca la BD (LONGTEXT)
+            'notas_adicionales' => 'nullable|string',
         ]);
 
         // Encriptar la contraseña

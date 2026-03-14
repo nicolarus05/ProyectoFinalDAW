@@ -708,7 +708,8 @@ class CitaController extends Controller{
      */
     public function actualizarNotas(Request $request, Cita $cita){
         $request->validate([
-            'notas_adicionales' => 'nullable|string|max:5000',
+            // Sin límite práctico en validación; el límite real lo marca la BD (LONGTEXT)
+            'notas_adicionales' => 'nullable|string',
         ]);
 
         if (!$cita->cliente) {
