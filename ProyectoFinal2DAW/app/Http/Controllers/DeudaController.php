@@ -169,7 +169,10 @@ class DeudaController extends Controller
                 $servicios = $cobroOriginal->servicios ?? collect();
                 
                 foreach ($servicios as $servicio) {
-                    if ($servicio->pivot->precio == 0) {
+                    $pago_actual = round((float)$servicio->pivot->precio, 2);
+                    $precio_catalogo = round((float)$servicio->precio, 2);
+                    if ($pago_actual < $precio_catalogo) {
+                        $servicio->precio_deuda_restante = $precio_catalogo - $pago_actual;
                         $esBono = DB::table('bono_uso_detalle')
                             ->where('servicio_id', $servicio->id)
                             ->where(function($q) use ($cobroOriginal) {
@@ -193,7 +196,7 @@ class DeudaController extends Controller
                         
                         if (!$esBono) {
                             $serviciosDeuda->push($servicio);
-                            $totalDeuda += $servicio->precio;
+                            $totalDeuda += $servicio->precio_deuda_restante ?? $servicio->precio;
                         }
                     }
                 }
@@ -334,7 +337,8 @@ class DeudaController extends Controller
                 $totalDeuda = 0;
                 
                 foreach ($cobroOriginal->servicios as $servicio) {
-                    if ($servicio->pivot->precio == 0) {
+                    if (round((float)$servicio->pivot->precio, 2) < round((float)$servicio->precio, 2)) {
+                        $servicio->precio_deuda_restante = round((float)$servicio->precio, 2) - round((float)$servicio->pivot->precio, 2);
                         // Comprobar si es servicio de bono (NO deuda)
                         // Filtrar también por ventana temporal para evitar falsos positivos
                         // si la misma cita se reprocesó en otro cobro anterior
@@ -361,7 +365,7 @@ class DeudaController extends Controller
                         if (!$esBono) {
                             // Es un servicio en DEUDA → usar su precio de catálogo
                             $serviciosDeuda->push($servicio);
-                            $totalDeuda += $servicio->precio;
+                            $totalDeuda += $servicio->precio_deuda_restante ?? $servicio->precio;
                         }
                     }
                 }
@@ -443,41 +447,54 @@ class DeudaController extends Controller
             'contabilizado' => true,
         ]);
         
-        // Vincular servicios originales con distribución proporcional al pago
-        if ($serviciosOriginales->count() > 0 && $totalOriginal > 0) {
-            foreach ($serviciosOriginales as $servicio) {
-                $empleadoServicio = $servicio->pivot->empleado_id;
-                
-                // Para servicios en deuda: usar precio de catálogo como referencia
-                // Para servicios pagados normales: usar precio del pivot
-                $precioReferencia = $usarServiciosDeuda ? $servicio->precio : $servicio->pivot->precio;
-                
-                // Calcular precio proporcional al monto pagado
-                $precioProporcion = ($precioReferencia / $totalOriginal) * $monto;
-                
-                $registroCobro->servicios()->attach($servicio->id, [
-                    'empleado_id' => $empleadoServicio, // Empleado original del servicio
-                    'precio' => round($precioProporcion, 2),
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+        // Vincular servicios/productos con distribución proporcional exacta (sin drift de centimos)
+        if (($serviciosOriginales->count() > 0 || $productosOriginales->count() > 0) && $totalOriginal > 0) {
+            $lineasDistribucion = [];
+
+            foreach ($serviciosOriginales as $index => $servicio) {
+                $precioReferencia = $usarServiciosDeuda ? ((float) ($servicio->precio_deuda_restante ?? $servicio->precio)) : (float) $servicio->pivot->precio;
+                $lineaId = 'servicio_' . $index;
+                $lineasDistribucion[] = [
+                    'id' => $lineaId,
+                    'tipo' => 'servicio',
+                    'referencia' => max(0, $precioReferencia),
+                    'modelo' => $servicio,
+                ];
             }
-        }
-        
-        // Vincular productos originales con distribución proporcional al pago
-        if ($productosOriginales->count() > 0 && $totalOriginal > 0) {
-            foreach ($productosOriginales as $producto) {
-                $subtotalOriginal = $producto->pivot->subtotal;
-                $empleadoProducto = $producto->pivot->empleado_id;
-                
-                // Calcular subtotal proporcional al monto pagado
-                $subtotalProporcion = ($subtotalOriginal / $totalOriginal) * $monto;
-                
+
+            foreach ($productosOriginales as $index => $producto) {
+                $subtotalReferencia = (float) ($producto->pivot->subtotal ?? 0);
+                $lineaId = 'producto_' . $index;
+                $lineasDistribucion[] = [
+                    'id' => $lineaId,
+                    'tipo' => 'producto',
+                    'referencia' => max(0, $subtotalReferencia),
+                    'modelo' => $producto,
+                ];
+            }
+
+            $importesDistribuidos = $this->distribuirImportesProporcionalmente($lineasDistribucion, (float) $monto);
+
+            foreach ($lineasDistribucion as $linea) {
+                $importeLinea = (float) ($importesDistribuidos[$linea['id']] ?? 0);
+
+                if ($linea['tipo'] === 'servicio') {
+                    $servicio = $linea['modelo'];
+                    $registroCobro->servicios()->attach($servicio->id, [
+                        'empleado_id' => $servicio->pivot->empleado_id,
+                        'precio' => $importeLinea,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                    continue;
+                }
+
+                $producto = $linea['modelo'];
                 $registroCobro->productos()->attach($producto->id, [
                     'cantidad' => $producto->pivot->cantidad,
                     'precio_unitario' => $producto->pivot->precio_unitario,
-                    'subtotal' => $subtotalProporcion,
-                    'empleado_id' => $empleadoProducto,
+                    'subtotal' => $importeLinea,
+                    'empleado_id' => $producto->pivot->empleado_id,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -514,5 +531,67 @@ class DeudaController extends Controller
         $movimientos = $deuda->movimientos()->with('usuarioRegistro')->get();
 
         return view('deudas.historial', compact('cliente', 'deuda', 'movimientos'));
+    }
+
+    /**
+     * Distribuye un monto total entre lineas de forma proporcional sin perder centimos.
+     * Usa asignacion por restos mayores en centimos para asegurar suma exacta.
+     *
+     * @param array<int, array{id:string, referencia:float}> $lineas
+     * @return array<string, float>
+     */
+    protected function distribuirImportesProporcionalmente(array $lineas, float $monto): array
+    {
+        $resultado = [];
+        foreach ($lineas as $linea) {
+            $resultado[$linea['id']] = 0.0;
+        }
+
+        if (empty($lineas)) {
+            return $resultado;
+        }
+
+        $montoCentimos = (int) round(max(0, $monto) * 100);
+        $totalReferencia = array_sum(array_map(fn($linea) => max(0, (float) ($linea['referencia'] ?? 0)), $lineas));
+
+        if ($montoCentimos <= 0 || $totalReferencia <= 0) {
+            return $resultado;
+        }
+
+        $asignacionBase = [];
+        $restos = [];
+        $sumaBase = 0;
+
+        foreach ($lineas as $linea) {
+            $lineaId = $linea['id'];
+            $referencia = max(0, (float) ($linea['referencia'] ?? 0));
+            $cuotaExacta = ($referencia / $totalReferencia) * $montoCentimos;
+            $baseCentimos = (int) floor($cuotaExacta);
+
+            $asignacionBase[$lineaId] = $baseCentimos;
+            $restos[] = [
+                'id' => $lineaId,
+                'resto' => $cuotaExacta - $baseCentimos,
+            ];
+            $sumaBase += $baseCentimos;
+        }
+
+        $centimosPendientes = $montoCentimos - $sumaBase;
+        usort($restos, fn($a, $b) => $b['resto'] <=> $a['resto']);
+
+        $index = 0;
+        $totalRestos = count($restos);
+        while ($centimosPendientes > 0 && $totalRestos > 0) {
+            $id = $restos[$index % $totalRestos]['id'];
+            $asignacionBase[$id]++;
+            $centimosPendientes--;
+            $index++;
+        }
+
+        foreach ($asignacionBase as $id => $centimos) {
+            $resultado[$id] = round($centimos / 100, 2);
+        }
+
+        return $resultado;
     }
 }

@@ -12,6 +12,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (DB::getDriverName() === 'sqlite' || !Schema::hasTable('bonos_clientes')) {
+            return;
+        }
+
         // Agregar 'deuda' y 'mixto' al ENUM de metodo_pago en bonos_clientes
         DB::statement("ALTER TABLE bonos_clientes MODIFY COLUMN metodo_pago ENUM('efectivo','tarjeta','mixto','deuda') NOT NULL");
     }
@@ -21,6 +25,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (DB::getDriverName() === 'sqlite' || !Schema::hasTable('bonos_clientes')) {
+            return;
+        }
+
         // Revertir a los valores originales
         DB::statement("ALTER TABLE bonos_clientes MODIFY COLUMN metodo_pago ENUM('efectivo','tarjeta') NOT NULL");
     }

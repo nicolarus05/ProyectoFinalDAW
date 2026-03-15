@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('registro_cobros') || Schema::hasColumn('registro_cobros', 'contabilizado')) {
+            return;
+        }
+
         Schema::table('registro_cobros', function (Blueprint $table) {
             $table->boolean('contabilizado')->default(true)->after('deuda');
             $table->index('contabilizado');
@@ -22,8 +26,11 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasTable('registro_cobros') || !Schema::hasColumn('registro_cobros', 'contabilizado')) {
+            return;
+        }
+
         Schema::table('registro_cobros', function (Blueprint $table) {
-            $table->dropIndex(['contabilizado']);
             $table->dropColumn('contabilizado');
         });
     }

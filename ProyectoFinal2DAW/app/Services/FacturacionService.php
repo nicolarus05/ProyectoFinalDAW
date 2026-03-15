@@ -35,15 +35,10 @@ class FacturacionService
             }
         }
         
+        ['servicios' => $factorServicios, 'productos' => $factorProductos] =
+            $this->calcularFactoresAjuste($cobro, $sumaPivotServicios, $sumaPivotProductos);
+
         $sumaPivotTotal = $sumaPivotServicios + $sumaPivotProductos;
-        
-        // Calcular factor de ajuste proporcional
-        // Aplica tanto para descuentos (factor < 1) como recargos (factor > 1)
-        // Unificado con desglosarCobroPorCategoria()
-        $factorAjuste = 1.0;
-        if ($sumaPivotTotal > 0.01) {
-            $factorAjuste = $cobro->total_final / $sumaPivotTotal;
-        }
 
         /*
         |--------------------------------------------------------------------------
@@ -62,8 +57,8 @@ class FacturacionService
                         $resultado[$empleadoId] = $this->estructuraBase();
                     }
 
-                    // Aplicar factor de ajuste si hay descuento
-                    $precioAjustado = $servicio->pivot->precio * $factorAjuste;
+                    // Ajuste específico para servicios (evita mezclar descuentos de productos)
+                    $precioAjustado = $servicio->pivot->precio * $factorServicios;
                     $resultado[$empleadoId]['servicios'] += $precioAjustado;
                 }
             }
@@ -84,8 +79,8 @@ class FacturacionService
                     $resultado[$empleadoId] = $this->estructuraBase();
                 }
 
-                // Aplicar factor de ajuste si hay descuento
-                $precioAjustado = $producto->pivot->subtotal * $factorAjuste;
+                // Ajuste específico para productos
+                $precioAjustado = $producto->pivot->subtotal * $factorProductos;
                 $resultado[$empleadoId]['productos'] += $precioAjustado;
             }
         }
@@ -164,13 +159,10 @@ class FacturacionService
             }
         }
         
+        ['servicios' => $factorServicios, 'productos' => $factorProductos] =
+            $this->calcularFactoresAjuste($cobro, $sumaPivotServicios, $sumaPivotProductos);
+
         $sumaPivotTotal = $sumaPivotServicios + $sumaPivotProductos;
-        
-        // Calcular factor de ajuste (unificado con desglosarCobroPorEmpleado)
-        $factorAjuste = 1.0;
-        if ($sumaPivotTotal > 0.01) {
-            $factorAjuste = $cobro->total_final / $sumaPivotTotal;
-        }
 
         /*
         |--------------------------------------------------------------------------
@@ -223,7 +215,7 @@ class FacturacionService
             foreach ($servicios as $servicio) {
                 if ($servicio->pivot->precio > 0) {
                     $categoria = $servicio->categoria ?? 'peluqueria';
-                    $precioAjustado = $servicio->pivot->precio * $factorAjuste;
+                    $precioAjustado = $servicio->pivot->precio * $factorServicios;
                     $resultado[$categoria]['servicios'] += $precioAjustado;
                 }
             }
@@ -237,7 +229,7 @@ class FacturacionService
         if ($cobro->productos) {
             foreach ($cobro->productos as $producto) {
                 $categoria = $producto->categoria ?? 'peluqueria'; // Default si no tiene
-                $precioAjustado = $producto->pivot->subtotal * $factorAjuste;
+                $precioAjustado = $producto->pivot->subtotal * $factorProductos;
                 $resultado[$categoria]['productos'] += $precioAjustado;
             }
         }
@@ -283,6 +275,56 @@ class FacturacionService
             'productos' => 0.0,
             'bonos'     => 0.0,
             'total'     => 0.0,
+        ];
+    }
+
+    /**
+     * Calcula factores de ajuste separados por categoria para evitar que
+     * descuentos de productos afecten a servicios (y viceversa).
+     */
+    private function calcularFactoresAjuste(RegistroCobro $cobro, float $sumaPivotServicios, float $sumaPivotProductos): array
+    {
+        $descServPct = (float) ($cobro->descuento_servicios_porcentaje ?? 0);
+        $descServEur = (float) ($cobro->descuento_servicios_euro ?? 0);
+        $descProdPct = (float) ($cobro->descuento_productos_porcentaje ?? 0);
+        $descProdEur = (float) ($cobro->descuento_productos_euro ?? 0);
+        $descGenPct = (float) ($cobro->descuento_porcentaje ?? 0);
+        $descGenEur = (float) ($cobro->descuento_euro ?? 0);
+
+        $hayDescServicios = ($descServPct > 0.01 || $descServEur > 0.01);
+        $hayDescProductos = ($descProdPct > 0.01 || $descProdEur > 0.01);
+        $hayDescGeneralLegacy = ($descGenPct > 0.01 || $descGenEur > 0.01) && !$hayDescServicios && !$hayDescProductos;
+
+        $objetivoServicios = $sumaPivotServicios;
+        $objetivoProductos = $sumaPivotProductos;
+
+        if ($hayDescServicios) {
+            $objetivoServicios = max(0.0, $sumaPivotServicios - ($sumaPivotServicios * ($descServPct / 100)) - $descServEur);
+        } elseif ($hayDescGeneralLegacy) {
+            $objetivoServicios = max(0.0, $sumaPivotServicios - ($sumaPivotServicios * ($descGenPct / 100)) - $descGenEur);
+        }
+
+        if ($hayDescProductos) {
+            $objetivoProductos = max(0.0, $sumaPivotProductos - ($sumaPivotProductos * ($descProdPct / 100)) - $descProdEur);
+        }
+
+        // Fallback para datos legacy donde pivots y total_final no cuadren exactamente.
+        $objetivoTotal = $objetivoServicios + $objetivoProductos;
+        if ($objetivoTotal > 0.01) {
+            $diferencia = abs(((float) $cobro->total_final) - $objetivoTotal);
+            if ($diferencia > 0.01) {
+                $factorGlobal = ((float) $cobro->total_final) / $objetivoTotal;
+                $objetivoServicios *= $factorGlobal;
+                $objetivoProductos *= $factorGlobal;
+            }
+        }
+
+        $factorServicios = $sumaPivotServicios > 0.01 ? ($objetivoServicios / $sumaPivotServicios) : 1.0;
+        $factorProductos = $sumaPivotProductos > 0.01 ? ($objetivoProductos / $sumaPivotProductos) : 1.0;
+
+        return [
+            'servicios' => $factorServicios,
+            'productos' => $factorProductos,
         ];
     }
 }

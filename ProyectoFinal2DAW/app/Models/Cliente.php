@@ -54,6 +54,7 @@ class Cliente extends Model{
     {
         return $this->hasMany(BonoCliente::class, 'cliente_id')
             ->where('estado', 'activo')
+            ->where('fecha_expiracion', '>=', \Carbon\Carbon::today())
             ->whereHas('servicios', function($query) {
                 $query->whereRaw('cantidad_usada < cantidad_total');
             });

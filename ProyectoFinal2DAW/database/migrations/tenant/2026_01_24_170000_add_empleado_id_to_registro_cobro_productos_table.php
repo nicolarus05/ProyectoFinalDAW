@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('registro_cobro_productos') || Schema::hasColumn('registro_cobro_productos', 'empleado_id')) {
+            return;
+        }
+
         Schema::table('registro_cobro_productos', function (Blueprint $table) {
             // Añadir columna empleado_id después de id_producto
             $table->unsignedBigInteger('empleado_id')->nullable()->after('id_producto');
@@ -28,6 +32,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasTable('registro_cobro_productos') || !Schema::hasColumn('registro_cobro_productos', 'empleado_id')) {
+            return;
+        }
+
         Schema::table('registro_cobro_productos', function (Blueprint $table) {
             $table->dropForeign(['empleado_id']);
             $table->dropColumn('empleado_id');

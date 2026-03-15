@@ -1331,8 +1331,18 @@ class RegistroCobroController extends Controller{
                 // Descontar servicios coincidentes del bono
                 $serviciosParaDescontar = [];
                 
-                // Caso 1: Cobro de cita existente
-                if (!empty($data['id_cita'])) {
+                // PRIORIDAD 1: Si hay servicios editados usando el Frontend, esos son los
+                // servicios REALES que se van a cobrar. Usamos estos como base para el bono nuevo.
+                if (isset($tieneServiciosEditados) && $tieneServiciosEditados) {
+                    foreach ($serviciosDataArray as $s) {
+                        $serviciosParaDescontar[] = [
+                            'id' => (int) $s['id'],
+                            'cita_id' => $s['cita_id'] ?? null // Intentar mapear si es posible
+                        ];
+                    }
+                } 
+                // PRIORIDAD 2: Si no hay servicios editados, buscamos en la Cita individual
+                elseif (!empty($data['id_cita'])) {
                     $cita = Cita::with('servicios')->find($data['id_cita']);
                     if ($cita && $cita->servicios) {
                         foreach ($cita->servicios as $servicio) {
@@ -1343,8 +1353,7 @@ class RegistroCobroController extends Controller{
                         }
                     }
                 }
-                
-                // Caso 1b: Cobro de múltiples citas agrupadas
+                // PRIORIDAD 3: Citas agrupadas
                 elseif (!empty($data['citas_ids']) && is_array($data['citas_ids'])) {
                     $citasAgrupadas = Cita::with('servicios')->whereIn('id', $data['citas_ids'])->get();
                     foreach ($citasAgrupadas as $citaGrupo) {
@@ -1355,20 +1364,6 @@ class RegistroCobroController extends Controller{
                                     'cita_id' => $citaGrupo->id
                                 ];
                             }
-                        }
-                    }
-                }
-                
-                // Caso 2: Cobro directo SIN CITA con servicios_data
-                // SOLO si NO hay cita ni citas agrupadas (evita duplicación)
-                elseif ($request->has('servicios_data') && !empty($data['servicios_data'])) {
-                    $serviciosData = json_decode($data['servicios_data'], true);
-                    if (is_array($serviciosData)) {
-                        foreach ($serviciosData as $s) {
-                            $serviciosParaDescontar[] = [
-                                'id' => (int) $s['id'],
-                                'cita_id' => null // No hay cita asociada
-                            ];
                         }
                     }
                 }
@@ -1715,10 +1710,10 @@ class RegistroCobroController extends Controller{
 
         // --- Actualizar empleado por servicio (pivot) ---
         if (isset($data['servicios_empleado']) && is_array($data['servicios_empleado'])) {
-            foreach ($data['servicios_empleado'] as $servicioId => $empleadoIdServicio) {
+            foreach ($data['servicios_empleado'] as $pivotServicioId => $empleadoIdServicio) {
                 DB::table('registro_cobro_servicio')
+                    ->where('id', (int) $pivotServicioId)
                     ->where('registro_cobro_id', $cobro->id)
-                    ->where('servicio_id', (int) $servicioId)
                     ->update([
                         'empleado_id' => $empleadoIdServicio ? (int) $empleadoIdServicio : null,
                         'updated_at' => now(),
@@ -1728,10 +1723,10 @@ class RegistroCobroController extends Controller{
 
         // --- Actualizar empleado por producto (pivot) ---
         if (isset($data['productos_empleado']) && is_array($data['productos_empleado'])) {
-            foreach ($data['productos_empleado'] as $productoId => $empleadoIdProducto) {
+            foreach ($data['productos_empleado'] as $pivotProductoId => $empleadoIdProducto) {
                 DB::table('registro_cobro_productos')
+                    ->where('id', (int) $pivotProductoId)
                     ->where('id_registro_cobro', $cobro->id)
-                    ->where('id_producto', (int) $productoId)
                     ->update([
                         'empleado_id' => $empleadoIdProducto ? (int) $empleadoIdProducto : null,
                         'updated_at' => now(),
@@ -1888,13 +1883,18 @@ class RegistroCobroController extends Controller{
                 $deuda = $movimiento->deuda;
                 if ($deuda) {
                     if ($movimiento->tipo === 'cargo') {
-                        // Revertir cargo: decrementar saldo_total (siempre) y saldo_pendiente (solo lo que aún está pendiente de ESTE cobro)
-                        $deuda->saldo_total = max(0, $deuda->saldo_total - $movimiento->monto);
-                        $deuda->saldo_pendiente = max(0, $deuda->saldo_pendiente - $cobro->deuda);
+                        // Revertir cargo con base consistente: usar el monto del movimiento.
+                        // Si ese cargo ya estaba parcialmente pagado, no debemos reducir saldo_pendiente
+                        // más allá de lo pendiente real de ese cargo.
+                        $montoCargo = (float) $movimiento->monto;
+                        $deudaPendienteDelCargo = min((float) ($cobro->deuda ?? 0), $montoCargo);
+
+                        $deuda->saldo_total = max(0, (float) $deuda->saldo_total - $montoCargo);
+                        $deuda->saldo_pendiente = max(0, (float) $deuda->saldo_pendiente - $deudaPendienteDelCargo);
                         $deuda->save();
                     } elseif ($movimiento->tipo === 'abono') {
                         // Revertir abono: volver a incrementar saldo_pendiente (el dinero "deja de estar pagado")
-                        $deuda->saldo_pendiente += $movimiento->monto;
+                        $deuda->saldo_pendiente += (float) $movimiento->monto;
                         $deuda->save();
                     }
                 }

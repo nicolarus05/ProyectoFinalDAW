@@ -150,13 +150,14 @@
                             @foreach($servicios as $servicio)
                                 <div class="rounded-xl border border-teal-100 bg-teal-50/60 p-3">
                                     <p class="text-sm font-semibold text-teal-900">{{ $servicio->nombre }}</p>
+                                    @php $pivotServicioId = $servicio->pivot->id ?? null; @endphp
                                     <label class="block text-xs font-semibold mt-2 mb-1 text-gray-700">Empleado para este servicio</label>
-                                    <select name="servicios_empleado[{{ $servicio->id }}]" class="w-full border rounded-xl px-3 py-2 text-sm bg-white">
+                                    <select name="servicios_empleado[{{ $pivotServicioId }}]" class="w-full border rounded-xl px-3 py-2 text-sm bg-white" {{ $pivotServicioId ? '' : 'disabled' }}>
                                         <option value="">Sin asignar</option>
                                         @foreach($empleados as $empleado)
                                             @php
                                                 $nombreEmpleadoSrv = trim((optional($empleado->user)->nombre ?? '') . ' ' . (optional($empleado->user)->apellidos ?? ''));
-                                                $empleadoPivotServicio = old('servicios_empleado.' . $servicio->id, $servicio->pivot->empleado_id ?? null);
+                                                $empleadoPivotServicio = old('servicios_empleado.' . $pivotServicioId, $servicio->pivot->empleado_id ?? null);
                                             @endphp
                                             <option value="{{ $empleado->id }}" {{ (string)$empleadoPivotServicio === (string)$empleado->id ? 'selected' : '' }}>
                                                 {{ $nombreEmpleadoSrv ?: ('Empleado #' . $empleado->id) }}
@@ -178,13 +179,14 @@
                             @foreach($cobro->productos as $producto)
                                 <div class="rounded-xl border border-gray-100 px-3 py-3 bg-white/80 text-sm">
                                     <p class="font-semibold text-gray-800">{{ $producto->nombre }} x{{ (int)($producto->pivot->cantidad ?? 1) }}</p>
+                                    @php $pivotProductoId = $producto->pivot->id ?? null; @endphp
                                     <label class="block text-xs font-semibold mt-2 mb-1 text-gray-700">Empleado para este producto</label>
-                                    <select name="productos_empleado[{{ $producto->id }}]" class="w-full border rounded-xl px-3 py-2 text-sm bg-white">
+                                    <select name="productos_empleado[{{ $pivotProductoId }}]" class="w-full border rounded-xl px-3 py-2 text-sm bg-white" {{ $pivotProductoId ? '' : 'disabled' }}>
                                         <option value="">Sin asignar</option>
                                         @foreach($empleados as $empleado)
                                             @php
                                                 $nombreEmpleadoProd = trim((optional($empleado->user)->nombre ?? '') . ' ' . (optional($empleado->user)->apellidos ?? ''));
-                                                $empleadoPivotProducto = old('productos_empleado.' . $producto->id, $producto->pivot->empleado_id ?? null);
+                                                $empleadoPivotProducto = old('productos_empleado.' . $pivotProductoId, $producto->pivot->empleado_id ?? null);
                                             @endphp
                                             <option value="{{ $empleado->id }}" {{ (string)$empleadoPivotProducto === (string)$empleado->id ? 'selected' : '' }}>
                                                 {{ $nombreEmpleadoProd ?: ('Empleado #' . $empleado->id) }}

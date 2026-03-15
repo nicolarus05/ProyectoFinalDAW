@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('registro_cobro_productos') || Schema::hasColumn('registro_cobro_productos', 'empleado_id')) {
+            return;
+        }
+
         Schema::table('registro_cobro_productos', function (Blueprint $table) {
             // Añadir empleado_id para identificar qué empleado vendió el producto
             $table->foreignId('empleado_id')
@@ -26,6 +30,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasTable('registro_cobro_productos') || !Schema::hasColumn('registro_cobro_productos', 'empleado_id')) {
+            return;
+        }
+
         Schema::table('registro_cobro_productos', function (Blueprint $table) {
             $table->dropForeign(['empleado_id']);
             $table->dropColumn('empleado_id');
