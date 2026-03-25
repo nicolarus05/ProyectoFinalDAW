@@ -181,8 +181,14 @@ class Empleado extends Model
             
             $tieneProductos = $cobro->productos && $cobro->productos->count() > 0;
             
-            // Si no tiene servicios ni productos pero se cobró algo, usar categoría del empleado
-            if (!$tieneServicios && !$tieneProductos && $cobro->total_final > 0) {
+            // Verificar si desglosarCobroPorCategoria ya contabilizó algo (ej: bonos)
+            $desgloseTotal = 0;
+            foreach (['peluqueria', 'estetica'] as $catCheck) {
+                $desgloseTotal += ($desglose[$catCheck]['servicios'] ?? 0) + ($desglose[$catCheck]['productos'] ?? 0) + ($desglose[$catCheck]['bonos'] ?? 0);
+            }
+            
+            // Si no tiene servicios ni productos pero se cobró algo Y el desglose no contó nada, usar categoría del empleado
+            if (!$tieneServicios && !$tieneProductos && $cobro->total_final > 0 && $desgloseTotal < 0.01) {
                 $empleado = Empleado::find($cobro->id_empleado);
                 $categoriaEmpleado = $empleado?->categoria ?? 'peluqueria';
                 $facturacion[$categoriaEmpleado]['servicios'] += $cobro->total_final;

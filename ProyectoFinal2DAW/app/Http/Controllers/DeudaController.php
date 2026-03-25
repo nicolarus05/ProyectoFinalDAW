@@ -311,7 +311,7 @@ class DeudaController extends Controller
             ->whereHas('registroCobro', function($q) {
                 $q->where('deuda', '>', 0);
             })
-            ->with(['registroCobro.servicios', 'registroCobro.productos', 'registroCobro.cita'])
+            ->with(['registroCobro.servicios', 'registroCobro.productos', 'registroCobro.bonosVendidos', 'registroCobro.cita'])
             ->reorder()
             ->orderBy('created_at', 'asc')
             ->first();
@@ -319,6 +319,7 @@ class DeudaController extends Controller
         $citaId = null;
         $serviciosOriginales = collect();
         $productosOriginales = collect();
+        $bonosDeuda = collect();
         $totalOriginal = 0;
         $usarServiciosDeuda = false; // Flag para distribución inteligente de deuda
         
@@ -391,13 +392,29 @@ class DeudaController extends Controller
                     $totalOriginal += $productosOriginales->sum('pivot.subtotal');
                 }
             }
+            
+            // --- BONOS VENDIDOS COMO DEUDA ---
+            // Si el cobro original tiene bonos que quedaron a deber, incluirlos
+            // para que el pago de deuda se registre como bono (no como servicio)
+            if ($cobroOriginal->bonosVendidos && $cobroOriginal->bonosVendidos->count() > 0) {
+                foreach ($cobroOriginal->bonosVendidos as $bono) {
+                    if ($bono->metodo_pago === 'deuda') {
+                        $deudaBonoPendiente = max(0, ($bono->pivot->precio ?? 0) - ($bono->precio_pagado ?? 0));
+                        if ($deudaBonoPendiente > 0.01) {
+                            $bono->deuda_pendiente_bono = $deudaBonoPendiente;
+                            $bonosDeuda->push($bono);
+                            $totalOriginal += $deudaBonoPendiente;
+                        }
+                    }
+                }
+            }
         }
         
         // Calcular empleado principal (el que más dinero recibe o el del primer servicio)
         $empleadoPrincipalId = null;
         
-        if ($serviciosOriginales->count() > 0 || $productosOriginales->count() > 0) {
-            // Distribución automática basada en servicios/productos originales
+        if ($serviciosOriginales->count() > 0 || $productosOriginales->count() > 0 || $bonosDeuda->count() > 0) {
+            // Distribución automática basada en servicios/productos/bonos originales
             // Encontrar el empleado que más cobra
             $montoPorEmpleado = [];
             
@@ -413,6 +430,14 @@ class DeudaController extends Controller
                 if ($empId) {
                     $subtotal = $producto->pivot->subtotal;
                     $montoPorEmpleado[$empId] = ($montoPorEmpleado[$empId] ?? 0) + $subtotal;
+                }
+            }
+            
+            // Considerar bonos en deuda para el empleado principal
+            foreach ($bonosDeuda as $bono) {
+                $empId = $bono->id_empleado ?? null;
+                if ($empId) {
+                    $montoPorEmpleado[$empId] = ($montoPorEmpleado[$empId] ?? 0) + ($bono->deuda_pendiente_bono ?? 0);
                 }
             }
             
@@ -447,8 +472,8 @@ class DeudaController extends Controller
             'contabilizado' => true,
         ]);
         
-        // Vincular servicios/productos con distribución proporcional exacta (sin drift de centimos)
-        if (($serviciosOriginales->count() > 0 || $productosOriginales->count() > 0) && $totalOriginal > 0) {
+        // Vincular servicios/productos/bonos con distribución proporcional exacta (sin drift de centimos)
+        if (($serviciosOriginales->count() > 0 || $productosOriginales->count() > 0 || $bonosDeuda->count() > 0) && $totalOriginal > 0) {
             $lineasDistribucion = [];
 
             foreach ($serviciosOriginales as $index => $servicio) {
@@ -473,10 +498,34 @@ class DeudaController extends Controller
                 ];
             }
 
+            foreach ($bonosDeuda as $index => $bono) {
+                $lineaId = 'bono_' . $index;
+                $lineasDistribucion[] = [
+                    'id' => $lineaId,
+                    'tipo' => 'bono',
+                    'referencia' => max(0, (float) $bono->deuda_pendiente_bono),
+                    'modelo' => $bono,
+                ];
+            }
+
             $importesDistribuidos = $this->distribuirImportesProporcionalmente($lineasDistribucion, (float) $monto);
 
             foreach ($lineasDistribucion as $linea) {
                 $importeLinea = (float) ($importesDistribuidos[$linea['id']] ?? 0);
+
+                if ($linea['tipo'] === 'bono') {
+                    $bono = $linea['modelo'];
+                    $registroCobro->bonosVendidos()->attach($bono->id, [
+                        'precio' => $importeLinea,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                    // Actualizar precio_pagado del bono original
+                    $bono->update([
+                        'precio_pagado' => ($bono->precio_pagado ?? 0) + $importeLinea,
+                    ]);
+                    continue;
+                }
 
                 if ($linea['tipo'] === 'servicio') {
                     $servicio = $linea['modelo'];

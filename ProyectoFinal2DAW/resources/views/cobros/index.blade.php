@@ -448,6 +448,20 @@
                                 $descProdTotalVista = ($sumProductosBruto * ($descProdPorVista / 100)) + $descProdEurVista;
                                 $sumProductosNetoVista = max(0, $sumProductosBruto - $descProdTotalVista);
 
+                                // Fallback: corregir si total_final no cuadra con servicios+productosNeto
+                                $sumSrvCheck = 0;
+                                if ($cobro->servicios) {
+                                    foreach ($cobro->servicios as $sTmp2) {
+                                        $sumSrvCheck += (float) ($sTmp2->pivot->precio ?? 0);
+                                    }
+                                }
+                                $objetivoCheck = $sumSrvCheck + $sumProductosNetoVista;
+                                $tfCheck = (float) ($cobro->total_final ?? 0);
+                                if ($objetivoCheck > 0.01 && abs($tfCheck - $objetivoCheck) > 0.01) {
+                                    $fgCheck = $tfCheck / $objetivoCheck;
+                                    $sumProductosNetoVista *= $fgCheck;
+                                }
+
                                 $descServPorVista = (float) ($cobro->descuento_servicios_porcentaje ?? 0);
                                 $descServEurVista = (float) ($cobro->descuento_servicios_euro ?? 0);
                                 $descLegacyPorVista = (float) ($cobro->descuento_porcentaje ?? 0);
@@ -518,6 +532,22 @@
                                 $descProdEurVista = (float) ($cobro->descuento_productos_euro ?? 0);
                                 $descProdTotalVista = ($sumProductosBrutoVista * ($descProdPorVista / 100)) + $descProdEurVista;
                                 $sumProductosNetoVista = max(0, $sumProductosBrutoVista - $descProdTotalVista);
+
+                                // Fallback: si servicios+productosNeto no cuadra con total_final, corregir
+                                // (evita doble descuento cuando los subtotales ya están descontados)
+                                $sumSrvVista = 0;
+                                if ($cobro->servicios) {
+                                    foreach ($cobro->servicios as $sTmp) {
+                                        $sumSrvVista += (float) ($sTmp->pivot->precio ?? 0);
+                                    }
+                                }
+                                $objetivoTotalVista = $sumSrvVista + $sumProductosNetoVista;
+                                $totalFinalVista = (float) ($cobro->total_final ?? 0);
+                                if ($objetivoTotalVista > 0.01 && abs($totalFinalVista - $objetivoTotalVista) > 0.01) {
+                                    $factorGlobalVista = $totalFinalVista / $objetivoTotalVista;
+                                    $sumProductosNetoVista *= $factorGlobalVista;
+                                }
+
                                 $factorProductosVista = $sumProductosBrutoVista > 0.01 ? ($sumProductosNetoVista / $sumProductosBrutoVista) : 1;
                             @endphp
                             
