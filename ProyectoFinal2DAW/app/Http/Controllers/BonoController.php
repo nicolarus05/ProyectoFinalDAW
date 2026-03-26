@@ -377,6 +377,228 @@ class BonoController extends Controller
     }
 
     /**
+     * Mostrar formulario de venta múltiple de bonos
+     */
+    public function ventaMultiple()
+    {
+        $plantillas = BonoPlantilla::with('servicios')->where('activo', true)->get();
+        $clientes = Cliente::with('user')->get();
+        $empleados = Empleado::with('user')->get();
+
+        // Preparar mapa de servicios por plantilla para validación JS
+        $plantillasServicios = $plantillas->mapWithKeys(function ($plantilla) {
+            return [$plantilla->id => $plantilla->servicios->pluck('id')->toArray()];
+        });
+
+        return view('bonos.venta-multiple', compact('plantillas', 'clientes', 'empleados', 'plantillasServicios'));
+    }
+
+    /**
+     * Procesar venta múltiple de bonos
+     */
+    public function procesarVentaMultiple(Request $request)
+    {
+        $request->validate([
+            'cliente_id' => 'required|exists:clientes,id',
+            'id_empleado' => 'required|exists:empleados,id',
+            'metodo_pago' => 'required|in:efectivo,tarjeta,mixto',
+            'plantillas' => 'required|array|min:1',
+            'plantillas.*' => 'exists:bonos_plantilla,id',
+            'dinero_cliente' => 'nullable|numeric|min:0',
+            'pago_efectivo' => 'nullable|numeric|min:0',
+            'pago_tarjeta' => 'nullable|numeric|min:0',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $clienteId = $request->cliente_id;
+            $metodoPago = $request->metodo_pago;
+            $plantillasIds = $request->plantillas;
+
+            // Cargar plantillas seleccionadas con sus servicios
+            $plantillas = BonoPlantilla::with('servicios')->whereIn('id', $plantillasIds)->where('activo', true)->get();
+
+            if ($plantillas->count() !== count($plantillasIds)) {
+                DB::rollBack();
+                return redirect()->back()->withErrors(['error' => 'Alguna de las plantillas seleccionadas no está disponible.'])->withInput();
+            }
+
+            // Validar que no comparten servicios entre sí
+            $serviciosUsados = [];
+            foreach ($plantillas as $plantilla) {
+                foreach ($plantilla->servicios as $servicio) {
+                    if (in_array($servicio->id, $serviciosUsados)) {
+                        DB::rollBack();
+                        return redirect()->back()->withErrors([
+                            'error' => "Los bonos seleccionados comparten el servicio '{$servicio->nombre}'. No se pueden vender bonos con servicios repetidos."
+                        ])->withInput();
+                    }
+                    $serviciosUsados[] = $servicio->id;
+                }
+            }
+
+            // Validar que el cliente no tiene bonos activos con esos servicios
+            $bonosActivos = BonoCliente::with(['servicios' => function($query) {
+                    $query->withPivot('cantidad_total', 'cantidad_usada');
+                }])
+                ->where('cliente_id', $clienteId)
+                ->where('estado', 'activo')
+                ->get();
+
+            foreach ($plantillas as $plantilla) {
+                $serviciosNuevoBono = $plantilla->servicios->map(function($servicio) {
+                    return [
+                        'servicio_id' => $servicio->id,
+                        'cantidad' => $servicio->pivot->cantidad
+                    ];
+                })->sortBy('servicio_id')->values()->all();
+
+                foreach ($bonosActivos as $bonoActivo) {
+                    $serviciosBonoActivo = $bonoActivo->servicios->map(function($servicio) {
+                        return [
+                            'servicio_id' => $servicio->id,
+                            'cantidad' => $servicio->pivot->cantidad_total
+                        ];
+                    })->sortBy('servicio_id')->values()->all();
+
+                    if ($serviciosNuevoBono == $serviciosBonoActivo) {
+                        $tieneUsosDisponibles = false;
+                        foreach ($bonoActivo->servicios as $servicio) {
+                            if (($servicio->pivot->cantidad_total - $servicio->pivot->cantidad_usada) > 0) {
+                                $tieneUsosDisponibles = true;
+                                break;
+                            }
+                        }
+
+                        if ($tieneUsosDisponibles) {
+                            DB::rollBack();
+                            return redirect()->back()->withErrors([
+                                'error' => "El cliente ya tiene un bono activo '{$plantilla->nombre}' con estos servicios y todavía le quedan usos disponibles."
+                            ])->withInput();
+                        }
+                    }
+                }
+            }
+
+            // Calcular precio total sumado
+            $precioTotal = $plantillas->sum('precio');
+
+            // Calcular pago
+            $dineroCliente = $request->dinero_cliente ?? 0;
+            $cambio = 0;
+            $pagoEfectivo = null;
+            $pagoTarjeta = null;
+
+            if ($metodoPago === 'efectivo') {
+                if ($dineroCliente < $precioTotal) {
+                    DB::rollBack();
+                    return redirect()->back()->withErrors(['dinero_cliente' => 'El dinero del cliente debe ser al menos €' . number_format($precioTotal, 2)])->withInput();
+                }
+                $cambio = $dineroCliente - $precioTotal;
+                $pagoEfectivo = $precioTotal;
+                $pagoTarjeta = 0;
+            } elseif ($metodoPago === 'mixto') {
+                $pagoEfectivo = $request->pago_efectivo ?? 0;
+                $pagoTarjeta = $request->pago_tarjeta ?? 0;
+                $totalPagado = $pagoEfectivo + $pagoTarjeta;
+
+                if ($totalPagado < $precioTotal) {
+                    DB::rollBack();
+                    return redirect()->back()->withErrors(['pago_efectivo' => 'La suma de efectivo y tarjeta debe ser al menos €' . number_format($precioTotal, 2) . '. Actualmente: €' . number_format($totalPagado, 2)])->withInput();
+                }
+
+                $cambio = $totalPagado - $precioTotal;
+                $dineroCliente = $pagoEfectivo;
+            } else {
+                $dineroCliente = $precioTotal;
+                $cambio = 0;
+                $pagoEfectivo = 0;
+                $pagoTarjeta = $precioTotal;
+            }
+
+            // Crear cada bono y su cobro auxiliar
+            $bonosCreados = [];
+            foreach ($plantillas as $plantilla) {
+                $fechaCompra = Carbon::now();
+                $fechaExpiracion = $plantilla->duracion_dias
+                    ? $fechaCompra->copy()->addDays($plantilla->duracion_dias)
+                    : $fechaCompra->copy()->addYears(100);
+
+                $precioBono = $plantilla->precio;
+                // Proporción de este bono sobre el total para desglosar el pago
+                $proporcion = $precioTotal > 0 ? $precioBono / $precioTotal : 0;
+
+                $bonoCliente = BonoCliente::create([
+                    'cliente_id' => $clienteId,
+                    'bono_plantilla_id' => $plantilla->id,
+                    'fecha_compra' => $fechaCompra,
+                    'fecha_expiracion' => $fechaExpiracion,
+                    'estado' => 'activo',
+                    'metodo_pago' => $metodoPago,
+                    'precio_pagado' => $precioBono,
+                    'pago_efectivo' => $metodoPago === 'mixto' ? round($pagoEfectivo * $proporcion, 2) : ($metodoPago === 'efectivo' ? $precioBono : 0),
+                    'pago_tarjeta' => $metodoPago === 'mixto' ? round($pagoTarjeta * $proporcion, 2) : ($metodoPago === 'tarjeta' ? $precioBono : 0),
+                    'dinero_cliente' => round($dineroCliente * $proporcion, 2),
+                    'cambio' => round($cambio * $proporcion, 2),
+                    'id_empleado' => $request->id_empleado
+                ]);
+
+                foreach ($plantilla->servicios as $servicio) {
+                    $bonoCliente->servicios()->attach($servicio->id, [
+                        'cantidad_total' => $servicio->pivot->cantidad,
+                        'cantidad_usada' => 0
+                    ]);
+                }
+
+                $dineroClienteCobro = ($metodoPago === 'mixto')
+                    ? round(($pagoEfectivo + $pagoTarjeta) * $proporcion, 2)
+                    : round($dineroCliente * $proporcion, 2);
+
+                $cobroAuxiliar = RegistroCobro::create([
+                    'id_cliente' => $clienteId,
+                    'id_empleado' => $request->id_empleado,
+                    'coste' => 0,
+                    'total_final' => 0,
+                    'total_bonos_vendidos' => $precioBono,
+                    'metodo_pago' => $metodoPago,
+                    'dinero_cliente' => $dineroClienteCobro,
+                    'pago_efectivo' => 0,
+                    'pago_tarjeta' => 0,
+                    'cambio' => 0,
+                    'deuda' => 0,
+                    'contabilizado' => true,
+                ]);
+
+                $cobroAuxiliar->bonosVendidos()->attach($bonoCliente->id, [
+                    'precio' => $precioBono
+                ]);
+
+                $bonosCreados[] = $plantilla->nombre;
+            }
+
+            DB::commit();
+
+            $mensaje = count($bonosCreados) . " bonos vendidos correctamente: " . implode(', ', $bonosCreados) . ".";
+            $mensaje .= " Total: €" . number_format($precioTotal, 2);
+            if ($metodoPago === 'efectivo' && $cambio > 0) {
+                $mensaje .= " | Cambio: €" . number_format($cambio, 2);
+            } elseif ($metodoPago === 'mixto') {
+                $mensaje .= " | Efectivo: €" . number_format($pagoEfectivo, 2) . " | Tarjeta: €" . number_format($pagoTarjeta, 2);
+                if ($cambio > 0) {
+                    $mensaje .= " | Cambio: €" . number_format($cambio, 2);
+                }
+            }
+
+            return $this->redirectWithSuccess('bonos.misClientes', $mensaje, ['cliente' => $clienteId]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error procesando venta múltiple de bonos: ' . $e->getMessage());
+            return redirect()->back()->withErrors(['error' => 'Error al procesar la venta múltiple.']);
+        }
+    }
+
+    /**
      * Listar todos los clientes que tienen bonos activos con servicios disponibles
      */
     public function clientesConBonos()

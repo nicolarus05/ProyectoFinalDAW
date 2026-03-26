@@ -191,20 +191,29 @@ class RegistroCobroController extends Controller{
         $totalProductosCalculado = 0;
         $detalleValidacion = [];
 
-        // IMPORTANTE: Detectar si es venta SOLO de bono comparando total_final con precio del bono
+        // IMPORTANTE: Detectar si es venta SOLO de bono comparando total_final con precio de los bonos
         $soloVentaDeBono = false;
         $precioBonoVendido = 0;
         
-        if (!empty($data['bono_plantilla_id'])) {
-            $bonoPlantilla = \App\Models\BonoPlantilla::find($data['bono_plantilla_id']);
-            if ($bonoPlantilla) {
-                $precioBonoVendido = $bonoPlantilla->precio;
-                $totalFinalRecibido = (float) $data['total_final'];
-                
-                // Si el total_final coincide EXACTAMENTE con el precio del bono, es venta solo de bono
-                if (abs($totalFinalRecibido - $precioBonoVendido) < 0.01) {
-                    $soloVentaDeBono = true;
-                }
+        // Parsear bonos_plantilla_ids (JSON array) o fallback a bono_plantilla_id (legacy)
+        $bonosPlantillaIds = [];
+        if (!empty($data['bonos_plantilla_ids'])) {
+            $decoded = json_decode($data['bonos_plantilla_ids'], true);
+            if (is_array($decoded)) {
+                $bonosPlantillaIds = array_filter($decoded);
+            }
+        } elseif (!empty($data['bono_plantilla_id'])) {
+            $bonosPlantillaIds = [$data['bono_plantilla_id']];
+        }
+        
+        if (!empty($bonosPlantillaIds)) {
+            $bonosPlantillas = \App\Models\BonoPlantilla::whereIn('id', $bonosPlantillaIds)->get();
+            $precioBonoVendido = $bonosPlantillas->sum('precio');
+            $totalFinalRecibido = (float) $data['total_final'];
+            
+            // Si el total_final coincide EXACTAMENTE con el precio total de los bonos, es venta solo de bono
+            if (abs($totalFinalRecibido - $precioBonoVendido) < 0.01) {
+                $soloVentaDeBono = true;
             }
         }
 
@@ -323,26 +332,29 @@ class RegistroCobroController extends Controller{
         $totalServiciosCubiertosporBono = 0;
         $serviciosYaContados = []; // Para evitar contar servicios dos veces
         
-        // 1. Servicios cubiertos por bono VENDIDO en esta transacción
-        if (!empty($data['bono_plantilla_id']) && !$soloVentaDeBono) {
-            $bonoPlantilla = \App\Models\BonoPlantilla::with('servicios')->find($data['bono_plantilla_id']);
-            if ($bonoPlantilla) {
-                // Obtener IDs de servicios incluidos en el bono
-                $serviciosEnBono = $bonoPlantilla->servicios->pluck('id')->toArray();
-                
-                // Calcular el precio de los servicios que están en el bono
-                if ($request->has('servicios_data') && !empty($data['servicios_data'])) {
-                    $serviciosData = json_decode($data['servicios_data'], true);
-                    if (is_array($serviciosData)) {
-                        foreach ($serviciosData as $s) {
-                            $servicioId = (int) $s['id'];
-                            $precio = (float) ($s['precio'] ?? 0);
-                            
-                            // Si el servicio está incluido en el bono, sumarlo al total cubierto
-                            if (in_array($servicioId, $serviciosEnBono)) {
-                                $totalServiciosCubiertosporBono += $precio;
-                                $serviciosYaContados[] = $servicioId; // Marcar como contado
-                            }
+        // 1. Servicios cubiertos por bonos VENDIDOS en esta transacción
+        if (!empty($bonosPlantillaIds) && !$soloVentaDeBono) {
+            $bonosPlantillasConServicios = \App\Models\BonoPlantilla::with('servicios')->whereIn('id', $bonosPlantillaIds)->get();
+            // Combinar todos los servicios de todos los bonos vendidos
+            $serviciosEnBonosVendidos = [];
+            foreach ($bonosPlantillasConServicios as $bp) {
+                foreach ($bp->servicios as $srv) {
+                    $serviciosEnBonosVendidos[] = $srv->id;
+                }
+            }
+            
+            // Calcular el precio de los servicios que están en los bonos
+            if ($request->has('servicios_data') && !empty($data['servicios_data'])) {
+                $serviciosData = json_decode($data['servicios_data'], true);
+                if (is_array($serviciosData)) {
+                    foreach ($serviciosData as $s) {
+                        $servicioId = (int) $s['id'];
+                        $precio = (float) ($s['precio'] ?? 0);
+                        
+                        // Si el servicio está incluido en alguno de los bonos vendidos, sumarlo al total cubierto
+                        if (in_array($servicioId, $serviciosEnBonosVendidos)) {
+                            $totalServiciosCubiertosporBono += $precio;
+                            $serviciosYaContados[] = $servicioId;
                         }
                     }
                 }
@@ -506,7 +518,7 @@ class RegistroCobroController extends Controller{
         
         // IMPORTANTE: Si se está vendiendo un bono nuevo, NO aplicar bonos automáticamente
         // El bono nuevo se aplicará manualmente más adelante para evitar duplicación
-        $seVendeBono = !empty($data['bono_plantilla_id']);
+        $seVendeBono = !empty($bonosPlantillaIds);
         
         // Obtener el cliente para cobros directos sin cita
         $clienteId = $data['id_cliente'] ?? null;
@@ -745,15 +757,13 @@ class RegistroCobroController extends Controller{
         $totalBonosVendidos = 0;
         $totalFacturadoServicios = $data['total_final']; // Total facturado de servicios/productos
         
-        // Si se vendió un bono, su precio está incluido en total_final del frontend
+        // Si se vendieron bonos, su precio está incluido en total_final del frontend
         // Debemos separarlo para tener el total real de servicios/productos
-        if (!empty($data['bono_plantilla_id'])) {
-            $bonoPlantilla = \App\Models\BonoPlantilla::find($data['bono_plantilla_id']);
-            if ($bonoPlantilla) {
-                $totalBonosVendidos = $bonoPlantilla->precio;
-                // Restar el precio del bono del total_final para obtener solo servicios/productos
-                $totalFacturadoServicios = $data['total_final'] - $totalBonosVendidos;
-            }
+        if (!empty($bonosPlantillaIds)) {
+            $bonosPlantillasParaPrecio = \App\Models\BonoPlantilla::whereIn('id', $bonosPlantillaIds)->get();
+            $totalBonosVendidos = $bonosPlantillasParaPrecio->sum('precio');
+            // Restar el precio de los bonos del total_final para obtener solo servicios/productos
+            $totalFacturadoServicios = $data['total_final'] - $totalBonosVendidos;
         }
 
         // --- Calcular cuánto dinero se pagó y cómo se distribuye ---
@@ -843,55 +853,53 @@ class RegistroCobroController extends Controller{
             }
         }
 
-        // --- VALIDAR VENTA DE BONO ANTES DE CREAR EL COBRO ---
-        if (!empty($data['bono_plantilla_id']) && $clienteId) {
-            $bonoPlantilla = \App\Models\BonoPlantilla::with('servicios')->find($data['bono_plantilla_id']);
-            
-            if ($bonoPlantilla) {
-                // VALIDACIÓN: Verificar que no tenga un bono activo con exactamente los mismos servicios Y que tenga usos disponibles
-                // 1. Obtener los servicios del bono que se intenta vender
-                $serviciosNuevoBono = $bonoPlantilla->servicios->map(function($servicio) {
-                    return [
-                        'servicio_id' => $servicio->id,
-                        'cantidad' => $servicio->pivot->cantidad
-                    ];
-                })->sortBy('servicio_id')->values()->all();
+        // --- VALIDAR VENTA DE BONOS ANTES DE CREAR EL COBRO ---
+        if (!empty($bonosPlantillaIds) && $clienteId) {
+            // Obtener todos los bonos activos del cliente (una sola vez)
+            $bonosActivosCliente = \App\Models\BonoCliente::with(['servicios' => function($query) {
+                    $query->withPivot('cantidad_total', 'cantidad_usada');
+                }])
+                ->where('cliente_id', $clienteId)
+                ->where('estado', 'activo')
+                ->get();
 
-                // 2. Obtener todos los bonos activos del cliente
-                $bonosActivos = \App\Models\BonoCliente::with(['servicios' => function($query) {
-                        $query->withPivot('cantidad_total', 'cantidad_usada');
-                    }])
-                    ->where('cliente_id', $clienteId)
-                    ->where('estado', 'activo')
-                    ->get();
-
-                // 3. Verificar si algún bono activo tiene exactamente los mismos servicios con usos disponibles
-                foreach ($bonosActivos as $bonoActivo) {
-                    $serviciosBonoActivo = $bonoActivo->servicios->map(function($servicio) {
+            foreach ($bonosPlantillaIds as $bonoPlantillaId) {
+                $bonoPlantilla = \App\Models\BonoPlantilla::with('servicios')->find($bonoPlantillaId);
+                
+                if ($bonoPlantilla) {
+                    // VALIDACIÓN: Verificar que no tenga un bono activo con exactamente los mismos servicios Y que tenga usos disponibles
+                    $serviciosNuevoBono = $bonoPlantilla->servicios->map(function($servicio) {
                         return [
                             'servicio_id' => $servicio->id,
-                            'cantidad' => $servicio->pivot->cantidad_total
+                            'cantidad' => $servicio->pivot->cantidad
                         ];
                     })->sortBy('servicio_id')->values()->all();
 
-                    // Comparar si ambos bonos tienen exactamente los mismos servicios con las mismas cantidades
-                    if ($serviciosNuevoBono == $serviciosBonoActivo) {
-                        // Verificar si el bono activo tiene usos disponibles en al menos un servicio
-                        $tieneUsosDisponibles = false;
-                        foreach ($bonoActivo->servicios as $servicio) {
-                            $disponibles = $servicio->pivot->cantidad_total - $servicio->pivot->cantidad_usada;
-                            if ($disponibles > 0) {
-                                $tieneUsosDisponibles = true;
-                                break;
-                            }
-                        }
+                    foreach ($bonosActivosCliente as $bonoActivo) {
+                        $serviciosBonoActivo = $bonoActivo->servicios->map(function($servicio) {
+                            return [
+                                'servicio_id' => $servicio->id,
+                                'cantidad' => $servicio->pivot->cantidad_total
+                            ];
+                        })->sortBy('servicio_id')->values()->all();
 
-                        if ($tieneUsosDisponibles) {
-                            $nombreBono = $bonoPlantilla->nombre;
-                            DB::rollBack();
-                            return redirect()->back()->withErrors([
-                                'error' => "El cliente ya tiene un bono activo '{$nombreBono}' con estos servicios y todavía le quedan usos disponibles. No se puede vender un bono duplicado hasta que el anterior se haya usado completamente."
-                            ])->withInput();
+                        if ($serviciosNuevoBono == $serviciosBonoActivo) {
+                            $tieneUsosDisponibles = false;
+                            foreach ($bonoActivo->servicios as $servicio) {
+                                $disponibles = $servicio->pivot->cantidad_total - $servicio->pivot->cantidad_usada;
+                                if ($disponibles > 0) {
+                                    $tieneUsosDisponibles = true;
+                                    break;
+                                }
+                            }
+
+                            if ($tieneUsosDisponibles) {
+                                $nombreBono = $bonoPlantilla->nombre;
+                                DB::rollBack();
+                                return redirect()->back()->withErrors([
+                                    'error' => "El cliente ya tiene un bono activo '{$nombreBono}' con estos servicios y todavía le quedan usos disponibles. No se puede vender un bono duplicado hasta que el anterior se haya usado completamente."
+                                ])->withInput();
+                            }
                         }
                     }
                 }
@@ -1235,30 +1243,80 @@ class RegistroCobroController extends Controller{
             }
         }
 
-        // --- PROCESAR VENTA DE BONO ---
+        // --- PROCESAR VENTA DE BONOS ---
         // Nota: La validación de bono duplicado ya se hizo ANTES de crear el cobro
-        if (!empty($data['bono_plantilla_id']) && $clienteId) {
-            $bonoPlantilla = \App\Models\BonoPlantilla::with('servicios')->find($data['bono_plantilla_id']);
+        if (!empty($bonosPlantillaIds) && $clienteId) {
+            // Calcular cuánto se pagó en total de bonos
+            $dineroPagadoBonosTotal = max(0, $totalBonosVendidos - $deudaBonos);
+            $deudaBonosRestante = $deudaBonos;
             
-            if ($bonoPlantilla) {
-                // Calcular cuánto se pagó del bono
-                $dineroPagadoBono = max(0, $totalBonosVendidos - $deudaBonos);
+            // Determinar el método de pago base para los bonos
+            $metodoPagoBonoBase = $data['metodo_pago'];
+            
+            // Obtener servicios a descontar (una sola vez, fuera del loop)
+            $serviciosParaDescontar = [];
+            if (isset($tieneServiciosEditados) && $tieneServiciosEditados) {
+                foreach ($serviciosDataArray as $s) {
+                    $serviciosParaDescontar[] = [
+                        'id' => (int) $s['id'],
+                        'cita_id' => $s['cita_id'] ?? null
+                    ];
+                }
+            } elseif (!empty($data['id_cita'])) {
+                $cita = Cita::with('servicios')->find($data['id_cita']);
+                if ($cita && $cita->servicios) {
+                    foreach ($cita->servicios as $servicio) {
+                        $serviciosParaDescontar[] = [
+                            'id' => $servicio->id,
+                            'cita_id' => $cita->id
+                        ];
+                    }
+                }
+            } elseif (!empty($data['citas_ids']) && is_array($data['citas_ids'])) {
+                $citasAgrupadas = Cita::with('servicios')->whereIn('id', $data['citas_ids'])->get();
+                foreach ($citasAgrupadas as $citaGrupo) {
+                    if ($citaGrupo->servicios) {
+                        foreach ($citaGrupo->servicios as $servicio) {
+                            $serviciosParaDescontar[] = [
+                                'id' => $servicio->id,
+                                'cita_id' => $citaGrupo->id
+                            ];
+                        }
+                    }
+                }
+            }
+            
+            $deudaBonosRegistrada = false; // Para registrar la deuda total de bonos una sola vez
+
+            foreach ($bonosPlantillaIds as $bonoPlantillaId) {
+                $bonoPlantilla = \App\Models\BonoPlantilla::with('servicios')->find($bonoPlantillaId);
                 
-                // Determinar el método de pago del bono y calcular desglose
-                $metodoPagoBono = $data['metodo_pago'];
+                if (!$bonoPlantilla) continue;
+                
+                $precioBono = $bonoPlantilla->precio;
+                
+                // Distribuir pago proporcionalmente al precio de cada bono
+                if ($totalBonosVendidos > 0) {
+                    $proporcionBono = $precioBono / $totalBonosVendidos;
+                } else {
+                    $proporcionBono = 1 / count($bonosPlantillaIds);
+                }
+                
+                $dineroPagadoBono = $dineroPagadoBonosTotal * $proporcionBono;
+                $deudaBono = $deudaBonos * $proporcionBono;
+                
+                // Determinar método de pago para este bono
+                $metodoPagoBono = $metodoPagoBonoBase;
                 $pagoEfectivoBono = null;
                 $pagoTarjetaBono = null;
                 
-                if ($deudaBonos >= $totalBonosVendidos) {
-                    // El bono queda completamente a deber
+                if ($deudaBono >= $precioBono) {
                     $metodoPagoBono = 'deuda';
                     $pagoEfectivoBono = 0;
                     $pagoTarjetaBono = 0;
-                } elseif ($deudaBonos > 0) {
-                    // Pago parcial del bono (raro, pero posible)
+                } elseif ($deudaBono > 0) {
                     $metodoPagoBono = 'mixto';
                 } else {
-                    // Pago completo - calcular desglose según método de pago del cobro
                     if ($metodoPagoBono === 'efectivo') {
                         $pagoEfectivoBono = $dineroPagadoBono;
                         $pagoTarjetaBono = 0;
@@ -1266,14 +1324,12 @@ class RegistroCobroController extends Controller{
                         $pagoEfectivoBono = 0;
                         $pagoTarjetaBono = $dineroPagadoBono;
                     } elseif ($metodoPagoBono === 'mixto') {
-                        // Para mixto, calcular proporción basándose en el cobro
                         $totalPagosCobro = ($data['pago_efectivo'] ?? 0) + ($data['pago_tarjeta'] ?? 0);
                         if ($totalPagosCobro > 0) {
                             $proporcionEfectivo = ($data['pago_efectivo'] ?? 0) / $totalPagosCobro;
                             $pagoEfectivoBono = $dineroPagadoBono * $proporcionEfectivo;
                             $pagoTarjetaBono = $dineroPagadoBono - $pagoEfectivoBono;
                         } else {
-                            // Fallback 50/50
                             $pagoEfectivoBono = $dineroPagadoBono / 2;
                             $pagoTarjetaBono = $dineroPagadoBono / 2;
                         }
@@ -1281,7 +1337,6 @@ class RegistroCobroController extends Controller{
                 }
                 
                 // Crear el bono del cliente
-                // IMPORTANTE: Si duracion_dias es NULL (sin límite), usar 100 años en lugar de addDays(null)=hoy
                 $fechaExpiracionBono = $bonoPlantilla->duracion_dias
                     ? Carbon::now()->addDays($bonoPlantilla->duracion_dias)
                     : Carbon::now()->addYears(100);
@@ -1300,16 +1355,6 @@ class RegistroCobroController extends Controller{
                     'cambio' => 0,
                     'id_empleado' => $empleadoId,
                 ]);
-                
-                // Si el bono tiene deuda, registrarla en el sistema de deudas
-                if ($deudaBonos > 0 && $clienteId) {
-                    $cliente = Cliente::find($clienteId);
-                    if ($cliente) {
-                        $deudaCliente = $cliente->obtenerDeuda();
-                        $nota = "Cobro #" . $cobro->id . " - Bono: " . $bonoPlantilla->nombre;
-                        $deudaCliente->registrarCargo($deudaBonos, $nota, null, $cobro->id);
-                    }
-                }
 
                 // Copiar servicios de la plantilla al bono del cliente
                 foreach ($bonoPlantilla->servicios as $servicio) {
@@ -1329,69 +1374,25 @@ class RegistroCobroController extends Controller{
                 ]);
 
                 // Descontar servicios coincidentes del bono
-                $serviciosParaDescontar = [];
-                
-                // PRIORIDAD 1: Si hay servicios editados usando el Frontend, esos son los
-                // servicios REALES que se van a cobrar. Usamos estos como base para el bono nuevo.
-                if (isset($tieneServiciosEditados) && $tieneServiciosEditados) {
-                    foreach ($serviciosDataArray as $s) {
-                        $serviciosParaDescontar[] = [
-                            'id' => (int) $s['id'],
-                            'cita_id' => $s['cita_id'] ?? null // Intentar mapear si es posible
-                        ];
-                    }
-                } 
-                // PRIORIDAD 2: Si no hay servicios editados, buscamos en la Cita individual
-                elseif (!empty($data['id_cita'])) {
-                    $cita = Cita::with('servicios')->find($data['id_cita']);
-                    if ($cita && $cita->servicios) {
-                        foreach ($cita->servicios as $servicio) {
-                            $serviciosParaDescontar[] = [
-                                'id' => $servicio->id,
-                                'cita_id' => $cita->id
-                            ];
-                        }
-                    }
-                }
-                // PRIORIDAD 3: Citas agrupadas
-                elseif (!empty($data['citas_ids']) && is_array($data['citas_ids'])) {
-                    $citasAgrupadas = Cita::with('servicios')->whereIn('id', $data['citas_ids'])->get();
-                    foreach ($citasAgrupadas as $citaGrupo) {
-                        if ($citaGrupo->servicios) {
-                            foreach ($citaGrupo->servicios as $servicio) {
-                                $serviciosParaDescontar[] = [
-                                    'id' => $servicio->id,
-                                    'cita_id' => $citaGrupo->id
-                                ];
-                            }
-                        }
-                    }
-                }
-                
-                // Procesar descuento de servicios
                 foreach ($serviciosParaDescontar as $servicioData) {
                     $servicioId = $servicioData['id'];
                     $citaId = $servicioData['cita_id'];
                     
-                    // SKIP si este servicio ya fue cubierto por un bono activo del cliente
                     if (in_array($servicioId, $servicioIdsCubiertosporBonoActivo)) {
                         continue;
                     }
                     
-                    // Verificar si el bono incluye este servicio
                     $servicioBono = $bonoCliente->servicios()
                         ->where('servicio_id', $servicioId)
                         ->first();
 
                     if ($servicioBono && $servicioBono->pivot->cantidad_usada < $servicioBono->pivot->cantidad_total) {
-                        // Descontar 1 del servicio
                         $cantidadUsada = $servicioBono->pivot->cantidad_usada + 1;
                         
                         $bonoCliente->servicios()->updateExistingPivot($servicioId, [
                             'cantidad_usada' => $cantidadUsada
                         ]);
 
-                        // Registrar el uso detallado del bono
                         \App\Models\BonoUsoDetalle::create([
                             'bono_cliente_id' => $bonoCliente->id,
                             'registro_cobro_id' => $cobro->id,
@@ -1400,8 +1401,6 @@ class RegistroCobroController extends Controller{
                             'cantidad_usada' => 1
                         ]);
 
-                        // Actualizar el precio a 0 en registro_cobro_servicio para que no se facture
-                        // Solo actualizar UNO (el primero con precio > 0)
                         $pivotId = DB::table('registro_cobro_servicio')
                             ->where('registro_cobro_id', $cobro->id)
                             ->where('servicio_id', $servicioId)
@@ -1421,6 +1420,17 @@ class RegistroCobroController extends Controller{
                 // Verificar si el bono está completamente usado
                 if ($bonoCliente->estaCompletamenteUsado()) {
                     $bonoCliente->update(['estado' => 'usado']);
+                }
+            }
+            
+            // Registrar deuda total de bonos una sola vez
+            if ($deudaBonos > 0 && $clienteId) {
+                $cliente = Cliente::find($clienteId);
+                if ($cliente) {
+                    $deudaCliente = $cliente->obtenerDeuda();
+                    $nombresBonos = \App\Models\BonoPlantilla::whereIn('id', $bonosPlantillaIds)->pluck('nombre')->implode(', ');
+                    $nota = "Cobro #" . $cobro->id . " - Bonos: " . $nombresBonos;
+                    $deudaCliente->registrarCargo($deudaBonos, $nota, null, $cobro->id);
                 }
             }
         }

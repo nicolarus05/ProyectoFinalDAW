@@ -45,6 +45,9 @@
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-3xl font-bold">Bonos Disponibles</h1>
             <div class="flex gap-3">
+                <a href="{{ route('bonos.ventaMultiple') }}" class="btn-crear-top" style="background-color: #2563eb;">
+                    🛒 Venta Múltiple
+                </a>
                 <a href="{{ route('bonos.create') }}" class="btn-crear-top">
                     ➕ Crear Nuevo Bono
                 </a>

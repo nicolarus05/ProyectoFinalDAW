@@ -114,6 +114,8 @@ Route::middleware([
             Route::get('/crear', [BonoController::class, 'create'])->name('create');
             Route::post('/', [BonoController::class, 'store'])->name('store');
             Route::get('/clientes-con-bonos', [BonoController::class, 'clientesConBonos'])->name('clientesConBonos');
+            Route::get('/venta-multiple', [BonoController::class, 'ventaMultiple'])->name('ventaMultiple');
+            Route::post('/venta-multiple', [BonoController::class, 'procesarVentaMultiple'])->name('procesarVentaMultiple');
             Route::get('/{plantilla}/comprar', [BonoController::class, 'comprar'])->name('comprar');
             Route::post('/{plantilla}/comprar', [BonoController::class, 'procesarCompra'])->name('procesarCompra');
             Route::get('/cliente/{cliente}', [BonoController::class, 'misClientes'])->name('misClientes');

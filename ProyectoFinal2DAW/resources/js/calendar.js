@@ -129,6 +129,55 @@ document.addEventListener('DOMContentLoaded', function() {
         window.location.href = `${createUrl}?empleado_id=${empleadoId}&fecha_hora=${encodeURIComponent(fechaHora)}`;
     };
 
+    // Cambiar día de cita
+    window.cambiarDiaCita = function(input) {
+        const nuevaFecha = input.value;
+        if (!nuevaFecha) return;
+
+        const citaId = input.dataset.citaId;
+        const empleadoId = input.dataset.empleadoId;
+        const hora = input.dataset.hora;
+        const clienteNombre = input.dataset.clienteNombre;
+        const nuevaFechaHora = nuevaFecha + ' ' + hora;
+
+        // Formatear fecha para mostrar
+        const fechaObj = new Date(nuevaFecha + 'T00:00:00');
+        const fechaFormateada = fechaObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+        if (!confirm(`¿Mover cita de ${clienteNombre} al ${fechaFormateada} a las ${hora.substring(0,5)}?`)) {
+            input.value = '';
+            return;
+        }
+
+        fetch(moverUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify({
+                cita_id: citaId,
+                nuevo_empleado_id: empleadoId,
+                nueva_fecha_hora: nuevaFechaHora
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                window.location.href = window.location.pathname + '?fecha=' + nuevaFecha;
+            } else {
+                alert('Error: ' + data.message);
+                input.value = '';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al cambiar el día de la cita');
+            input.value = '';
+        });
+    };
+
     // Modal
     window.abrirModal = function(citaId) {
         const modal = document.getElementById('modalCita');

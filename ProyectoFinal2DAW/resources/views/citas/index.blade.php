@@ -404,6 +404,21 @@
                                                     onclick="event.stopPropagation(); window.location.href='{{ route('citas.show', $cita->id) }}'">
                                                 👁
                                             </button>
+                                            <span style="position: relative; display: inline;">
+                                                <button class="btn-accion" 
+                                                        onclick="event.stopPropagation(); this.nextElementSibling.showPicker();"
+                                                        title="Cambiar día"
+                                                        style="background: #2563eb; color: white; font-size: 10px;">
+                                                    📅
+                                                </button>
+                                                <input type="date" 
+                                                       style="position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; overflow: hidden; border: none;"
+                                                       data-cita-id="{{ $cita->id }}"
+                                                       data-empleado-id="{{ $cita->id_empleado }}"
+                                                       data-hora="{{ \Carbon\Carbon::parse($cita->fecha_hora)->format('H:i:s') }}"
+                                                       data-cliente-nombre="{{ $cita->cliente && $cita->cliente->user ? $cita->cliente->user->nombre : 'Cliente' }}"
+                                                       onchange="event.stopPropagation(); cambiarDiaCita(this);">
+                                            </span>
                                         </div>
                                         @endif
                                     @endif
