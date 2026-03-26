@@ -386,7 +386,7 @@
                                             </form>
                                             @php
                                                 $citasClienteDia = $citasEmpleado->where('id_cliente', $cita->id_cliente)->count()
-                                                    + $citas->except($empleado->id)->flatten()->where('id_cliente', $cita->id_cliente)->count();
+                                                    + $citas->filter(fn($v, $k) => $k != $empleado->id)->flatten()->where('id_cliente', $cita->id_cliente)->count();
                                             @endphp
                                             @if($citasClienteDia > 1)
                                             <form action="{{ route('citas.destroyClienteDia', ['cliente' => $cita->id_cliente, 'fecha' => $fecha->format('Y-m-d')]) }}" method="POST" style="display: inline;">
