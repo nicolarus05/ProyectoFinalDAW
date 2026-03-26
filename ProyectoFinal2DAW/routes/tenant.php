@@ -143,6 +143,7 @@ Route::middleware([
         Route::post('citas/{cita}/actualizar-notas', [CitaController::class, 'actualizarNotas'])->name('citas.actualizarNotas')->middleware('throttle:60,1');
         Route::post('citas/{cita}/completar-y-cobrar', [CitaController::class, 'completarYCobrar'])->name('citas.completarYCobrar')->middleware('throttle:60,1');
         Route::post('citas/{cita}/cancelar', [CitaController::class, 'cancelar'])->name('citas.cancelar')->middleware('throttle:60,1');
+        Route::delete('citas/cliente/{cliente}/dia/{fecha}', [CitaController::class, 'destroyClienteDia'])->name('citas.destroyClienteDia')->middleware('throttle:60,1');
         Route::resource('citas', CitaController::class)->names('citas')->middleware('throttle:60,1');
 
         // Cobros

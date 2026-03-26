@@ -386,6 +386,51 @@ class CitaController extends Controller{
     }
 
     /**
+     * Eliminar todas las citas de un cliente en un día específico
+     */
+    public function destroyClienteDia(Cliente $cliente, string $fecha)
+    {
+        $fechaCarbon = Carbon::parse($fecha);
+
+        $citas = Cita::where('id_cliente', $cliente->id)
+            ->where('estado', '!=', 'cancelada')
+            ->whereDate('fecha_hora', $fechaCarbon)
+            ->get();
+
+        if ($citas->isEmpty()) {
+            return $this->redirectWithSuccess('citas.index', 'No se encontraron citas para eliminar.');
+        }
+
+        $totalEliminadas = 0;
+
+        foreach ($citas as $cita) {
+            // Liberar bloques de horario
+            $fechaHora = Carbon::parse($cita->fecha_hora);
+            $duracionTotal = $cita->duracion_minutos;
+            $bloques = ceil($duracionTotal / 15);
+
+            $horaActual = $fechaHora->copy();
+            for ($i = 0; $i < $bloques; $i++) {
+                HorarioTrabajo::where('id_empleado', $cita->id_empleado)
+                    ->whereDate('fecha', $horaActual->format('Y-m-d'))
+                    ->where('hora', $horaActual->format('H:i:s'))
+                    ->update(['disponible' => true]);
+
+                $horaActual->addMinutes(15);
+            }
+
+            $cita->delete();
+            $totalEliminadas++;
+        }
+
+        $nombreCliente = $cliente->user ? $cliente->user->nombre : 'Cliente';
+
+        return redirect()
+            ->route('citas.index', ['fecha' => $fechaCarbon->format('Y-m-d')])
+            ->with('success', "Se han eliminado {$totalEliminadas} citas de {$nombreCliente} del día {$fechaCarbon->format('d/m/Y')}.");
+    }
+
+    /**
      * Cancelar una cita
      */
     public function cancelar(Cita $cita){

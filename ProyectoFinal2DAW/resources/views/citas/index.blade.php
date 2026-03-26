@@ -384,6 +384,22 @@
                                                     ✕
                                                 </button>
                                             </form>
+                                            @php
+                                                $citasClienteDia = $citasEmpleado->where('id_cliente', $cita->id_cliente)->count()
+                                                    + $citas->except($empleado->id)->flatten()->where('id_cliente', $cita->id_cliente)->count();
+                                            @endphp
+                                            @if($citasClienteDia > 1)
+                                            <form action="{{ route('citas.destroyClienteDia', ['cliente' => $cita->id_cliente, 'fecha' => $fecha->format('Y-m-d')]) }}" method="POST" style="display: inline;">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn-accion btn-cancelar" 
+                                                        onclick="event.stopPropagation(); return confirm('¿Eliminar TODAS las citas ({{ $citasClienteDia }}) de {{ $cita->cliente && $cita->cliente->user ? $cita->cliente->user->nombre : 'este cliente' }} del día {{ $fecha->format('d/m/Y') }}?');"
+                                                        title="Eliminar todas las citas de este cliente hoy"
+                                                        style="font-size: 10px; background: #dc2626;">
+                                                    ✕All
+                                                </button>
+                                            </form>
+                                            @endif
                                             <button class="btn-accion btn-ver" 
                                                     onclick="event.stopPropagation(); window.location.href='{{ route('citas.show', $cita->id) }}'">
                                                 👁
