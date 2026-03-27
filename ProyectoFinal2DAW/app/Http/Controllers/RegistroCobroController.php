@@ -472,8 +472,14 @@ class RegistroCobroController extends Controller{
             $data['cambio'] = max(0, $data['dinero_cliente'] - $data['total_final']);
         } 
         elseif ($data['metodo_pago'] === 'tarjeta') {
-            // Si es tarjeta → se llena automáticamente (no genera deuda)
-            $data['dinero_cliente'] = $data['total_final'];
+            // Si se envió un importe parcial con tarjeta, respetarlo (puede generar deuda)
+            // Si no se envió importe (campo vacío/0), se asume pago completo
+            $importeTarjeta = !empty($data['dinero_cliente_tarjeta']) ? (float) $data['dinero_cliente_tarjeta'] : null;
+            if ($importeTarjeta !== null && $importeTarjeta < (float) $data['total_final']) {
+                $data['dinero_cliente'] = $importeTarjeta;
+            } else {
+                $data['dinero_cliente'] = $data['total_final'];
+            }
             $data['cambio'] = 0;
         }
         elseif ($data['metodo_pago'] === 'mixto') {

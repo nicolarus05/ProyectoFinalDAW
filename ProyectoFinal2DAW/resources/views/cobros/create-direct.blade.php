@@ -516,6 +516,19 @@
                     </div>
                 </div>
 
+                <div id="pago-tarjeta" class="hidden space-y-3">
+                    <div>
+                        <label for="dinero_cliente_tarjeta" class="block font-semibold mb-1">Importe cobrado con tarjeta:</label>
+                        <input type="number" name="dinero_cliente_tarjeta" id="dinero_cliente_tarjeta" class="w-full border rounded px-3 py-2" step="0.01" min="0" oninput="calcularDeudaTarjeta()" placeholder="Dejar vacío para pago completo">
+                    </div>
+                    <div class="bg-white p-3 rounded">
+                        <div class="flex justify-between">
+                            <span class="font-semibold">Pendiente (deuda):</span>
+                            <span id="deuda-tarjeta-display" class="text-lg font-bold text-red-600">€0.00</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="pago-mixto" class="hidden space-y-3">
                     <div>
                         <label for="pago_efectivo" class="block font-semibold mb-1">Pago en efectivo:</label>
@@ -1603,6 +1616,7 @@ window.calcularTotales = function() {
     const metodo = document.querySelector('input[name="metodo_pago"]:checked');
     if (metodo) {
         if (metodo.value === 'efectivo') calcularCambio();
+        if (metodo.value === 'tarjeta') calcularDeudaTarjeta();
         if (metodo.value === 'mixto') calcularPagoMixto();
     }
 }
@@ -1612,6 +1626,7 @@ window.cambiarMetodoPago = function() {
     const metodo = document.querySelector('input[name="metodo_pago"]:checked').value;
     
     document.getElementById('pago-efectivo').classList.add('hidden');
+    document.getElementById('pago-tarjeta').classList.add('hidden');
     document.getElementById('pago-mixto').classList.add('hidden');
     
     // dinero_cliente es obligatorio solo para efectivo
@@ -1620,9 +1635,21 @@ window.cambiarMetodoPago = function() {
     
     if (metodo === 'efectivo') {
         document.getElementById('pago-efectivo').classList.remove('hidden');
+    } else if (metodo === 'tarjeta') {
+        document.getElementById('pago-tarjeta').classList.remove('hidden');
+        calcularDeudaTarjeta();
     } else if (metodo === 'mixto') {
         document.getElementById('pago-mixto').classList.remove('hidden');
     }
+}
+
+window.calcularDeudaTarjeta = function() {
+    const totalFinal = parseFloat(document.getElementById('total_final_input').value || 0);
+    const importeTarjeta = parseFloat(document.getElementById('dinero_cliente_tarjeta').value || 0);
+    // Si el campo está vacío (0), se asume pago completo
+    const pagado = importeTarjeta > 0 ? importeTarjeta : totalFinal;
+    const deuda = Math.max(0, totalFinal - pagado);
+    document.getElementById('deuda-tarjeta-display').textContent = `€${deuda.toFixed(2)}`;
 }
 
 window.calcularCambio = function() {

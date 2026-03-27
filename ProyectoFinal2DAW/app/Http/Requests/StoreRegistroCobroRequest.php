@@ -45,6 +45,7 @@ class StoreRegistroCobroRequest extends FormRequest
             'servicios_data' => 'nullable|json',
             'bono_plantilla_id' => 'nullable|exists:bonos_plantilla,id',
             'bonos_plantilla_ids' => 'nullable|string',
+            'dinero_cliente_tarjeta' => 'nullable|numeric|min:0',
         ];
     }
 
