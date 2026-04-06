@@ -78,7 +78,6 @@ class Empleado extends Model
 
         $cobros = RegistroCobro::with(['servicios', 'productos', 'bonosVendidos', 'cita.servicios', 'citasAgrupadas.servicios'])
             ->whereBetween('created_at', [$fechaInicio, $fechaFin])
-            ->where('metodo_pago', '!=', 'bono')
             ->where('metodo_pago', '!=', 'deuda') // Deuda = dinero NO cobrado, no facturar
             ->where('contabilizado', true)
             ->get();
@@ -155,9 +154,8 @@ class Empleado extends Model
                 'bonosVendidos.bonoPlantilla' // Necesitamos el bono_plantilla para su categoría
             ])
             ->whereBetween('created_at', [$fechaInicio, $fechaFin])
-            ->where('metodo_pago', '!=', 'bono') // Excluir cobros pagados con bono (son consumos, no ingresos)
             ->where('metodo_pago', '!=', 'deuda') // Excluir cobros que GENERAN deuda (no se cobró nada)
-            ->where('contabilizado', true) // Consistente con facturacionPorFechas()
+            ->where('contabilizado', true)
             ->get();
 
         foreach ($cobros as $cobro) {

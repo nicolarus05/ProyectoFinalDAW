@@ -613,7 +613,10 @@
                                             $precioServicio = $servicio->pivot->precio ?? $servicio->precio;
                                             
                                             // Calcular proporción del dinero pagado para este servicio
-                                            $proporcion = $item->coste > 0 ? ($precioServicio / $item->coste) : 0;
+                                            // Usar suma real de pivots (no coste, que incluye precios pre-bono)
+                                            $sumaPivots = $item->servicios->sum(fn($s) => $s->pivot->precio ?? 0)
+                                                        + ($item->productos ? $item->productos->sum(fn($p) => $p->pivot->subtotal ?? 0) : 0);
+                                            $proporcion = $sumaPivots > 0 ? ($precioServicio / $sumaPivots) : 0;
                                             $montoPagadoServicio = $montoPagado * $proporcion;
                                             
                                             $filasMostradas = true;

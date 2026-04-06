@@ -456,13 +456,24 @@ class DeudaController extends Controller
             }
         }
         
+        // Calcular cuánto del monto corresponde a bonos vs servicios/productos
+        $montoBonosDeuda = 0;
+        if ($bonosDeuda->count() > 0 && $totalOriginal > 0) {
+            $totalReferenciasBonos = $bonosDeuda->sum('deuda_pendiente_bono');
+            // Proporción de bonos respecto al total original
+            $proporcionBonos = $totalReferenciasBonos / $totalOriginal;
+            $montoBonosDeuda = round($monto * $proporcionBonos, 2);
+        }
+        $montoServiciosDeuda = round($monto - $montoBonosDeuda, 2);
+        
         // Crear registro de cobro para la caja del día
         $registroCobro = \App\Models\RegistroCobro::create([
             'id_cita' => $citaId,
             'id_cliente' => $cliente->id,
             'id_empleado' => $empleadoPrincipalId,
             'coste' => $monto,
-            'total_final' => $monto,
+            'total_final' => $montoServiciosDeuda,
+            'total_bonos_vendidos' => $montoBonosDeuda,
             'metodo_pago' => $validated['metodo_pago'],
             'deuda' => 0,
             'dinero_cliente' => $monto,

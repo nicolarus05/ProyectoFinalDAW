@@ -195,12 +195,25 @@ class RegistroCobroController extends Controller{
         $soloVentaDeBono = false;
         $precioBonoVendido = 0;
         
-        // Parsear bonos_plantilla_ids (JSON array) o fallback a bono_plantilla_id (legacy)
+        // Parsear bonos_plantilla_ids (JSON array de objetos {id, empleado_id} o IDs planos) o fallback a bono_plantilla_id (legacy)
         $bonosPlantillaIds = [];
+        $bonosEmpleadoMap = []; // Mapa bono_plantilla_id => empleado_id
         if (!empty($data['bonos_plantilla_ids'])) {
             $decoded = json_decode($data['bonos_plantilla_ids'], true);
             if (is_array($decoded)) {
-                $bonosPlantillaIds = array_filter($decoded);
+                foreach ($decoded as $item) {
+                    if (is_array($item) && isset($item['id'])) {
+                        // Nuevo formato: {id: X, empleado_id: Y}
+                        $bonosPlantillaIds[] = (int) $item['id'];
+                        if (!empty($item['empleado_id'])) {
+                            $bonosEmpleadoMap[(int) $item['id']] = (int) $item['empleado_id'];
+                        }
+                    } elseif (is_numeric($item)) {
+                        // Legacy formato: solo IDs
+                        $bonosPlantillaIds[] = (int) $item;
+                    }
+                }
+                $bonosPlantillaIds = array_filter($bonosPlantillaIds);
             }
         } elseif (!empty($data['bono_plantilla_id'])) {
             $bonosPlantillaIds = [$data['bono_plantilla_id']];
@@ -1347,6 +1360,9 @@ class RegistroCobroController extends Controller{
                     ? Carbon::now()->addDays($bonoPlantilla->duracion_dias)
                     : Carbon::now()->addYears(100);
 
+                // Usar empleado específico del bono si se asignó, sino fallback al empleado principal
+                $empleadoIdBono = $bonosEmpleadoMap[$bonoPlantilla->id] ?? $empleadoId;
+
                 $bonoCliente = \App\Models\BonoCliente::create([
                     'cliente_id' => $clienteId,
                     'bono_plantilla_id' => $bonoPlantilla->id,
@@ -1359,7 +1375,7 @@ class RegistroCobroController extends Controller{
                     'pago_tarjeta' => $pagoTarjetaBono,
                     'dinero_cliente' => 0,
                     'cambio' => 0,
-                    'id_empleado' => $empleadoId,
+                    'id_empleado' => $empleadoIdBono,
                 ]);
 
                 // Copiar servicios de la plantilla al bono del cliente

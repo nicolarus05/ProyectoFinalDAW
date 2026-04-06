@@ -433,6 +433,7 @@
                     <thead class="bg-yellow-100">
                         <tr>
                             <th class="p-2 text-left">Bono</th>
+                            <th class="p-2 text-left">Empleado</th>
                             <th class="p-2 text-left">Servicios incluidos</th>
                             <th class="p-2 text-right">Precio</th>
                             <th class="p-2 text-center">Validez</th>
@@ -444,7 +445,7 @@
                     </tbody>
                     <tfoot>
                         <tr class="border-t-2 border-yellow-300">
-                            <td colspan="2" class="p-2 text-right font-semibold">Total bonos:</td>
+                            <td colspan="3" class="p-2 text-right font-semibold">Total bonos:</td>
                             <td id="bonos-total" class="p-2 text-right font-semibold">€0.00</td>
                             <td colspan="2"></td>
                         </tr>
@@ -802,26 +803,48 @@ window.seleccionarBono = function(bonoId) {
         }
     }
     
+    // Obtener empleado seleccionado (por defecto el empleado principal del cobro)
+    const empleadoSelect = document.getElementById('id_empleado');
+    const empleadoIdBono = empleadoSelect && empleadoSelect.value ? parseInt(empleadoSelect.value) : null;
+
     const nuevoBono = {
         id: bono.id,
         nombre: bono.nombre,
         precio: parseFloat(bono.precio),
         duracion: bono.duracion_dias,
-        servicios: serviciosNuevo
+        servicios: serviciosNuevo,
+        empleado_id: empleadoIdBono
     };
     bonosSeleccionados.push(nuevoBono);
     
-    // Actualizar campo oculto con array de IDs
-    document.getElementById('bonos_plantilla_ids').value = JSON.stringify(bonosSeleccionados.map(b => b.id));
+    // Actualizar campo oculto con datos completos (id + empleado_id)
+    document.getElementById('bonos_plantilla_ids').value = JSON.stringify(
+        bonosSeleccionados.map(b => ({ id: b.id, empleado_id: b.empleado_id }))
+    );
     
     // Crear fila en la tabla
     const tbody = document.getElementById('bonos-tbody');
     const serviciosTexto = bono.servicios.map(s => `${escapeHtml(s.nombre)} (${s.pivot.cantidad}x)`).join(', ');
+    const bonoIndex = bonosSeleccionados.length - 1;
     
+    // Crear select de empleados
+    const empleadosOptions = `
+        @foreach($empleados as $empleado)
+            <option value="{{ $empleado->id }}" ${empleadoIdBono == {{ $empleado->id }} ? 'selected' : ''}>
+                {{ $empleado->user->nombre ?? '' }} {{ $empleado->user->apellidos ?? '' }}
+            </option>
+        @endforeach
+    `;
+
     const row = document.createElement('tr');
     row.id = `bono-row-${bono.id}`;
     row.innerHTML = `
         <td class="p-2 font-semibold">${escapeHtml(bono.nombre)}</td>
+        <td class="p-2">
+            <select onchange="updateBonoEmpleado(${bono.id}, this.value)" class="w-full border rounded px-2 py-1 text-sm">
+                ${empleadosOptions}
+            </select>
+        </td>
         <td class="p-2 text-sm">${serviciosTexto}</td>
         <td class="p-2 text-right">€${parseFloat(bono.precio).toFixed(2)}</td>
         <td class="p-2 text-center text-sm">${bono.duracion_dias} días</td>
@@ -847,10 +870,22 @@ window.seleccionarBono = function(bonoId) {
     calcularTotales();
 }
 
+window.updateBonoEmpleado = function(bonoId, empleadoId) {
+    const bono = bonosSeleccionados.find(b => b.id === bonoId);
+    if (bono) {
+        bono.empleado_id = parseInt(empleadoId);
+        document.getElementById('bonos_plantilla_ids').value = JSON.stringify(
+            bonosSeleccionados.map(b => ({ id: b.id, empleado_id: b.empleado_id }))
+        );
+    }
+}
+
 window.eliminarBono = function(bonoId) {
     bonosSeleccionados = bonosSeleccionados.filter(b => b.id !== bonoId);
     descuentoPorBono = 0;
-    document.getElementById('bonos_plantilla_ids').value = JSON.stringify(bonosSeleccionados.map(b => b.id));
+    document.getElementById('bonos_plantilla_ids').value = JSON.stringify(
+        bonosSeleccionados.map(b => ({ id: b.id, empleado_id: b.empleado_id }))
+    );
     
     // Eliminar fila de la tabla
     const row = document.getElementById(`bono-row-${bonoId}`);
