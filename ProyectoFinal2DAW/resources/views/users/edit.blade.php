@@ -72,6 +72,7 @@
                     <option value="">-- Selecciona un rol --</option>
                     <option value="cliente" {{ old('rol', $user->rol) == 'cliente' ? 'selected' : '' }}>Cliente</option>
                     <option value="empleado" {{ old('rol', $user->rol) == 'empleado' ? 'selected' : '' }}>Empleado</option>
+                    <option value="gerente" {{ old('rol', $user->rol) == 'gerente' ? 'selected' : '' }}>Gerente</option>
                 </select>
             </div>
 

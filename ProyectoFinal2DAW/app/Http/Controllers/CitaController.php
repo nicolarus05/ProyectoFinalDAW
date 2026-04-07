@@ -89,8 +89,8 @@ class CitaController extends Controller{
                 ->get()
                 ->groupBy('id_empleado');
 
-        } else if ($user->rol === 'admin') {
-            // El admin ve todas las citas del día (excluir canceladas)
+        } else if ($user->rol === 'admin' || $user->rol === 'gerente') {
+            // El admin/gerente ve todas las citas del día (excluir canceladas)
             $citas = Cita::with(['cliente.user', 'cliente.bonos' => function($query) {
                     $query->where('estado', 'activo')
                           ->with(['servicios' => function($q) {
@@ -128,8 +128,8 @@ class CitaController extends Controller{
         $empleados = CacheService::getEmpleados();
         $servicios = CacheService::getServiciosActivos();
 
-        // Si es admin o empleado, necesita poder elegir un cliente
-        if ($user->rol === 'admin' || $user->rol === 'empleado') {
+        // Si es admin, gerente o empleado, necesita poder elegir un cliente
+        if (in_array($user->rol, ['admin', 'gerente', 'empleado'])) {
             $clientes = Cliente::with('user')->get();
         } else {
             // Es cliente normal

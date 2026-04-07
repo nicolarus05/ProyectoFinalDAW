@@ -11,11 +11,11 @@ use Illuminate\Support\Facades\DB;
 
 class RegistroEntradaSalidaController extends Controller{
     /**
-     * Vista principal de asistencia (Solo Admin)
+     * Vista principal de asistencia (Solo Admin y Gerente)
      */
     public function index(Request $request){
-        // Verificar que el usuario es admin
-        if (Auth::user()->rol !== 'admin') {
+        // Verificar que el usuario es admin o gerente
+        if (!in_array(Auth::user()->rol, ['admin', 'gerente'])) {
             abort(403, 'No tienes permiso para acceder a esta sección.');
         }
 
@@ -272,11 +272,11 @@ class RegistroEntradaSalidaController extends Controller{
     }
 
     /**
-     * Desconectar empleado (Solo Admin)
+     * Desconectar empleado (Solo Admin y Gerente)
      */
     public function desconectarEmpleado($registroId){
-        // Verificar que el usuario es admin
-        if (Auth::user()->rol !== 'admin') {
+        // Verificar que el usuario es admin o gerente
+        if (!in_array(Auth::user()->rol, ['admin', 'gerente'])) {
             abort(403, 'No tienes permiso para realizar esta acción.');
         }
 
@@ -344,8 +344,8 @@ class RegistroEntradaSalidaController extends Controller{
      * Ver historial de un empleado específico (Admin)
      */
     public function porEmpleado($empleadoId, Request $request){
-        // Verificar que el usuario es admin
-        if (Auth::user()->rol !== 'admin') {
+        // Verificar que el usuario es admin o gerente
+        if (!in_array(Auth::user()->rol, ['admin', 'gerente'])) {
             abort(403, 'No tienes permiso para acceder a esta sección.');
         }
 
@@ -427,7 +427,7 @@ class RegistroEntradaSalidaController extends Controller{
      * Vista imprimible de horas mensuales de empleados
      */
     public function informeMensual(Request $request){
-        if (Auth::user()->rol !== 'admin') {
+        if (!in_array(Auth::user()->rol, ['admin', 'gerente'])) {
             abort(403, 'No tienes permiso para acceder a esta sección.');
         }
 

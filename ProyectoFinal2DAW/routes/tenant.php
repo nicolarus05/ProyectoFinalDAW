@@ -60,17 +60,23 @@ Route::middleware([
 
     // ============================================================================
     // PRODUCTOS DISPONIBLES - Debe estar ANTES del Route::resource('productos')
-    // Accesible por admin y empleado
+    // Accesible por admin, gerente y empleado
     // ============================================================================
-    Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
+    Route::middleware(['auth', 'role:admin,gerente,empleado'])->group(function () {
         Route::get('productos/available', [ProductosController::class, 'available'])->name('productos.available');
     });
 
     // ============================================================================
-    // SOLO ADMIN - Acceso completo a todas las funcionalidades
+    // SOLO ADMIN - Usuarios del sistema (acceso exclusivo)
     // ============================================================================
     Route::middleware(['auth', 'role:admin'])->group(function () {
         Route::resource('users', userController::class)->names('users');
+    });
+
+    // ============================================================================
+    // ADMIN Y GERENTE - Acceso completo excepto usuarios del sistema
+    // ============================================================================
+    Route::middleware(['auth', 'role:admin,gerente'])->group(function () {
         Route::resource('empleados', EmpleadoController::class)->names('empleados');
         
         // Rutas adicionales para horarios de empleados
@@ -131,9 +137,9 @@ Route::middleware([
     });
 
     // ============================================================================
-    // ADMIN Y EMPLEADO - Acceso limitado solo a: Citas, Clientes, Cobros y Caja
+    // ADMIN, GERENTE Y EMPLEADO - Acceso a: Citas, Clientes, Cobros y Caja
     // ============================================================================
-    Route::middleware(['auth', 'role:admin,empleado'])->group(function () {
+    Route::middleware(['auth', 'role:admin,gerente,empleado'])->group(function () {
         // Clientes
         Route::resource('clientes', ClienteController::class)->names('clientes');
         Route::get('clientes/{cliente}/historial', [ClienteController::class, 'historial'])->name('clientes.historial');

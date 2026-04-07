@@ -12,9 +12,15 @@
                     <!-- Header -->
                     <tr>
                         <td style="background-color: #6EC7C5; padding: 30px; text-align: center;">
+                            @php
+                                // Agrupar citas por grupo_cita_id para mostrar todos los servicios de una cita juntos
+                                $citasAgrupadas = $citas->groupBy(fn($c) => $c->grupo_cita_id ?? 'single_' . $c->id)
+                                    ->map(fn($grupo) => $grupo->sortBy('fecha_hora'));
+                                $totalCitasReales = $citasAgrupadas->count();
+                            @endphp
                             <h1 style="color: #ffffff; margin: 0; font-size: 24px;">
-                                @if($citas->count() > 1)
-                                    Recordatorio de tus {{ $citas->count() }} Citas
+                                @if($totalCitasReales > 1)
+                                    Recordatorio de tus {{ $totalCitasReales }} Citas
                                 @else
                                     Recordatorio de Cita
                                 @endif
@@ -25,13 +31,14 @@
                     <!-- Contenido -->
                     <tr>
                         <td style="padding: 30px;">
+
                             <p style="font-size: 16px; color: #333333; margin-top: 0;">
                                 Hola <strong>{{ $nombreCliente }}</strong>,
                             </p>
                             
-                            @if($citas->count() > 1)
+                            @if($totalCitasReales > 1)
                                 <p style="color: #666666;">
-                                    Te recordamos que manana tienes <strong>{{ $citas->count() }} citas</strong> programadas en nuestro salon:
+                                    Te recordamos que manana tienes <strong>{{ $totalCitasReales }} citas</strong> programadas en nuestro salon:
                                 </p>
                             @else
                                 <p style="color: #666666;">
@@ -39,28 +46,33 @@
                                 </p>
                             @endif
                             
-                            @foreach($citas->sortBy('fecha_hora') as $index => $cita)
-                                <!-- Cita {{ $index + 1 }} -->
-                                @if($citas->count() > 1)
+                            @foreach($citasAgrupadas as $grupoId => $grupoCitas)
+                                @php
+                                    $primeraCitaGrupo = $grupoCitas->first();
+                                    $todosServicios = $grupoCitas->flatMap(fn($c) => $c->servicios);
+                                    $duracionTotal = $todosServicios->sum('duracion_minutos');
+                                @endphp
+
+                                @if($totalCitasReales > 1)
                                     <p style="font-size: 14px; font-weight: bold; color: #4F7C7A; margin-bottom: 5px; margin-top: 20px;">
-                                        Cita {{ $index + 1 }} de {{ $citas->count() }}
+                                        Cita {{ $loop->iteration }} de {{ $totalCitasReales }}
                                     </p>
                                 @endif
                                 
                                 <table width="100%" cellpadding="12" cellspacing="0" style="background-color: #f8f9fa; border-left: 4px solid #6EC7C5; margin: 10px 0 15px 0;">
                                     <tr>
                                         <td style="color: #4F7C7A; font-weight: bold; width: 40%;">Fecha:</td>
-                                        <td style="color: #333333;">{{ \Carbon\Carbon::parse($cita->fecha_hora)->locale('es')->isoFormat('dddd, D [de] MMMM [de] YYYY') }}</td>
+                                        <td style="color: #333333;">{{ \Carbon\Carbon::parse($primeraCitaGrupo->fecha_hora)->locale('es')->isoFormat('dddd, D [de] MMMM [de] YYYY') }}</td>
                                     </tr>
                                     <tr>
                                         <td style="color: #4F7C7A; font-weight: bold;">Hora:</td>
-                                        <td style="color: #333333;">{{ \Carbon\Carbon::parse($cita->fecha_hora)->format('H:i') }}</td>
+                                        <td style="color: #333333;">{{ \Carbon\Carbon::parse($primeraCitaGrupo->fecha_hora)->format('H:i') }}</td>
                                     </tr>
                                     <tr>
                                         <td style="color: #4F7C7A; font-weight: bold;">Servicio(s):</td>
                                         <td style="color: #333333;">
-                                            @if($cita->servicios->isNotEmpty())
-                                                {{ $cita->servicios->pluck('nombre')->join(', ') }}
+                                            @if($todosServicios->isNotEmpty())
+                                                {{ $todosServicios->pluck('nombre')->join(', ') }}
                                             @else
                                                 No especificado
                                             @endif
@@ -68,23 +80,24 @@
                                     </tr>
                                     <tr>
                                         <td style="color: #4F7C7A; font-weight: bold;">Profesional:</td>
-                                        <td style="color: #333333;">{{ $cita->empleado->user->nombre ?? 'Por asignar' }}</td>
+                                        <td style="color: #333333;">{{ $primeraCitaGrupo->empleado->user->nombre ?? 'Por asignar' }}</td>
                                     </tr>
                                     <tr>
                                         <td style="color: #4F7C7A; font-weight: bold;">Duracion:</td>
-                                        <td style="color: #333333;">{{ $cita->duracion_minutos ?? $cita->servicios->sum('duracion_minutos') }} minutos</td>
+                                        <td style="color: #333333;">{{ $duracionTotal }} minutos</td>
                                     </tr>
                                 </table>
                             @endforeach
                             
                             <!-- Resumen rápido si hay varias citas -->
-                            @if($citas->count() > 1)
+                            @if($totalCitasReales > 1)
                                 @php
-                                    $primeraHora = \Carbon\Carbon::parse($citas->sortBy('fecha_hora')->first()->fecha_hora)->format('H:i');
-                                    $ultimaCita = $citas->sortBy('fecha_hora')->last();
-                                    $ultimaHora = \Carbon\Carbon::parse($ultimaCita->fecha_hora);
-                                    $duracionUltima = $ultimaCita->duracion_minutos ?? $ultimaCita->servicios->sum('duracion_minutos');
-                                    $horaFin = $ultimaHora->copy()->addMinutes($duracionUltima)->format('H:i');
+                                    $primerGrupo = $citasAgrupadas->first();
+                                    $ultimoGrupo = $citasAgrupadas->last();
+                                    $primeraHora = \Carbon\Carbon::parse($primerGrupo->first()->fecha_hora)->format('H:i');
+                                    $ultimaHoraInicio = \Carbon\Carbon::parse($ultimoGrupo->first()->fecha_hora);
+                                    $duracionUltimoGrupo = $ultimoGrupo->flatMap(fn($c) => $c->servicios)->sum('duracion_minutos');
+                                    $horaFin = $ultimaHoraInicio->copy()->addMinutes($duracionUltimoGrupo)->format('H:i');
                                     $totalServicios = $citas->sum(fn($c) => $c->servicios->count());
                                 @endphp
                                 <table width="100%" cellpadding="12" cellspacing="0" style="background-color: #E3F2FD; border-left: 4px solid #2196F3; margin: 20px 0;">
@@ -101,7 +114,7 @@
                             <table width="100%" cellpadding="15" cellspacing="0" style="background-color: #E8F5E9; border-left: 4px solid #4CAF50; margin: 20px 0;">
                                 <tr>
                                     <td style="color: #2E7D32;">
-                                        <strong>Recuerda:</strong> Por favor, llega 5 minutos antes de tu {{ $citas->count() > 1 ? 'primera cita' : 'cita' }}. 
+                                        <strong>Recuerda:</strong> Por favor, llega 5 minutos antes de tu {{ $totalCitasReales > 1 ? 'primera cita' : 'cita' }}. 
                                         Si necesitas cancelar o reprogramar, contactanos lo antes posible.
                                     </td>
                                 </tr>

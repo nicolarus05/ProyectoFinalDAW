@@ -38,7 +38,7 @@ class userController extends Controller
             'password' => 'required|string|min:8',
             'genero' => 'nullable|string|in:masculino,femenino,otro',
             'edad' => 'nullable|integer|min:0|max:120',
-            'rol' => 'required|in:cliente,empleado, admin',
+            'rol' => 'required|in:cliente,empleado,gerente,admin',
 
             // Campos específicos para cada rol
             'categoria' => 'required_if:rol,empleado|nullable|in:peluqueria,estetica',

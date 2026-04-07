@@ -34,8 +34,10 @@ class RecordatorioCitasAgrupado extends Mailable implements ShouldQueue
 
     public function envelope(): Envelope
     {
-        $totalCitas = $this->citas->count();
-        $hora = \Carbon\Carbon::parse($this->citas->first()->fecha_hora)->format('H:i');
+        // Agrupar por grupo_cita_id para contar citas reales (no servicios individuales)
+        $citasAgrupadas = $this->citas->groupBy(fn($c) => $c->grupo_cita_id ?? 'single_' . $c->id);
+        $totalCitas = $citasAgrupadas->count();
+        $hora = \Carbon\Carbon::parse($this->citas->sortBy('fecha_hora')->first()->fecha_hora)->format('H:i');
 
         $subject = $totalCitas > 1
             ? "Recordatorio: Tienes {$totalCitas} citas manana"

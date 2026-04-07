@@ -83,8 +83,11 @@ class EnviarRecordatoriosCitas extends Command
             }
             
             $totalCitas = $citasPorCliente->flatten()->count();
+            $totalGrupos = $citasPorCliente->flatten()
+                ->groupBy(fn($c) => $c->grupo_cita_id ?? 'single_' . $c->id)
+                ->count();
             $totalClientes = $citasPorCliente->count();
-            $this->info("   📧 {$totalCitas} citas para {$totalClientes} clientes");
+            $this->info("   📧 {$totalGrupos} cita(s) ({$totalCitas} servicios) para {$totalClientes} clientes");
             
             $notificacionService = new NotificacionEmailService();
             $enviados = 0;
@@ -94,11 +97,11 @@ class EnviarRecordatoriosCitas extends Command
                 $primeraCita = $citas->first();
                 $clienteNombre = $primeraCita->cliente->user->nombre ?? 'Sin nombre';
                 $clienteEmail = $primeraCita->cliente->user->email ?? '';
-                $numCitas = $citas->count();
+                $numCitas = $citas->groupBy(fn($c) => $c->grupo_cita_id ?? 'single_' . $c->id)->count();
                 
                 try {
                     if ($notificacionService->enviarRecordatorioAgrupado($clienteEmail, $clienteNombre, $citas)) {
-                        $this->line("   ✓ Enviado a: {$clienteNombre} ({$clienteEmail}) - {$numCitas} cita(s)");
+                        $this->line("   ✓ Enviado a: {$clienteNombre} ({$clienteEmail}) - {$numCitas} cita(s), {$citas->count()} servicio(s)");
                         $enviados++;
                     } else {
                         $this->line("   ✗ Error al enviar a: {$clienteNombre} ({$clienteEmail})");
