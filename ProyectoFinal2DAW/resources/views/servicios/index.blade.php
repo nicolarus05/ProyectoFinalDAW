@@ -12,9 +12,11 @@
             <a href="{{ route('dashboard') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">← Volver al Inicio</a>
         </div>
 
-        <div class="mb-4">
+        <div class="mb-4 flex gap-3">
             <a href="{{ route('servicios.create') }}" 
                class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Nuevo Servicio</a>
+            <a href="{{ route('servicios.exportar') }}" 
+               class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">&#8595; Exportar CSV</a>
         </div>
 
         <!-- Barra de búsqueda -->

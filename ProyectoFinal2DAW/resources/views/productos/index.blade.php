@@ -11,8 +11,7 @@
         <div class="flex items-center justify-between mb-6">
             <h1 class="text-3xl font-bold">Productos</h1>
             <div class="flex gap-3">
-                <a href="{{ route('productos.create') }}" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Nuevo producto</a>
-                <a href="{{ route('dashboard') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">← Volver al inicio</a>
+                <a href="{{ route('productos.create') }}" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Nuevo producto</a>                <a href="{{ route('productos.exportar') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">&#8595; Exportar CSV</a>                <a href="{{ route('dashboard') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">← Volver al inicio</a>
             </div>
         </div>
 

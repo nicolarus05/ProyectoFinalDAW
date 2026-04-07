@@ -40,6 +40,40 @@ class ProductosController extends Controller{
     }
 
     /**
+     * Exportar listado completo de productos a CSV
+     */
+    public function exportar()
+    {
+        $productos = Productos::orderBy('categoria')->orderBy('nombre')->get();
+        $filename = 'productos_' . now()->format('Y-m-d') . '.csv';
+
+        $headers = [
+            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+
+        $callback = function () use ($productos) {
+            $handle = fopen('php://output', 'w');
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF)); // BOM UTF-8
+            fputcsv($handle, ['Nombre', 'Categoria', 'Descripcion', 'Precio Venta (\u20ac)', 'Precio Coste (\u20ac)', 'Stock', 'Activo'], ';');
+            foreach ($productos as $p) {
+                fputcsv($handle, [
+                    $p->nombre,
+                    ucfirst($p->categoria),
+                    $p->descripcion,
+                    number_format($p->precio_venta, 2, ',', '.'),
+                    $p->precio_coste !== null ? number_format($p->precio_coste, 2, ',', '.') : '',
+                    $p->stock,
+                    $p->activo ? 'S\u00ed' : 'No',
+                ], ';');
+            }
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
      * Formulario creación
      */
     public function create()

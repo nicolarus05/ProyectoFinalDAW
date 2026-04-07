@@ -26,6 +26,38 @@ class ServicioController extends Controller{
     }
 
     /**
+     * Exportar listado de servicios a CSV
+     */
+    public function exportar()
+    {
+        $servicios = Servicio::orderBy('categoria')->orderBy('nombre')->get();
+        $filename = 'servicios_' . now()->format('Y-m-d') . '.csv';
+
+        $headers = [
+            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+
+        $callback = function () use ($servicios) {
+            $handle = fopen('php://output', 'w');
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF)); // BOM UTF-8
+            fputcsv($handle, ['Nombre', 'Categoria', 'Precio (€)', 'Duracion (min)', 'Activo'], ';');
+            foreach ($servicios as $s) {
+                fputcsv($handle, [
+                    $s->nombre,
+                    ucfirst($s->categoria),
+                    number_format($s->precio, 2, ',', '.'),
+                    $s->tiempo_estimado,
+                    $s->activo ? 'Sí' : 'No',
+                ], ';');
+            }
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
      * Show the form for creating a new resource.
      */
     public function create(){

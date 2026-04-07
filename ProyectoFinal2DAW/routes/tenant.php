@@ -81,10 +81,12 @@ Route::middleware([
         
         // Rutas adicionales para horarios de empleados
 
+        Route::get('servicios/exportar', [ServicioController::class, 'exportar'])->name('servicios.exportar');
         Route::resource('servicios', ServicioController::class)->names('servicios');
         
         // Productos - solo admin puede gestionar (CRUD)
         // NOTA: productos/available está definida en el grupo admin,empleado más abajo
+        Route::get('productos/exportar', [ProductosController::class, 'exportar'])->name('productos.exportar');
         Route::resource('productos', ProductosController::class)->names('productos');
 
         // Horarios (solo admin)
@@ -141,6 +143,7 @@ Route::middleware([
     // ============================================================================
     Route::middleware(['auth', 'role:admin,gerente,empleado'])->group(function () {
         // Clientes
+        Route::get('clientes/exportar', [ClienteController::class, 'exportar'])->name('clientes.exportar');
         Route::resource('clientes', ClienteController::class)->names('clientes');
         Route::get('clientes/{cliente}/historial', [ClienteController::class, 'historial'])->name('clientes.historial');
 

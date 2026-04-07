@@ -34,6 +34,49 @@ class ClienteController extends Controller{
     }
 
     /**
+     * Exportar listado de clientes a CSV
+     */
+    public function exportar()
+    {
+        $clientes = Cliente::with('user')
+            ->join('users', 'clientes.id_user', '=', 'users.id')
+            ->orderBy('users.apellidos', 'asc')
+            ->orderBy('users.nombre', 'asc')
+            ->select('clientes.*')
+            ->get();
+
+        $filename = 'clientes_' . now()->format('Y-m-d') . '.csv';
+
+        $headers = [
+            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+
+        $callback = function () use ($clientes) {
+            $handle = fopen('php://output', 'w');
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF)); // BOM UTF-8
+            fputcsv($handle, ['Nombre', 'Apellidos', 'Email', 'Telefono', 'Genero', 'Edad', 'Direccion', 'Notas', 'Fecha Registro'], ';');
+            foreach ($clientes as $c) {
+                $u = $c->user;
+                fputcsv($handle, [
+                    $u->nombre ?? '',
+                    $u->apellidos ?? '',
+                    $u->email ?? '',
+                    $u->telefono ?? '',
+                    $u->genero ?? '',
+                    $u->edad ?? '',
+                    $c->direccion ?? '',
+                    $c->notas_adicionales ?? '',
+                    $c->fecha_registro ?? '',
+                ], ';');
+            }
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
      * Show the form for creating a new resource.
      */
     public function create(){

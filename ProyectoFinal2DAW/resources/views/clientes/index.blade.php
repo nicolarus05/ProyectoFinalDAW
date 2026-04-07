@@ -12,7 +12,10 @@
             <h1 class="text-3xl font-bold">Clientes registrados</h1>
             <a href="{{ route('dashboard') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">← Volver al Inicio</a>
         </div>
-        <a href="{{ route('clientes.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Añadir un nuevo cliente</a>
+        <div class="flex gap-3 mb-4">
+            <a href="{{ route('clientes.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Añadir un nuevo cliente</a>
+            <a href="{{ route('clientes.exportar') }}" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">&#8595; Exportar CSV</a>
+        </div>
 
         <!-- Barra de búsqueda y controles -->
         <div class="search-container">
