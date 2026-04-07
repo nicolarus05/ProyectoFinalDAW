@@ -21,6 +21,20 @@ Route::middleware([
     'web',
 ])->group(function () {
 
+    // Servir archivos del storage público del tenant
+    Route::get('tenant-file/{path}', function (string $path) {
+        // Sanitizar path para evitar path traversal
+        $path = ltrim($path, '/');
+        if (str_contains($path, '..')) {
+            abort(403);
+        }
+        $disk = \Illuminate\Support\Facades\Storage::disk('public');
+        if (!$disk->exists($path)) {
+            abort(404);
+        }
+        return response()->file($disk->path($path));
+    })->where('path', '.*')->name('tenant.file');
+
     // Dashboard
     Route::get('/', fn () => view('dashboard'))
         ->middleware(['auth'])

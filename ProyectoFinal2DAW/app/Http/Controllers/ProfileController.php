@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use App\Http\Requests\UpdateProfileRequest;
 
@@ -62,19 +63,15 @@ class ProfileController extends Controller{
             $user->password = Hash::make($request->password);
         }
 
-        // FASE 6: Manejo de la foto de perfil con storage tenant-aware
+        // FASE 6: Manejo de la foto de perfil usando disco 'public' de Stancl
         if ($request->hasFile('foto_perfil')) {
             // Eliminar la foto anterior si existe
-            if ($user->foto_perfil) {
-                tenant_storage()->delete($user->foto_perfil, true);
+            if ($user->foto_perfil && Storage::disk('public')->exists($user->foto_perfil)) {
+                Storage::disk('public')->delete($user->foto_perfil);
             }
             
-            // Guardar la nueva foto en el storage del tenant
-            $user->foto_perfil = tenant_upload(
-                $request->file('foto_perfil'),
-                'perfiles',
-                true
-            );
+            // Guardar la nueva foto en el disco público del tenant (gestionado por Stancl)
+            $user->foto_perfil = $request->file('foto_perfil')->store('perfiles', 'public');
         }
 
         $user->save();

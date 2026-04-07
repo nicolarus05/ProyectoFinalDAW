@@ -26,7 +26,7 @@ class EmpleadoResource extends JsonResource
             'categoria' => $this->categoria,
             'categoria_formatted' => ucfirst($this->categoria),
             'disponible' => $this->disponible,
-            'foto_perfil' => $this->user->foto_perfil ? tenant_asset($this->user->foto_perfil) : null,
+            'foto_perfil' => $this->user->foto_perfil ? route('tenant.file', $this->user->foto_perfil) : null,
             
             // Horarios configurados (solo si están en el modelo)
             'horario_invierno' => $this->when(isset($this->horario_invierno), $this->horario_invierno),

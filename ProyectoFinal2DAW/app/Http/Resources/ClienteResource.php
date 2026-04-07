@@ -26,7 +26,7 @@ class ClienteResource extends JsonResource
             'fecha_registro' => $this->fecha_registro?->format('Y-m-d'),
             'fecha_registro_formatted' => $this->fecha_registro?->format('d/m/Y'),
             'notas' => $this->notas_adicionales,
-            'foto_perfil' => $this->user->foto_perfil ? tenant_asset($this->user->foto_perfil) : null,
+            'foto_perfil' => $this->user->foto_perfil ? route('tenant.file', $this->user->foto_perfil) : null,
             
             // Relaciones opcionales (solo si están cargadas)
             'deuda' => $this->whenLoaded('deuda', function () {

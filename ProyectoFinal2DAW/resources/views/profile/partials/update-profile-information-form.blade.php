@@ -50,14 +50,14 @@
         <div>
             <x-input-label for="foto" :value="__('Foto de perfil')" />
             {{$user->foto_perfil}}
-            <input type="file" class="form-input-file" id="foto" name="foto" accept="image/*" />
+            <input type="file" class="form-input-file" id="foto" name="foto_perfil" accept="image/*" />
             @if ($user->foto_perfil)
                 <x-input-label for="foto" :value="__('Foto actual')" class="text-center" />
                 <div>
-                    <img src="{{ asset('storage/' . $user->foto_perfil) }}" alt="Foto de perfil" loading="lazy">
+                    <img src="{{ route('tenant.file', $user->foto_perfil) }}" alt="Foto de perfil" loading="lazy">
                 </div>
             @endif
-            <x-input-error class="mt-2" :messages="$errors->get('foto')" />
+            <x-input-error class="mt-2" :messages="$errors->get('foto_perfil')" />
         </div>
 
         <div class="flex items-center gap-4">
