@@ -57,7 +57,19 @@ class CajaDiariaController extends Controller{
                     $totalTarjeta += $montoPagadoServicios * $proporcionTarjeta;
                 }
             } elseif ($cobro->metodo_pago === 'bono') {
-                $totalBono += $cobro->total_final;
+                // Cobro con bono: si total_final > 0 hay servicios adicionales que se cobraron
+                // con otro método (datos incompletos en cobros anteriores al fix)
+                if ($cobro->total_final > 0.01) {
+                    // Usar pago_tarjeta/pago_efectivo si están disponibles
+                    if (($cobro->pago_tarjeta ?? 0) > 0 || ($cobro->pago_efectivo ?? 0) > 0) {
+                        $totalTarjeta += $cobro->pago_tarjeta ?? 0;
+                        $totalEfectivo += $cobro->pago_efectivo ?? 0;
+                    } else {
+                        // Cobro antiguo sin desglose: sumamos a bono para que aparezca en el total
+                        $totalBono += $cobro->total_final;
+                    }
+                }
+                // Si total_final = 0: servicio completamente cubierto por bono, no hay dinero real
             } elseif ($cobro->metodo_pago === 'deuda') {
                 // Si es deuda, no sumamos nada porque no se recibió dinero
                 continue;
@@ -130,7 +142,8 @@ class CajaDiariaController extends Controller{
         });
 
         // Total pagado: lo que realmente ingresó en caja (servicios + bonos pagados)
-        $totalPagado = $totalEfectivo + $totalTarjeta + $totalBonosVendidosPagados;
+        // $totalBono puede contener importes de cobros mixtos (bono+pago) mal etiquetados como 'bono'
+        $totalPagado = $totalEfectivo + $totalTarjeta + $totalBonosVendidosPagados + $totalBono;
 
         // PUNTO 4: Total de servicios realizados = suma de coste de servicios (sin bonos vendidos)
         // coste = precio total de servicios/productos antes de pagos

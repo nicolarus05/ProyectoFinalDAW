@@ -65,58 +65,66 @@ class FacturacionController extends Controller
         $facturacionService = new FacturacionService();
         
         foreach($cobros as $cobro) {
-            if ($cobro->metodo_pago !== 'bono') {
-                $fechaCobro = $cobro->created_at->format('Y-m-d');
-                if (isset($cajasDiarias[$fechaCobro])) {
-                    $montoPagadoServicios = $cobro->total_final;
-                    
+            $fechaCobro = $cobro->created_at->format('Y-m-d');
+            if (isset($cajasDiarias[$fechaCobro])) {
+                $montoPagadoServicios = $cobro->total_final;
+                
+                if ($cobro->metodo_pago === 'efectivo') {
                     $cajasDiarias[$fechaCobro]['total'] += $montoPagadoServicios;
-                    
-                    if ($cobro->metodo_pago === 'efectivo') {
-                        $cajasDiarias[$fechaCobro]['efectivo'] += $montoPagadoServicios;
-                    } elseif ($cobro->metodo_pago === 'tarjeta') {
-                        $cajasDiarias[$fechaCobro]['tarjeta'] += $montoPagadoServicios;
-                    } elseif ($cobro->metodo_pago === 'mixto') {
-                        $cajasDiarias[$fechaCobro]['efectivo'] += $cobro->pago_efectivo ?? 0;
-                        $cajasDiarias[$fechaCobro]['tarjeta'] += $cobro->pago_tarjeta ?? 0;
-                    } elseif ($cobro->metodo_pago === 'deuda') {
-                        // Deuda = dinero NO cobrado, no sumar a ningún método.
-                        // Cuando se pague, el DeudaController crea un nuevo cobro
-                        // con metodo_pago real (efectivo/tarjeta) que se contará normalmente.
+                    $cajasDiarias[$fechaCobro]['efectivo'] += $montoPagadoServicios;
+                } elseif ($cobro->metodo_pago === 'tarjeta') {
+                    $cajasDiarias[$fechaCobro]['total'] += $montoPagadoServicios;
+                    $cajasDiarias[$fechaCobro]['tarjeta'] += $montoPagadoServicios;
+                } elseif ($cobro->metodo_pago === 'mixto') {
+                    $cajasDiarias[$fechaCobro]['total'] += $montoPagadoServicios;
+                    $cajasDiarias[$fechaCobro]['efectivo'] += $cobro->pago_efectivo ?? 0;
+                    $cajasDiarias[$fechaCobro]['tarjeta'] += $cobro->pago_tarjeta ?? 0;
+                } elseif ($cobro->metodo_pago === 'bono') {
+                    // Cobro con bono: si total_final > 0 hay servicios extras que se cobraron
+                    if ($montoPagadoServicios > 0.01) {
+                        $cajasDiarias[$fechaCobro]['total'] += $montoPagadoServicios;
+                        if (($cobro->pago_tarjeta ?? 0) > 0 || ($cobro->pago_efectivo ?? 0) > 0) {
+                            $cajasDiarias[$fechaCobro]['tarjeta'] += $cobro->pago_tarjeta ?? 0;
+                            $cajasDiarias[$fechaCobro]['efectivo'] += $cobro->pago_efectivo ?? 0;
+                        }
                     }
+                } elseif ($cobro->metodo_pago === 'deuda') {
+                    // Deuda = dinero NO cobrado, no sumar a ningún método.
+                    // Cuando se pague, el DeudaController crea un nuevo cobro
+                    // con metodo_pago real (efectivo/tarjeta) que se contará normalmente.
+                }
                     
-                    // Desglose peluquería/estética usando FacturacionService
-                    // Solo para cobros contabilizados y que no son deuda pura
-                    if ($cobro->contabilizado && $cobro->metodo_pago !== 'deuda') {
-                        $desglose = $facturacionService->desglosarCobroPorCategoria($cobro);
-                        $cajasDiarias[$fechaCobro]['peluqueria'] += ($desglose['peluqueria']['servicios'] ?? 0)
-                            + ($desglose['peluqueria']['productos'] ?? 0);
-                        $cajasDiarias[$fechaCobro]['estetica'] += ($desglose['estetica']['servicios'] ?? 0)
-                            + ($desglose['estetica']['productos'] ?? 0);
-                    }
+                // Desglose peluquería/estética usando FacturacionService
+                // Solo para cobros contabilizados y que no son deuda pura
+                if ($cobro->contabilizado && $cobro->metodo_pago !== 'deuda') {
+                    $desglose = $facturacionService->desglosarCobroPorCategoria($cobro);
+                    $cajasDiarias[$fechaCobro]['peluqueria'] += ($desglose['peluqueria']['servicios'] ?? 0)
+                        + ($desglose['peluqueria']['productos'] ?? 0);
+                    $cajasDiarias[$fechaCobro]['estetica'] += ($desglose['estetica']['servicios'] ?? 0)
+                        + ($desglose['estetica']['productos'] ?? 0);
+                }
                     
-                    // Sumar bonos vendidos por su propio método de pago
-                    if ($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0) {
-                        foreach ($cobro->bonosVendidos as $bono) {
-                            $metodoPagoBono = $bono->metodo_pago;
+                // Sumar bonos vendidos por su propio método de pago
+                if ($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0) {
+                    foreach ($cobro->bonosVendidos as $bono) {
+                        $metodoPagoBono = $bono->metodo_pago;
+                        
+                        if ($metodoPagoBono !== 'deuda') {
+                            $precioBonoPagado = $bono->precio_pagado ?? 0;
+                            $cajasDiarias[$fechaCobro]['total'] += $precioBonoPagado;
                             
-                            if ($metodoPagoBono !== 'deuda') {
-                                $precioBonoPagado = $bono->precio_pagado ?? 0;
-                                $cajasDiarias[$fechaCobro]['total'] += $precioBonoPagado;
-                                
-                                if ($metodoPagoBono === 'efectivo') {
-                                    $cajasDiarias[$fechaCobro]['efectivo'] += $precioBonoPagado;
-                                } elseif ($metodoPagoBono === 'tarjeta') {
-                                    $cajasDiarias[$fechaCobro]['tarjeta'] += $precioBonoPagado;
-                                } elseif ($metodoPagoBono === 'mixto') {
-                                    // Usar desglose real si existe, sino fallback 50/50 para datos antiguos
-                                    if ($bono->pago_efectivo !== null && $bono->pago_tarjeta !== null) {
-                                        $cajasDiarias[$fechaCobro]['efectivo'] += $bono->pago_efectivo;
-                                        $cajasDiarias[$fechaCobro]['tarjeta'] += $bono->pago_tarjeta;
-                                    } else {
-                                        $cajasDiarias[$fechaCobro]['efectivo'] += $precioBonoPagado / 2;
-                                        $cajasDiarias[$fechaCobro]['tarjeta'] += $precioBonoPagado / 2;
-                                    }
+                            if ($metodoPagoBono === 'efectivo') {
+                                $cajasDiarias[$fechaCobro]['efectivo'] += $precioBonoPagado;
+                            } elseif ($metodoPagoBono === 'tarjeta') {
+                                $cajasDiarias[$fechaCobro]['tarjeta'] += $precioBonoPagado;
+                            } elseif ($metodoPagoBono === 'mixto') {
+                                // Usar desglose real si existe, sino fallback 50/50 para datos antiguos
+                                if ($bono->pago_efectivo !== null && $bono->pago_tarjeta !== null) {
+                                    $cajasDiarias[$fechaCobro]['efectivo'] += $bono->pago_efectivo;
+                                    $cajasDiarias[$fechaCobro]['tarjeta'] += $bono->pago_tarjeta;
+                                } else {
+                                    $cajasDiarias[$fechaCobro]['efectivo'] += $precioBonoPagado / 2;
+                                    $cajasDiarias[$fechaCobro]['tarjeta'] += $precioBonoPagado / 2;
                                 }
                             }
                         }
@@ -136,7 +144,7 @@ class FacturacionController extends Controller
         $totalGeneral = $totalServicios + $totalProductos + $bonosVendidos;
         
         // Calcular deuda total del mes (solo deudas pendientes)
-        $deudaTotal = $cobros->where('metodo_pago', '!=', 'bono')->sum('deuda');
+        $deudaTotal = $cobros->sum('deuda');
         
         // Calcular suma de cajas diarias (debe ser igual a totalGeneral - deudaTotal)
         $sumaCajasDiarias = array_sum(array_column($cajasDiarias, 'total'));

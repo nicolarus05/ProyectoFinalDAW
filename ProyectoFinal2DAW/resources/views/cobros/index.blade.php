@@ -759,7 +759,7 @@
                         @php
                             $totalFacturadoDia = 0;
                             foreach($cobros as $cobro) {
-                                if ($cobro->metodo_pago !== 'bono') {
+                                if ($cobro->metodo_pago !== 'bono' || $cobro->total_final > 0.01) {
                                     $totalFacturadoDia += $cobro->total_final;
                                 }
                                 if ($cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0) {

@@ -865,7 +865,8 @@ class RegistroCobroController extends Controller{
             
             // Si el descuento por bonos cubre todos los servicios (con margen de 0.01 por redondeos)
             // Y no hay productos que requieran pago
-            if ($costoServicios > 0 && abs($descuentoBonos - $costoServicios) < 0.01) {
+            // IMPORTANTE: también verificar que total_final sea 0 (sin servicios extra sin cubrir)
+            if ($costoServicios > 0 && abs($descuentoBonos - $costoServicios) < 0.01 && $totalCobradoServicios < 0.01) {
                 $metodoPagoFinal = 'bono';
                 $data['dinero_cliente'] = 0;
                 $data['cambio'] = 0;
