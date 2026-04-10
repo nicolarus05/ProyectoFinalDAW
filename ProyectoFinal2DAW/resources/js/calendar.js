@@ -129,54 +129,102 @@ document.addEventListener('DOMContentLoaded', function() {
         window.location.href = `${createUrl}?empleado_id=${empleadoId}&fecha_hora=${encodeURIComponent(fechaHora)}`;
     };
 
-    // Cambiar día de cita
-    window.cambiarDiaCita = function(input) {
-        const nuevaFecha = input.value;
-        if (!nuevaFecha) return;
+    // Popover para cambiar fecha y hora de cita
+    let _popoverState = { citaId: null, empleadoId: null };
 
-        const citaId = input.dataset.citaId;
-        const empleadoId = input.dataset.empleadoId;
-        const hora = input.dataset.hora;
-        const clienteNombre = input.dataset.clienteNombre;
-        const nuevaFechaHora = nuevaFecha + ' ' + hora;
+    window.abrirPopoverCita = function(btn) {
+        const popover = document.getElementById('popover-cita');
+        _popoverState.citaId     = btn.dataset.citaId;
+        _popoverState.empleadoId = btn.dataset.empleadoId;
 
-        // Formatear fecha para mostrar
-        const fechaObj = new Date(nuevaFecha + 'T00:00:00');
-        const fechaFormateada = fechaObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        document.getElementById('popover-cliente-nombre').textContent = btn.dataset.clienteNombre;
+        document.getElementById('popover-fecha').value = btn.dataset.fecha;
+        document.getElementById('popover-hora').value  = btn.dataset.hora;
 
-        if (!confirm(`¿Mover cita de ${clienteNombre} al ${fechaFormateada} a las ${hora.substring(0,5)}?`)) {
-            input.value = '';
+        // Posicionar relativo al botón
+        const rect      = btn.getBoundingClientRect();
+        const popoverW  = 280;
+        let left = rect.left;
+        let top  = rect.bottom + 6;
+
+        if (left + popoverW > window.innerWidth - 10) left = window.innerWidth - popoverW - 10;
+        if (top  + 230 > window.innerHeight)          top  = rect.top - 230 - 6;
+
+        popover.style.left    = left + 'px';
+        popover.style.top     = top  + 'px';
+        popover.style.display = 'block';
+    };
+
+    window.cerrarPopoverCita = function() {
+        const popover = document.getElementById('popover-cita');
+        if (popover) popover.style.display = 'none';
+        _popoverState.citaId     = null;
+        _popoverState.empleadoId = null;
+    };
+
+    window.confirmarMoverCita = function() {
+        const fecha = document.getElementById('popover-fecha').value;
+        const hora  = document.getElementById('popover-hora').value;
+
+        if (!fecha || !hora) {
+            alert('Selecciona la fecha y la hora');
             return;
         }
+
+        const horaHHMM        = hora.substring(0, 5);
+        const nuevaFechaHora  = fecha + 'T' + horaHHMM + ':00';
+        console.log('[popover] fecha:', fecha, 'hora raw:', hora, 'enviando:', nuevaFechaHora);
+        const clienteNombre   = document.getElementById('popover-cliente-nombre').textContent;
+        const citaId          = _popoverState.citaId;
+        const empleadoId      = _popoverState.empleadoId;
+
+        const fechaObj        = new Date(fecha + 'T00:00:00');
+        const fechaFormateada = fechaObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+        if (!confirm(`¿Mover cita de ${clienteNombre} al ${fechaFormateada} a las ${hora}?`)) return;
+
+        window.cerrarPopoverCita();
 
         fetch(moverUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
                 'X-CSRF-TOKEN': csrfToken
             },
             body: JSON.stringify({
-                cita_id: citaId,
+                cita_id:           citaId,
                 nuevo_empleado_id: empleadoId,
-                nueva_fecha_hora: nuevaFechaHora
+                nueva_fecha_hora:  nuevaFechaHora
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok && response.status !== 400 && response.status !== 422) {
+                return response.text().then(text => { throw new Error('HTTP ' + response.status + ': ' + text.substring(0, 200)); });
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 alert(data.message);
-                window.location.href = window.location.pathname + '?fecha=' + nuevaFecha;
+                window.location.href = window.location.pathname + '?fecha=' + fecha;
             } else {
                 alert('Error: ' + data.message);
-                input.value = '';
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            alert('Error al cambiar el día de la cita');
-            input.value = '';
+            console.error('Error al mover cita:', error);
+            alert('Error al mover la cita: ' + error.message);
         });
     };
+
+    // Cerrar popover al hacer click fuera
+    document.addEventListener('click', function(e) {
+        const popover = document.getElementById('popover-cita');
+        if (popover && popover.style.display !== 'none' && !popover.contains(e.target)) {
+            window.cerrarPopoverCita();
+        }
+    });
 
     // Modal
     window.abrirModal = function(citaId) {
@@ -193,9 +241,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // Cerrar modal con tecla ESC
+    // Cerrar modal y popover con tecla ESC
     document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape') {
+            window.cerrarPopoverCita();
             window.cerrarModal();
         }
     });

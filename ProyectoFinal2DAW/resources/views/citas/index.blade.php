@@ -404,21 +404,17 @@
                                                     onclick="event.stopPropagation(); window.location.href='{{ route('citas.show', $cita->id) }}'">
                                                 👁
                                             </button>
-                                            <span style="position: relative; display: inline;">
-                                                <button class="btn-accion" 
-                                                        onclick="event.stopPropagation(); this.nextElementSibling.showPicker();"
-                                                        title="Cambiar día"
-                                                        style="background: #2563eb; color: white; font-size: 10px;">
-                                                    📅
-                                                </button>
-                                                <input type="date" 
-                                                       style="position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; overflow: hidden; border: none;"
-                                                       data-cita-id="{{ $cita->id }}"
-                                                       data-empleado-id="{{ $cita->id_empleado }}"
-                                                       data-hora="{{ \Carbon\Carbon::parse($cita->fecha_hora)->format('H:i:s') }}"
-                                                       data-cliente-nombre="{{ $cita->cliente && $cita->cliente->user ? $cita->cliente->user->nombre : 'Cliente' }}"
-                                                       onchange="event.stopPropagation(); cambiarDiaCita(this);">
-                                            </span>
+                                            <button class="btn-accion"
+                                                    onclick="event.stopPropagation(); abrirPopoverCita(this);"
+                                                    title="Mover cita"
+                                                    style="background: #2563eb; color: white; font-size: 10px;"
+                                                    data-cita-id="{{ $cita->id }}"
+                                                    data-empleado-id="{{ $cita->id_empleado }}"
+                                                    data-hora="{{ \Carbon\Carbon::parse($cita->fecha_hora)->format('H:i:s') }}"
+                                                    data-fecha="{{ \Carbon\Carbon::parse($cita->fecha_hora)->format('Y-m-d') }}"
+                                                    data-cliente-nombre="{{ $cita->cliente && $cita->cliente->user ? $cita->cliente->user->nombre : 'Cliente' }}">
+                                                📅
+                                            </button>
                                         </div>
                                         @endif
                                     @endif
@@ -434,6 +430,23 @@
                     <p>No hay empleados disponibles para mostrar el calendario.</p>
                 </div>
             @endif
+        </div>
+    </div>
+
+    <!-- Popover cambiar fecha/hora cita -->
+    <div id="popover-cita" style="display:none; position:fixed; z-index:9999; background:white; border:1px solid #d1d5db; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.15); padding:16px; min-width:268px;">
+        <p style="font-weight:600; margin:0 0 12px; color:#1e40af; font-size:14px;">📅 Mover cita &mdash; <span id="popover-cliente-nombre" style="color:#374151;"></span></p>
+        <div style="margin-bottom:10px;">
+            <label style="font-size:13px; font-weight:500; color:#374151; display:block; margin-bottom:4px;">Fecha</label>
+            <input type="date" id="popover-fecha" style="width:100%; border:1px solid #d1d5db; border-radius:6px; padding:6px 10px; font-size:14px; box-sizing:border-box;">
+        </div>
+        <div style="margin-bottom:14px;">
+            <label style="font-size:13px; font-weight:500; color:#374151; display:block; margin-bottom:4px;">Hora</label>
+            <input type="time" id="popover-hora" step="900" style="width:100%; border:1px solid #d1d5db; border-radius:6px; padding:6px 10px; font-size:14px; box-sizing:border-box;">
+        </div>
+        <div style="display:flex; gap:8px; justify-content:flex-end;">
+            <button onclick="cerrarPopoverCita()" style="padding:6px 14px; border:1px solid #d1d5db; border-radius:6px; background:white; cursor:pointer; font-size:13px; color:#374151;">Cancelar</button>
+            <button onclick="confirmarMoverCita()" style="padding:6px 14px; border:none; border-radius:6px; background:#2563eb; color:white; cursor:pointer; font-size:13px; font-weight:600;">Mover &rarr;</button>
         </div>
     </div>
 
