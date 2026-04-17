@@ -609,6 +609,16 @@ class RegistroCobroController extends Controller{
                                 'servicio_id' => $servicioCita->id,
                                 'servicio_nombre' => $servicioCita->nombre
                             ]);
+
+                            // Si este servicio ya fue cubierto por un bono en una cita anterior
+                            // del mismo cobro (citas agrupadas), no volver a descontarlo
+                            if (in_array($servicioCita->id, $servicioIdsCubiertosporBonoActivo)) {
+                                Log::info('⏭️  Servicio ya cubierto por bono en cita anterior (agrupada), se omite', [
+                                    'servicio_id' => $servicioCita->id,
+                                    'servicio_nombre' => $servicioCita->nombre
+                                ]);
+                                continue;
+                            }
                             
                             // Buscar si hay un bono que incluya este servicio
                             foreach ($bonosActivos as $bono) {
