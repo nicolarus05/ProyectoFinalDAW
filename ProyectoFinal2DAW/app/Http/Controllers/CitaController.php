@@ -248,8 +248,8 @@ class CitaController extends Controller{
         $hayPeluqueria = $serviciosSeleccionados->where('categoria', 'peluqueria')->count() > 0;
         $hayMultiplesServicios = $serviciosSeleccionados->count() > 1;
         
-        // Si hay múltiples servicios de peluquería, crear citas independientes
-        if ($hayPeluqueria && $hayMultiplesServicios) {
+        // Si hay múltiples servicios (de cualquier categoría), crear citas independientes por bloque
+        if ($hayMultiplesServicios) {
             // Usar timestamp como ID de grupo único
             $grupoCitaId = now()->timestamp;
             $horaActual = Carbon::parse($data['fecha_hora']);
@@ -280,7 +280,7 @@ class CitaController extends Controller{
                 ->where('orden_servicio', 1)
                 ->first();
         } else {
-            // Crear una sola cita (estética o peluquería con un solo servicio)
+            // Crear una sola cita (un único servicio de cualquier categoría)
             $cita = Cita::create($data);
             $cita->servicios()->attach($servicios);
         }
