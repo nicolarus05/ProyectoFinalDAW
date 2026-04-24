@@ -28,7 +28,8 @@ class CajaDiariaController extends Controller{
             'productos',
             'cita.servicios',
             'citasAgrupadas.servicios',
-            'bonosVendidos' // IMPORTANTE: cargar bonos vendidos
+            'bonosVendidos.plantilla.servicios',
+            'bonosVendidos.empleado.user', // IMPORTANTE: cargar empleado que vendió el bono
         ])
             ->whereDate('created_at', $fecha)
             ->get();

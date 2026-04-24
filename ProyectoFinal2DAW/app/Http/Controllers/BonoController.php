@@ -323,7 +323,7 @@ class BonoController extends Controller
     public function misClientes($clienteId)
     {
         $cliente = Cliente::with('user')->findOrFail($clienteId);
-        $bonos = BonoCliente::with(['plantilla', 'servicios', 'usoDetalles.cita', 'usoDetalles.servicio'])
+        $bonos = BonoCliente::with(['plantilla', 'servicios', 'usoDetalles.cita', 'usoDetalles.servicio', 'empleado.user'])
             ->where('cliente_id', $clienteId)
             ->orderByRaw("FIELD(estado, 'activo', 'expirado', 'usado')") // Primero activos, luego expirados, luego usados
             ->orderBy('created_at', 'desc')

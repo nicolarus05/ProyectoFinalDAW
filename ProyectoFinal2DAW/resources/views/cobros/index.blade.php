@@ -626,6 +626,11 @@
                                                     Incluye: {{ implode(', ', $serviciosBono) }}
                                                 </div>
                                             @endif
+                                            @if($bono->empleado && $bono->empleado->user)
+                                                <div class="text-xs text-gray-500 mb-1">
+                                                    Vendido por: <span class="font-medium">{{ $bono->empleado->user->nombre }} {{ $bono->empleado->user->apellidos }}</span>
+                                                </div>
+                                            @endif
                                             <div class="flex flex-wrap gap-2 mt-2">
                                                 <span class="text-xs px-2 py-1 rounded-full
                                                     {{ $bono->metodo_pago === 'efectivo' ? 'bg-green-200 text-green-800' : '' }}

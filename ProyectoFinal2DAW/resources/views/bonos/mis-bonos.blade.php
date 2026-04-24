@@ -49,6 +49,16 @@
                                 <p class="font-semibold">{{ $bono->fecha_compra->format('d/m/Y') }}</p>
                             </div>
                             <div>
+                                <p class="text-gray-600">Vendido por:</p>
+                                <p class="font-semibold">
+                                    @if($bono->empleado && $bono->empleado->user)
+                                        {{ $bono->empleado->user->nombre }} {{ $bono->empleado->user->apellidos }}
+                                    @else
+                                        —
+                                    @endif
+                                </p>
+                            </div>
+                            <div>
                                 <p class="text-gray-600">Fecha de expiración:</p>
                                 @if($bono->plantilla->duracion_dias)
                                     <p class="font-semibold {{ $bono->estaExpirado() ? 'text-red-600' : '' }}">

@@ -219,6 +219,7 @@
                             <p class="text-sm text-gray-700">Metodo de pago: {{ $bono->metodo_pago ?? '-' }}</p>
                             <p class="text-sm text-gray-700">Fecha compra: {{ optional($bono->fecha_compra)->format('d/m/Y') ?: '-' }}</p>
                             <p class="text-sm text-gray-700">Fecha expiracion: {{ optional($bono->fecha_expiracion)->format('d/m/Y') ?: '-' }}</p>
+                            <p class="text-sm text-gray-700">Vendido por: {{ $bono->empleado && $bono->empleado->user ? $bono->empleado->user->nombre . ' ' . $bono->empleado->user->apellidos : '—' }}</p>
                         </article>
                     @endforeach
                 </div>

@@ -1614,6 +1614,7 @@ class RegistroCobroController extends Controller{
             'empleado.user',
             'productos',
             'bonosVendidos.plantilla.servicios',
+            'bonosVendidos.empleado.user',
             'movimientosDeuda.deuda.cliente.user',
             'movimientosDeuda.deuda.movimientos.usuarioRegistro',
             'movimientosDeuda.deuda.movimientos.registroCobro',
