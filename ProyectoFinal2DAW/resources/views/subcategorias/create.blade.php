@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crear Cliente</title>
+    <title>Nueva Subcategoría</title>
     {!! vite_asset(['resources/css/app.css', 'resources/js/app.js']) !!}
     <style>
         :root { --sidebar-w: 210px; }
@@ -29,22 +29,25 @@
         .page-title { font-size:15px;font-weight:700;color:#1f2937; }
         .user-area { display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit; }
         .user-avatar { width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#f472b6,#a855f7);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px;flex-shrink:0; }
-        .content { flex:1;padding:18px 20px; }
-        .panel { background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden;max-width:700px;margin:0 auto; }
-        .panel-header { padding:14px 20px;background:#1e1a4b;display:flex;align-items:center;justify-content:space-between; }
-        .panel-header h2 { color:#fff;font-size:15px;font-weight:700; }
-        .panel-body { padding:24px; }
-        .form-row { display:grid;grid-template-columns:1fr 1fr;gap:14px; }
-        .form-group { margin-bottom:16px; }
+        .content { flex:1;padding:18px 20px;display:flex;justify-content:center; }
+        .form-card { background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden;width:100%;max-width:560px;align-self:flex-start; }
+        .panel-header { padding:14px 20px;background:#1e1a4b; }
+        .panel-header h2 { color:#fff;font-size:14px;font-weight:700; }
+        .form-body { padding:24px; }
+        .form-group { margin-bottom:18px; }
         .form-label { display:block;font-size:12px;font-weight:700;color:#374151;margin-bottom:6px; }
+        .form-label span { color:#ef4444; }
         .form-control { width:100%;padding:9px 14px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:13px;outline:none;transition:border .2s;background:#fff;color:#1f2937; }
         .form-control:focus { border-color:#a855f7;box-shadow:0 0 0 3px rgba(168,85,247,.08); }
-        select.form-control { cursor:pointer; }
-        textarea.form-control { resize:vertical; }
-        .btn-primary { padding:10px 24px;background:linear-gradient(135deg,#f472b6,#a855f7);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer; }
-        .btn-secondary { padding:10px 20px;background:#f3f4f6;border:1.5px solid #e5e7eb;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;color:#374151;text-decoration:none;display:inline-flex;align-items:center; }
-        .section-divider { font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin:20px 0 12px;padding-bottom:6px;border-bottom:1px solid #f3f4f6; }
-        @media (max-width:768px) { .sidebar{transform:translateX(-100%)} .main-wrapper{margin-left:0} .form-row{grid-template-columns:1fr} }
+        .form-hint { font-size:11px;color:#9ca3af;margin-top:4px; }
+        .btn-primary { padding:10px 20px;background:linear-gradient(135deg,#f472b6,#a855f7);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer; }
+        .btn-secondary { padding:10px 20px;background:#f3f4f6;border:1.5px solid #e5e7eb;border-radius:9px;font-size:13px;font-weight:600;color:#374151;text-decoration:none; }
+        .error-box { background:#fef2f2;border:1.5px solid #fca5a5;border-radius:9px;padding:12px 16px;margin-bottom:18px;font-size:12px;color:#dc2626; }
+        .color-row { display:flex;align-items:center;gap:10px; }
+        .color-picker-wrap { position:relative;width:42px;height:42px;border-radius:9px;overflow:hidden;border:1.5px solid #e5e7eb;cursor:pointer; }
+        .color-picker-wrap input[type=color] { position:absolute;top:-4px;left:-4px;width:calc(100%+8px);height:calc(100%+8px);border:none;cursor:pointer;padding:0; }
+        #preview-bloque { border-radius:8px;padding:6px 16px;font-size:13px;font-weight:700;transition:background .2s,color .2s; }
+        @media (max-width:900px) { .sidebar{transform:translateX(-100%)} .main-wrapper{margin-left:0} }
     </style>
 </head>
 <body>
@@ -61,11 +64,11 @@
     <nav class="sidebar-nav">
         <a href="{{ route('dashboard') }}" class="nav-item"><span class="nav-icon">🏠</span> Inicio</a>
         <a href="{{ route('citas.index') }}" class="nav-item"><span class="nav-icon">📅</span> Citas</a>
-        <a href="{{ route('clientes.index') }}" class="nav-item active"><span class="nav-icon">👤</span> Clientes</a>
+        <a href="{{ route('clientes.index') }}" class="nav-item"><span class="nav-icon">👤</span> Clientes</a>
         @if(in_array($rol,['admin','gerente']))
         <a href="{{ route('empleados.index') }}" class="nav-item"><span class="nav-icon">👔</span> Empleados</a>
         <a href="{{ route('servicios.index') }}" class="nav-item"><span class="nav-icon">✂️</span> Servicios</a>
-        <a href="{{ route('subcategorias.index') }}" class="nav-item"><span class="nav-icon">🏷️</span> Subcategorías</a>
+        <a href="{{ route('subcategorias.index') }}" class="nav-item active"><span class="nav-icon">🏷️</span> Subcategorías</a>
         <a href="{{ route('productos.index') }}" class="nav-item"><span class="nav-icon">🛍️</span> Productos</a>
         @endif
         <a href="{{ route('cobros.index') }}" class="nav-item"><span class="nav-icon">💳</span> Cobros</a>
@@ -93,9 +96,9 @@
 <div class="main-wrapper">
     <header class="topbar">
         <div class="menu-btn" onclick="document.body.classList.toggle('sidebar-collapsed')">☰</div>
-        <span class="page-title">➕ Nuevo Cliente</span>
+        <span class="page-title">🏷️ Nueva Subcategoría</span>
         <div style="flex:1"></div>
-        <a href="{{ route('clientes.index') }}" style="font-size:12px;color:#a855f7;font-weight:600;text-decoration:none;margin-right:12px">← Volver a clientes</a>
+        <a href="{{ route('subcategorias.index') }}" style="font-size:12px;color:#a855f7;font-weight:600;text-decoration:none;margin-right:12px">← Volver</a>
         <a href="{{ route('profile.edit') }}" class="user-area">
             @if($user && $user->foto_perfil)
                 <img src="{{ route('tenant.file',$user->foto_perfil) }}" style="width:32px;height:32px;border-radius:50%;object-fit:cover">
@@ -110,95 +113,94 @@
     </header>
 
     <div class="content">
-        <div class="panel">
+        <div class="form-card">
             <div class="panel-header">
-                <h2>➕ Crear Nuevo Cliente</h2>
-                <a href="{{ route('clientes.index') }}" style="font-size:11px;color:rgba(255,255,255,.7);text-decoration:none">← Volver a la lista</a>
+                <h2>🏷️ Nueva Subcategoría</h2>
             </div>
-            <div class="panel-body">
+            <div class="form-body">
 
-                @if ($errors->any())
-                    <div style="margin-bottom:16px;background:#fef2f2;border-left:4px solid #ef4444;padding:12px 16px;border-radius:8px">
-                        <strong style="color:#991b1b;font-size:13px">❌ Hay errores en el formulario</strong>
-                        <ul style="margin-top:6px;padding-left:18px;color:#b91c1c;font-size:12px">
-                            @foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach
+                @if($errors->any())
+                    <div class="error-box">
+                        <ul style="list-style:disc;padding-left:16px">
+                            @foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach
                         </ul>
                     </div>
                 @endif
 
-                <form action="{{ route('clientes.store') }}" method="POST">
+                <form action="{{ route('subcategorias.store') }}" method="POST">
                     @csrf
-                    <input type="hidden" name="fecha_registro" value="{{ date('Y-m-d') }}">
-
-                    <div class="section-divider">Datos personales</div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">👤 Nombre <span style="color:#ef4444">*</span></label>
-                            <input type="text" name="nombre" value="{{ old('nombre') }}" required class="form-control" placeholder="Nombre">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">👤 Apellidos <span style="color:#ef4444">*</span></label>
-                            <input type="text" name="apellidos" value="{{ old('apellidos') }}" required class="form-control" placeholder="Apellidos">
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">📞 Teléfono <span style="color:#ef4444">*</span></label>
-                            <input type="text" name="telefono" value="{{ old('telefono') }}" required class="form-control" placeholder="6XX XXX XXX">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">🎂 Edad <span style="color:#ef4444">*</span></label>
-                            <input type="number" name="edad" value="{{ old('edad') }}" min="0" required class="form-control" placeholder="Edad">
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">⚧ Género <span style="color:#ef4444">*</span></label>
-                            <select name="genero" required class="form-control">
-                                <option value="">Seleccione</option>
-                                <option value="Hombre" {{ old('genero')=='Hombre'?'selected':'' }}>Hombre</option>
-                                <option value="Mujer"  {{ old('genero')=='Mujer' ?'selected':'' }}>Mujer</option>
-                                <option value="Otro"   {{ old('genero')=='Otro'  ?'selected':'' }}>Otro</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">🏠 Dirección <span style="color:#ef4444">*</span></label>
-                            <input type="text" name="direccion" value="{{ old('direccion') }}" required class="form-control" placeholder="Calle, número, ciudad">
-                        </div>
-                    </div>
-
-                    <div class="section-divider">Credenciales de acceso</div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">📧 Email <span style="color:#ef4444">*</span></label>
-                            <input type="email" name="email" value="{{ old('email') }}" required class="form-control" placeholder="correo@ejemplo.com">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">🔒 Contraseña <span style="color:#ef4444">*</span></label>
-                            <input type="password" name="password" required class="form-control" placeholder="Mínimo 8 caracteres">
-                        </div>
-                    </div>
-
-                    <div class="section-divider">Información adicional</div>
 
                     <div class="form-group">
-                        <label class="form-label">📝 Notas Adicionales</label>
-                        <textarea name="notas_adicionales" rows="3" class="form-control" placeholder="Alergias, preferencias, observaciones...">{{ old('notas_adicionales') }}</textarea>
+                        <label class="form-label" for="nombre">Nombre <span>*</span></label>
+                        <input type="text" id="nombre" name="nombre" value="{{ old('nombre') }}"
+                               required maxlength="100"
+                               placeholder="Ej: Cortes, Manicura, Peinados..."
+                               class="form-control">
                     </div>
 
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:16px;border-top:1px solid #f3f4f6">
-                        <a href="{{ route('clientes.index') }}" class="btn-secondary">← Volver</a>
-                        <button type="submit" class="btn-primary">💾 Crear Cliente</button>
+                    <div class="form-group">
+                        <label class="form-label" for="categoria">Categoría principal <span>*</span></label>
+                        <select id="categoria" name="categoria" required class="form-control">
+                            <option value="peluqueria" {{ old('categoria') == 'peluqueria' ? 'selected' : '' }}>✂️ Peluquería</option>
+                            <option value="estetica"   {{ old('categoria') == 'estetica'   ? 'selected' : '' }}>💅 Estética</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="color-picker">Color del bloque en agenda <span>*</span></label>
+                        <div class="color-row">
+                            <div class="color-picker-wrap">
+                                <input type="color" id="color-picker" value="{{ old('color', '#8b5cf6') }}"
+                                       oninput="document.getElementById('color-hex').value=this.value;actualizarPreview()">
+                            </div>
+                            <input type="text" name="color" id="color-hex" value="{{ old('color', '#8b5cf6') }}"
+                                   pattern="^#[0-9A-Fa-f]{6}$" maxlength="7" required
+                                   placeholder="#8b5cf6"
+                                   style="width:110px;font-family:monospace"
+                                   class="form-control"
+                                   oninput="sincronizarColor(this.value)">
+                            <div id="preview-bloque">Vista previa</div>
+                        </div>
+                        <p class="form-hint">Este color se usará en los bloques de cita de la agenda.</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="activo">Estado</label>
+                        <select id="activo" name="activo" class="form-control">
+                            <option value="1" selected>✓ Activa</option>
+                            <option value="0">✗ Inactiva</option>
+                        </select>
+                    </div>
+
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:24px">
+                        <button type="submit" class="btn-primary">✓ Guardar Subcategoría</button>
+                        <a href="{{ route('subcategorias.index') }}" class="btn-secondary">Cancelar</a>
                     </div>
                 </form>
+
             </div>
         </div>
     </div>
 </div>
 
+<script>
+function actualizarPreview() {
+    var color = document.getElementById('color-picker').value;
+    var prev  = document.getElementById('preview-bloque');
+    prev.style.background = color;
+    var r = parseInt(color.slice(1,3),16),
+        g = parseInt(color.slice(3,5),16),
+        b = parseInt(color.slice(5,7),16);
+    var luminancia = (0.299*r + 0.587*g + 0.114*b) / 255;
+    prev.style.color = luminancia > 0.6 ? '#1f2937' : '#ffffff';
+}
+function sincronizarColor(val) {
+    if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+        document.getElementById('color-picker').value = val;
+        actualizarPreview();
+    }
+}
+actualizarPreview();
+</script>
 </body>
 </html>

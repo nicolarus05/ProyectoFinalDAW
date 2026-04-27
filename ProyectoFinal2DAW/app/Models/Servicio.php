@@ -17,6 +17,7 @@ class Servicio extends Model{
         'tiempo_estimado',
         'precio',
         'categoria',
+        'subcategoria_id',
         'descripcion',
         'activo',
     ];
@@ -35,6 +36,11 @@ class Servicio extends Model{
     public function citas()
     {
         return $this->belongsToMany(Cita::class, 'cita_servicio', 'id_servicio', 'id_cita');
+    }
+
+    public function subcategoria()
+    {
+        return $this->belongsTo(Subcategoria::class, 'subcategoria_id');
     }
 
     /**

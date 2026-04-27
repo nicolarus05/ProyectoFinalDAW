@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Servicio;
+use App\Models\Subcategoria;
 use App\Http\Resources\ServicioResource;
 use App\Traits\HasFlashMessages;
 use App\Traits\HasCrudMessages;
@@ -21,7 +22,7 @@ class ServicioController extends Controller{
      * Display a listing of the resource.
      */
     public function index(){
-        $servicios = Servicio::where('activo', true)->get();
+        $servicios = Servicio::with('subcategoria')->where('activo', true)->get();
         return view('servicios.index', compact('servicios'));
     }
 
@@ -61,7 +62,8 @@ class ServicioController extends Controller{
      * Show the form for creating a new resource.
      */
     public function create(){
-        return view('servicios.create');
+        $subcategorias = Subcategoria::where('activo', true)->orderBy('categoria')->orderBy('nombre')->get();
+        return view('servicios.create', compact('subcategorias'));
     }
 
     /**
@@ -69,19 +71,16 @@ class ServicioController extends Controller{
      */
     public function store(Request $request){
         $data = $request->validate([
-            'nombre' => 'required|string|max:100',
+            'nombre'          => 'required|string|max:100',
             'tiempo_estimado' => 'required|integer|min:1',
-            'precio' => 'required|numeric|min:0',
-            'categoria' => 'required|in:peluqueria,estetica',
-            'activo' => 'boolean'
+            'precio'          => 'required|numeric|min:0',
+            'categoria'       => 'required|in:peluqueria,estetica',
+            'subcategoria_id' => 'nullable|exists:subcategorias,id',
+            'activo'          => 'boolean'
         ]);
 
-
         Servicio::create($data);
-        
-        // Limpiar caché de servicios
         CacheService::clearServiciosCache();
-        
         return redirect()->route('servicios.index');
     }
 
@@ -97,7 +96,8 @@ class ServicioController extends Controller{
      * Show the form for editing the specified resource.
      */
     public function edit(Servicio $servicio){
-        return view('servicios.edit', compact('servicio'));
+        $subcategorias = Subcategoria::where('activo', true)->orderBy('categoria')->orderBy('nombre')->get();
+        return view('servicios.edit', compact('servicio', 'subcategorias'));
     }
 
     /**
@@ -105,19 +105,16 @@ class ServicioController extends Controller{
      */
     public function update(Request $request, Servicio $servicio){
         $data = $request->validate([
-            'nombre' => 'required|string|max:100',
+            'nombre'          => 'required|string|max:100',
             'tiempo_estimado' => 'required|integer|min:1',
-            'precio' => 'required|numeric|min:0',
-            'categoria' => 'required|in:peluqueria,estetica',
-            'activo' => 'boolean'
+            'precio'          => 'required|numeric|min:0',
+            'categoria'       => 'required|in:peluqueria,estetica',
+            'subcategoria_id' => 'nullable|exists:subcategorias,id',
+            'activo'          => 'boolean'
         ]);
 
-
         $servicio->update($data);
-        
-        // Limpiar caché de servicios
         CacheService::clearServiciosCache();
-        
         return redirect()->route('servicios.index');
     }
 

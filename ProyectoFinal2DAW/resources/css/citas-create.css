@@ -16,7 +16,7 @@
 }
 
 .step-indicator.active {
-    background: #2563EB; /* blue-600 */
+    background: linear-gradient(135deg, #f472b6, #a855f7);
     color: white;
     transform: scale(1.1);
 }
@@ -57,9 +57,9 @@
 }
 
 .servicio-card.selected {
-    border-color: #2563EB !important;
-    background-color: #EFF6FF;
-    box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+    border-color: #a855f7 !important;
+    background-color: #f5f3ff;
+    box-shadow: 0 4px 6px rgba(168, 85, 247, 0.2);
 }
 
 .servicio-card.selected .checkmark-container {
@@ -73,7 +73,7 @@
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: #2563EB;
+    background: linear-gradient(135deg, #f472b6, #a855f7);
     margin-top: 8px;
 }
 
@@ -109,8 +109,8 @@
 }
 
 .empleado-option input:checked ~ div {
-    border-color: #2563EB;
-    background-color: #EFF6FF;
+    border-color: #a855f7;
+    background-color: #f5f3ff;
 }
 
 .empleado-option .radio-checkmark {
@@ -118,7 +118,7 @@
 }
 
 .empleado-option input:checked ~ div .radio-checkmark {
-    color: #2563EB;
+    color: #a855f7;
 }
 
 .empleado-option .radio-checkmark .inner-circle {
@@ -140,14 +140,14 @@
 #step-1-label.active,
 #step-2-label.active,
 #step-3-label.active {
-    color: #2563EB;
+    color: #a855f7;
     font-weight: 600;
 }
 
 /* Estilo de búsqueda con focus */
 #search-servicios:focus {
-    border-color: #3B82F6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    border-color: #a855f7;
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
 }
 
 /* Grid responsive */

@@ -20,8 +20,8 @@
 
 .search-input:focus {
     outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    border-color: #a855f7;
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
 }
 
 .sort-btn {
@@ -42,9 +42,9 @@
 }
 
 .sort-btn.active {
-    background: #3b82f6;
+    background: linear-gradient(135deg,#f472b6,#a855f7);
     color: white;
-    border-color: #3b82f6;
+    border-color: #a855f7;
 }
 
 .clear-btn {

@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Productos</title>
+    <title>Subcategorías de Servicios</title>
     {!! vite_asset(['resources/css/app.css', 'resources/js/app.js']) !!}
     <style>
         :root { --sidebar-w: 210px; }
@@ -33,30 +32,30 @@
         .content { flex:1;padding:18px 20px; }
         .toolbar { display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap; }
         .btn-primary { padding:8px 16px;background:linear-gradient(135deg,#f472b6,#a855f7);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px; }
-        .btn-export  { padding:8px 16px;background:#f3f4f6;border:1.5px solid #e5e7eb;border-radius:9px;font-size:13px;font-weight:600;color:#374151;text-decoration:none;display:inline-flex;align-items:center;gap:6px; }
-        .search-wrap { flex:1;max-width:320px;position:relative; }
-        .search-input { width:100%;padding:8px 14px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:13px;outline:none;transition:border .2s;background:#fff; }
+        .search-input { flex:1;max-width:280px;padding:8px 14px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:13px;outline:none;transition:border .2s;background:#fff; }
         .search-input:focus { border-color:#a855f7;box-shadow:0 0 0 3px rgba(168,85,247,.08); }
-        .panel { background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden; }
-        .panel-header { padding:12px 20px;background:#1e1a4b;display:flex;align-items:center;justify-content:space-between; }
-        .panel-header h2 { color:#fff;font-size:14px;font-weight:700; }
+        .panel { background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden;margin-bottom:16px; }
+        .panel-header { padding:12px 20px;display:flex;align-items:center;gap:10px; }
+        .panel-header.pelq { background:linear-gradient(135deg,#ede9fe,#ddd6fe); }
+        .panel-header.este { background:linear-gradient(135deg,#fce7f3,#fbcfe8); }
+        .panel-header h2 { font-size:14px;font-weight:700; }
+        .panel-header.pelq h2 { color:#5b21b6; }
+        .panel-header.este h2 { color:#9d174d; }
         table { width:100%;border-collapse:collapse; }
         th { padding:10px 16px;background:#f9fafb;font-size:11.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;text-align:left;border-bottom:1px solid #f3f4f6; }
         td { padding:10px 16px;font-size:13px;color:#374151;border-bottom:1px solid #f9fafb;vertical-align:middle; }
         tr:last-child td { border-bottom:none; }
         tr:hover td { background:#fafbfc; }
         .badge { display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700; }
-        .badge-blue  { background:#dbeafe;color:#1e40af; }
-        .badge-pink  { background:#fce7f3;color:#9d174d; }
-        .badge-green { background:#dcfce7;color:#166534; }
-        .badge-gray  { background:#f3f4f6;color:#6b7280; }
-        .badge-orange { background:#ffedd5;color:#9a3412; }
+        .badge-green  { background:#dcfce7;color:#166534; }
+        .badge-gray   { background:#f3f4f6;color:#6b7280; }
+        .badge-purple { background:#ede9fe;color:#5b21b6; }
+        .badge-pink   { background:#fce7f3;color:#9d174d; }
         .action-link { font-size:12px;font-weight:600;padding:4px 10px;border-radius:6px;text-decoration:none;display:inline-flex;align-items:center;gap:3px; }
         .link-yellow { background:#fef9c3;color:#854d0e; }
         .link-red    { background:#fee2e2;color:#dc2626;border:none;cursor:pointer; }
-        .stock-low   { color:#dc2626;font-weight:700; }
+        .color-swatch { width:26px;height:26px;border-radius:6px;border:1px solid rgba(0,0,0,.12);display:inline-block;flex-shrink:0; }
         .flash-success { background:#dcfce7;border-left:3px solid #22c55e;padding:10px 14px;border-radius:8px;font-size:12px;color:#166534;margin-bottom:14px; }
-        .result-info { font-size:12px;color:#6b7280;margin-left:auto; }
         @media (max-width:900px) { .sidebar{transform:translateX(-100%)} .main-wrapper{margin-left:0} }
     </style>
 </head>
@@ -78,8 +77,8 @@
         @if(in_array($rol,['admin','gerente']))
         <a href="{{ route('empleados.index') }}" class="nav-item"><span class="nav-icon">👔</span> Empleados</a>
         <a href="{{ route('servicios.index') }}" class="nav-item"><span class="nav-icon">✂️</span> Servicios</a>
-        <a href="{{ route('subcategorias.index') }}" class="nav-item"><span class="nav-icon">🏷️</span> Subcategorías</a>
-        <a href="{{ route('productos.index') }}" class="nav-item active"><span class="nav-icon">🛍️</span> Productos</a>
+        <a href="{{ route('subcategorias.index') }}" class="nav-item active"><span class="nav-icon">🏷️</span> Subcategorías</a>
+        <a href="{{ route('productos.index') }}" class="nav-item"><span class="nav-icon">🛍️</span> Productos</a>
         @endif
         <a href="{{ route('cobros.index') }}" class="nav-item"><span class="nav-icon">💳</span> Cobros</a>
         <a href="{{ route('deudas.index') }}" class="nav-item"><span class="nav-icon">💰</span> Deudas</a>
@@ -106,7 +105,7 @@
 <div class="main-wrapper">
     <header class="topbar">
         <div class="menu-btn" onclick="document.body.classList.toggle('sidebar-collapsed')">☰</div>
-        <span class="page-title">🛍️ Productos</span>
+        <span class="page-title">🏷️ Subcategorías de Servicios</span>
         <div style="flex:1"></div>
         <a href="{{ route('profile.edit') }}" class="user-area">
             @if($user && $user->foto_perfil)
@@ -126,139 +125,98 @@
         @if(session('success'))
             <div class="flash-success">✅ {{ session('success') }}</div>
         @endif
-        @if($errors->any())
-            <div style="background:#fef2f2;border-left:3px solid #fca5a5;border-radius:8px;padding:10px 14px;font-size:12px;color:#dc2626;margin-bottom:14px">
-                <ul style="list-style:disc;padding-left:16px">
-                    @foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach
-                </ul>
-            </div>
-        @endif
 
         <div class="toolbar">
-            <a href="{{ route('productos.create') }}" class="btn-primary">➕ Nuevo Producto</a>
-            <a href="{{ route('productos.exportar') }}" class="btn-export">⬇️ Exportar CSV</a>
-            <div class="search-wrap">
-                <input type="text" id="buscar-producto" class="search-input"
-                       placeholder="🔍 Buscar por nombre, categoría..."
-                       autocomplete="off">
-            </div>
-            <span class="result-info" id="result-count"></span>
+            <a href="{{ route('subcategorias.create') }}" class="btn-primary">➕ Nueva Subcategoría</a>
+            <input type="text" id="buscador" class="search-input" placeholder="🔍 Buscar subcategoría...">
+            <span style="font-size:12px;color:#6b7280;margin-left:auto">Total: {{ $subcategorias->count() }}</span>
         </div>
 
-        <div class="panel">
-            <div class="panel-header">
-                <h2>🛍️ Lista de Productos</h2>
-                <span style="font-size:11px;color:rgba(255,255,255,.6)">
-                    {{ method_exists($productos,'total') ? $productos->total() : $productos->count() }} producto(s)
-                </span>
-            </div>
-            <div style="overflow-x:auto">
+        {{-- Agrupar por categoría --}}
+        @php
+            $porCategoria = $subcategorias->groupBy('categoria');
+            $orden = ['peluqueria', 'estetica'];
+        @endphp
+
+        @foreach($orden as $cat)
+            @if(isset($porCategoria[$cat]))
+            <div class="panel grupo-panel" data-categoria="{{ $cat }}">
+                <div class="panel-header {{ $cat === 'peluqueria' ? 'pelq' : 'este' }}">
+                    <h2>{{ $cat === 'peluqueria' ? '✂️ Peluquería' : '💅 Estética' }}</h2>
+                    <span style="font-size:11px;font-weight:600;opacity:.7">{{ $porCategoria[$cat]->count() }} subcategoría(s)</span>
+                </div>
                 <table>
                     <thead>
                         <tr>
+                            <th>Color</th>
                             <th>Nombre</th>
-                            <th>Categoría</th>
-                            <th>Descripción</th>
-                            <th>P. Venta</th>
-                            <th>P. Coste</th>
-                            <th>Stock</th>
+                            <th>Servicios</th>
                             <th>Estado</th>
-                            <th style="text-align:right">Acciones</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
-                    <tbody id="tabla-productos">
-                        @forelse($productos as $producto)
-                            <tr>
-                                <td style="font-weight:600">{{ $producto->nombre }}</td>
-                                <td>
-                                    @if($producto->categoria === 'peluqueria')
-                                        <span class="badge badge-blue">✂️ Peluquería</span>
-                                    @else
-                                        <span class="badge badge-pink">💅 Estética</span>
-                                    @endif
-                                </td>
-                                <td style="color:#6b7280;max-width:200px">{{ Str::limit($producto->descripcion, 60) }}</td>
-                                <td style="color:#059669;font-weight:700">{{ number_format($producto->precio_venta, 2) }} €</td>
-                                <td style="color:#374151">{{ number_format($producto->precio_coste, 2) }} €</td>
-                                <td>
-                                    @if($producto->stock <= 5)
-                                        <span class="stock-low">⚠️ {{ $producto->stock }}</span>
-                                    @else
-                                        {{ $producto->stock }}
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($producto->activo)
-                                        <span class="badge badge-green">✓ Activo</span>
-                                    @else
-                                        <span class="badge badge-gray">✗ Inactivo</span>
-                                    @endif
-                                </td>
-                                <td style="text-align:right">
-                                    <div style="display:flex;gap:6px;justify-content:flex-end">
-                                        <a href="{{ route('productos.edit', $producto) }}" class="action-link link-yellow">✏️ Editar</a>
-                                        <form action="{{ route('productos.destroy', $producto) }}" method="POST"
-                                              onsubmit="return confirm('¿Eliminar «{{ $producto->nombre }}»?')">
-                                            @csrf @method('DELETE')
-                                            <button type="submit" class="action-link link-red">🗑️ Eliminar</button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr><td colspan="8" style="text-align:center;padding:32px;color:#9ca3af">No hay productos registrados.</td></tr>
-                        @endforelse
+                    <tbody>
+                        @foreach($porCategoria[$cat] as $sub)
+                        <tr class="fila-sub">
+                            <td>
+                                <div style="display:flex;align-items:center;gap:8px">
+                                    <span class="color-swatch" style="background:{{ $sub->color }}"></span>
+                                    <span style="font-size:11px;color:#9ca3af;font-family:monospace">{{ $sub->color }}</span>
+                                </div>
+                            </td>
+                            <td style="font-weight:600">{{ $sub->nombre }}</td>
+                            <td>
+                                <span class="{{ $cat === 'peluqueria' ? 'badge badge-purple' : 'badge badge-pink' }}">
+                                    {{ $sub->servicios()->count() }} servicio(s)
+                                </span>
+                            </td>
+                            <td>
+                                @if($sub->activo)
+                                    <span class="badge badge-green">✓ Activa</span>
+                                @else
+                                    <span class="badge badge-gray">✗ Inactiva</span>
+                                @endif
+                            </td>
+                            <td>
+                                <div style="display:flex;gap:6px">
+                                    <a href="{{ route('subcategorias.edit', $sub) }}" class="action-link link-yellow">✏️ Editar</a>
+                                    <form action="{{ route('subcategorias.destroy', $sub) }}" method="POST"
+                                          onsubmit="return confirm('¿Eliminar «{{ $sub->nombre }}»? Los servicios asociados perderán su subcategoría.')">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="action-link link-red">🗑️ Eliminar</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        @endforeach
                     </tbody>
                 </table>
             </div>
-            @if(method_exists($productos,'links'))
-                <div style="padding:12px 16px;border-top:1px solid #f3f4f6">{{ $productos->links() }}</div>
             @endif
-        </div>
+        @endforeach
+
+        @if($subcategorias->isEmpty())
+            <div style="text-align:center;padding:48px;background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+                <div style="font-size:36px;margin-bottom:10px">🏷️</div>
+                <div style="font-size:15px;font-weight:700;color:#374151;margin-bottom:6px">No hay subcategorías registradas</div>
+                <a href="{{ route('subcategorias.create') }}" class="btn-primary" style="display:inline-flex;margin-top:10px">➕ Crear la primera</a>
+            </div>
+        @endif
 
     </div>
 </div>
 
 <script>
-    const searchInput = document.getElementById('buscar-producto');
-    const tbody       = document.getElementById('tabla-productos');
-    const resultCount = document.getElementById('result-count');
-    let searchTimeout;
-
-    if (searchInput) {
-        searchInput.addEventListener('input', function () {
-            clearTimeout(searchTimeout);
-            const q = this.value.trim();
-            searchTimeout = setTimeout(() => buscarProductos(q), 300);
+    const buscador = document.getElementById('buscador');
+    if (buscador) {
+        buscador.addEventListener('input', function () {
+            const q = this.value.toLowerCase().trim();
+            document.querySelectorAll('.fila-sub').forEach(function (tr) {
+                const nombre = tr.querySelector('td:nth-child(2)')?.textContent.toLowerCase() ?? '';
+                tr.style.display = (!q || nombre.includes(q)) ? '' : 'none';
+            });
         });
     }
-
-    async function buscarProductos(query) {
-        try {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#6b7280">🔍 Buscando...</td></tr>';
-            const url = query
-                ? '{{ route("productos.index") }}?q=' + encodeURIComponent(query)
-                : '{{ route("productos.index") }}';
-            const response = await fetch(url, {
-                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }
-            });
-            if (!response.ok) throw new Error('Error');
-            const html    = await response.text();
-            const parser  = new DOMParser();
-            const doc     = parser.parseFromString(html, 'text/html');
-            const newBody = doc.getElementById('tabla-productos');
-            if (newBody) tbody.innerHTML = newBody.innerHTML;
-            const rows = tbody.querySelectorAll('tr[data-id], tr:not([colspan])');
-            resultCount.textContent = query
-                ? `Mostrando ${tbody.querySelectorAll('tr').length} resultado(s)`
-                : '';
-        } catch (e) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#dc2626">Error al buscar</td></tr>';
-        }
-    }
-
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('q') && searchInput) searchInput.value = urlParams.get('q');
 </script>
 </body>
 </html>

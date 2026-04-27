@@ -42,7 +42,6 @@ class FacturacionController extends Controller
         // ============================================================================
         // Obtener todos los cobros del mes para calcular cajas diarias
         $cobros = RegistroCobro::with(['bonosVendidos', 'servicios', 'productos', 'cita.servicios', 'citasAgrupadas.servicios'])
-            ->where('contabilizado', true)
             ->whereBetween('created_at', [$fechaInicio, $fechaFin])
             ->get();
         
@@ -95,8 +94,8 @@ class FacturacionController extends Controller
                 }
                     
                 // Desglose peluquería/estética usando FacturacionService
-                // Solo para cobros contabilizados y que no son deuda pura
-                if ($cobro->contabilizado && $cobro->metodo_pago !== 'deuda') {
+                // Solo para cobros que no son deuda pura
+                if ($cobro->metodo_pago !== 'deuda') {
                     $desglose = $facturacionService->desglosarCobroPorCategoria($cobro);
                     $cajasDiarias[$fechaCobro]['peluqueria'] += ($desglose['peluqueria']['servicios'] ?? 0)
                         + ($desglose['peluqueria']['productos'] ?? 0);

@@ -11,7 +11,7 @@ use App\Http\Controllers\{
     Auth\PerfilController, Auth\PasswordResetLinkController,
     Auth\NewPasswordController,
     CajaDiariaController, ProductosController, DeudaController, BonoController,
-    FacturacionController
+    FacturacionController, SubcategoriaController
 };
 
 // GRUPO PRINCIPAL: Middleware de tenancy para TODAS las rutas
@@ -97,6 +97,7 @@ Route::middleware([
 
         Route::get('servicios/exportar', [ServicioController::class, 'exportar'])->name('servicios.exportar');
         Route::resource('servicios', ServicioController::class)->names('servicios');
+        Route::resource('subcategorias', SubcategoriaController::class)->names('subcategorias');
         
         // Productos - solo admin puede gestionar (CRUD)
         // NOTA: productos/available está definida en el grupo admin,empleado más abajo

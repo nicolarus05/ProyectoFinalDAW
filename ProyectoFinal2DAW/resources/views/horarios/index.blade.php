@@ -11,56 +11,88 @@
                 document.getElementById('delete-form-' + id).submit();
             }
         }
-
         function confirmarGeneracion(tipo) {
             return confirm(`¿Estás seguro de generar horarios para ${tipo}? Esto puede crear cientos de registros.`);
         }
     </script>
     <style>
-        /* Asegurar que los enlaces sean visibles */
-        a {
-            color: inherit;
-            text-decoration: none;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
-        .link-blue { color: #2563eb !important; }
-        .link-blue:hover { color: #1d4ed8 !important; }
-        .link-yellow { color: #d97706 !important; }
-        .link-yellow:hover { color: #b45309 !important; }
-        .link-red { color: #dc2626 !important; }
-        .link-red:hover { color: #b91c1c !important; }
-        .link-white { color: white !important; }
-        .link-white:hover { opacity: 0.9; }
-        
-        /* Botones con texto visible */
-        button.btn-primary, .btn-primary {
-            background-color: #2563eb !important;
-            color: white !important;
-            font-weight: 600;
-        }
-        button.btn-green, .btn-green {
-            background-color: #16a34a !important;
-            color: white !important;
-            font-weight: 600;
-        }
-        button.btn-purple, .btn-purple {
-            background-color: #9333ea !important;
-            color: white !important;
-            font-weight: 600;
-        }
+        :root { --sidebar-w: 210px; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', 'Segoe UI', sans-serif; background: #f3f4f8; }
+        .main-wrapper { display: flex; min-height: 100vh; }
+        .sidebar { position:fixed; top:0; left:0; width:var(--sidebar-w); height:100vh; background:#1e1a4b; display:flex; flex-direction:column; z-index:100; overflow-y:auto; }
+        .sidebar-logo { padding:20px 16px 12px; border-bottom:1px solid rgba(255,255,255,.08); }
+        .sidebar-logo .logo-icon { font-size:1.6rem; }
+        .sidebar-logo .logo-name { color:#fff; font-weight:700; font-size:.95rem; line-height:1.2; }
+        .sidebar-logo .logo-sub { color:rgba(255,255,255,.5); font-size:.72rem; }
+        nav.sidebar-nav { flex:1; padding:12px 0; }
+        .nav-item { display:flex; align-items:center; gap:10px; padding:9px 16px; color:rgba(255,255,255,.75); font-size:.82rem; font-weight:500; cursor:pointer; border-left:3px solid transparent; transition:all .18s; text-decoration:none; }
+        .nav-item:hover { background:rgba(255,255,255,.07); color:#fff; }
+        .nav-item.active { background:linear-gradient(135deg,#f472b6,#a855f7); color:#fff; border-left-color:transparent; }
+        .nav-icon { font-size:1rem; width:20px; text-align:center; }
+        .sidebar-footer { padding:12px 16px; border-top:1px solid rgba(255,255,255,.08); }
+        .sidebar-footer p { color:rgba(255,255,255,.4); font-size:.68rem; }
+        .content { margin-left:var(--sidebar-w); flex:1; display:flex; flex-direction:column; }
+        .topbar { background:#fff; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 1px 4px rgba(0,0,0,.08); position:sticky; top:0; z-index:50; }
+        .topbar-title { font-size:1.1rem; font-weight:700; color:#1e1a4b; }
+        .topbar-actions { display:flex; align-items:center; gap:12px; }
+        .topbar-user { display:flex; align-items:center; gap:8px; text-decoration:none; }
+        .topbar-user .avatar { width:34px; height:34px; background:linear-gradient(135deg,#f472b6,#a855f7); border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:.9rem; }
+        .topbar-user .user-info .name { font-size:.82rem; font-weight:600; color:#1e1a4b; }
+        .topbar-user .user-info .role { font-size:.7rem; color:#6b7280; }
+        .main-content { padding:20px 24px; flex:1; }
+        .btn-primary { background:linear-gradient(135deg,#f472b6,#a855f7); color:#fff !important; border:none; padding:8px 18px; border-radius:8px; font-weight:600; font-size:.82rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
+        .btn-primary:hover { opacity:.9; }
+        .btn-navy { background:#1e1a4b; color:#fff !important; border:none; padding:8px 18px; border-radius:8px; font-weight:600; font-size:.82rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
+        .btn-navy:hover { opacity:.9; }
     </style>
 </head>
-<body class="min-h-screen bg-gray-100">
-    
-    <div class="container mx-auto px-4 py-8">
-        <div class="bg-white rounded-lg shadow-md p-6">
-            
-            <div class="flex justify-between items-center mb-6">
-                <h1 class="text-3xl font-bold text-gray-800">⏰ Gestión de Horarios</h1>
-                <a href="{{ route('dashboard') }}" class="link-blue font-semibold hover:underline">← Volver al Inicio</a>
+@php $user = auth()->user(); $rol = $user->rol ?? ''; @endphp
+<body>
+<div class="main-wrapper">
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon">💇‍♀️</div>
+            <div class="logo-name">Salón de Belleza</div>
+            <div class="logo-sub">Sistema de Gestión</div>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="{{ route('dashboard') }}" class="nav-item"><span class="nav-icon">🏠</span> Inicio</a>
+            <a href="{{ route('citas.index') }}" class="nav-item"><span class="nav-icon">📅</span> Citas</a>
+            <a href="{{ route('clientes.index') }}" class="nav-item"><span class="nav-icon">👤</span> Clientes</a>
+            <a href="{{ route('empleados.index') }}" class="nav-item"><span class="nav-icon">👔</span> Empleados</a>
+            <a href="{{ route('servicios.index') }}" class="nav-item"><span class="nav-icon">✂️</span> Servicios</a>
+            <a href="{{ route('subcategorias.index') }}" class="nav-item"><span class="nav-icon">🏷️</span> Subcategorías</a>
+            <a href="{{ route('productos.index') }}" class="nav-item"><span class="nav-icon">🛍️</span> Productos</a>
+            <a href="{{ route('cobros.index') }}" class="nav-item"><span class="nav-icon">💳</span> Cobros</a>
+            <a href="{{ route('deudas.index') }}" class="nav-item"><span class="nav-icon">💰</span> Deudas</a>
+            <a href="{{ route('bonos.index') }}" class="nav-item"><span class="nav-icon">🎫</span> Bonos</a>
+            <a href="{{ route('bonos.clientesConBonos') }}" class="nav-item"><span class="nav-icon">👥</span> Clientes con Bonos</a>
+            <a href="{{ route('caja.index') }}" class="nav-item"><span class="nav-icon">💵</span> Caja del Día</a>
+            <a href="{{ route('facturacion.index') }}" class="nav-item"><span class="nav-icon">📊</span> Facturación</a>
+            <a href="{{ route('horarios.index') }}" class="nav-item active"><span class="nav-icon">⏰</span> Horarios</a>
+            <a href="{{ route('asistencia.index') }}" class="nav-item"><span class="nav-icon">🕐</span> Asistencia</a>
+            <a href="{{ route('users.index') }}" class="nav-item"><span class="nav-icon">⚙️</span> Usuarios</a>
+        </nav>
+        <div class="sidebar-footer"><p>© 2026 Salón de Belleza</p></div>
+    </aside>
+    <div class="content">
+        <header class="topbar">
+            <span class="topbar-title">⏰ Gestión de Horarios</span>
+            <div class="topbar-actions">
+                <a href="{{ route('horarios.calendario') }}" class="btn-navy">📅 Ver Calendario</a>
+                <a href="{{ route('horarios.create') }}" class="btn-primary">➕ Añadir Manual</a>
+                <a href="{{ route('profile.edit') }}" class="topbar-user">
+                    <div class="avatar">{{ strtoupper(substr($user->nombre ?? $user->name ?? 'U', 0, 1)) }}</div>
+                    <div class="user-info">
+                        <div class="name">{{ $user->nombre ?? $user->name ?? '' }} {{ $user->apellidos ?? '' }}</div>
+                        <div class="role">{{ $rol }}</div>
+                    </div>
+                </a>
             </div>
+        </header>
+        <main class="main-content">
+            <div class="bg-white rounded-lg shadow-md p-6">
 
             <!-- Mensajes de éxito -->
             @if(session('success'))
@@ -154,44 +186,31 @@
                 </form>
             </div>
 
-            <!-- Botones de Navegación -->
-            <div class="flex gap-4 mb-6">
-                <a href="{{ route('horarios.calendario') }}" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold shadow-md flex items-center gap-2" style="background: linear-gradient(to right, #06b6d4, #3b82f6) !important;">
-                    <span class="text-xl">📅</span>
-                    Ver Calendario Visual
-                </a>
-                <a href="{{ route('horarios.create') }}" class="text-white px-6 py-3 rounded-lg font-semibold shadow-md" style="background-color: #374151 !important;">
-                    ➕ Añadir Horario Manual
-                </a>
             </div>
-        </div>
+        </main>
     </div>
-
-    <script>
-        function irAConfiguracion(tipo) {
-            const empleado = document.getElementById('empleado_gen').value;
-            if (!empleado) {
-                alert('Por favor, selecciona un empleado primero');
-                return;
-            }
-
-            let url = '/horarios/configurar?empleado=' + empleado + '&tipo=' + tipo;
-            
-            if (tipo === 'semana') {
-                const fecha = document.getElementById('fecha_semana').value;
-                url += '&fecha_inicio=' + fecha;
-            } else if (tipo === 'mes') {
-                const mes = document.getElementById('mes_gen').value;
-                const anio = document.getElementById('anio_gen').value;
-                url += '&mes=' + mes + '&anio=' + anio;
-            } else if (tipo === 'anual') {
-                const anio = document.getElementById('anio_completo').value;
-                url += '&anio=' + anio;
-            }
-
-            window.location.href = url;
+</div>
+<script>
+    function irAConfiguracion(tipo) {
+        const empleado = document.getElementById('empleado_gen').value;
+        if (!empleado) {
+            alert('Por favor, selecciona un empleado primero');
+            return;
         }
-    </script>
-
+        let url = '/horarios/configurar?empleado=' + empleado + '&tipo=' + tipo;
+        if (tipo === 'semana') {
+            const fecha = document.getElementById('fecha_semana').value;
+            url += '&fecha_inicio=' + fecha;
+        } else if (tipo === 'mes') {
+            const mes = document.getElementById('mes_gen').value;
+            const anio = document.getElementById('anio_gen').value;
+            url += '&mes=' + mes + '&anio=' + anio;
+        } else if (tipo === 'anual') {
+            const anio = document.getElementById('anio_completo').value;
+            url += '&anio=' + anio;
+        }
+        window.location.href = url;
+    }
+</script>
 </body>
 </html>

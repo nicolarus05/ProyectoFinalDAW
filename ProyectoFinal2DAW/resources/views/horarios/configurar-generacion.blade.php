@@ -5,30 +5,92 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Configurar Horarios - Generar {{ ucfirst($tipo) }}</title>
     {!! vite_asset(['resources/css/app.css', 'resources/js/app.js']) !!}
+    <style>
+        :root { --sidebar-w: 210px; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', 'Segoe UI', sans-serif; background: #f3f4f8; }
+        .main-wrapper { display: flex; min-height: 100vh; }
+        .sidebar { position:fixed; top:0; left:0; width:var(--sidebar-w); height:100vh; background:#1e1a4b; display:flex; flex-direction:column; z-index:100; overflow-y:auto; }
+        .sidebar-logo { padding:20px 16px 12px; border-bottom:1px solid rgba(255,255,255,.08); }
+        .sidebar-logo .logo-icon { font-size:1.6rem; }
+        .sidebar-logo .logo-name { color:#fff; font-weight:700; font-size:.95rem; line-height:1.2; }
+        .sidebar-logo .logo-sub { color:rgba(255,255,255,.5); font-size:.72rem; }
+        nav.sidebar-nav { flex:1; padding:12px 0; }
+        .nav-item { display:flex; align-items:center; gap:10px; padding:9px 16px; color:rgba(255,255,255,.75); font-size:.82rem; font-weight:500; cursor:pointer; border-left:3px solid transparent; transition:all .18s; text-decoration:none; }
+        .nav-item:hover { background:rgba(255,255,255,.07); color:#fff; }
+        .nav-item.active { background:linear-gradient(135deg,#f472b6,#a855f7); color:#fff; border-left-color:transparent; }
+        .nav-icon { font-size:1rem; width:20px; text-align:center; }
+        .sidebar-footer { padding:12px 16px; border-top:1px solid rgba(255,255,255,.08); }
+        .sidebar-footer p { color:rgba(255,255,255,.4); font-size:.68rem; }
+        .content { margin-left:var(--sidebar-w); flex:1; display:flex; flex-direction:column; }
+        .topbar { background:#fff; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 1px 4px rgba(0,0,0,.08); position:sticky; top:0; z-index:50; }
+        .topbar-title { font-size:1.1rem; font-weight:700; color:#1e1a4b; }
+        .topbar-actions { display:flex; align-items:center; gap:12px; }
+        .topbar-user { display:flex; align-items:center; gap:8px; text-decoration:none; }
+        .topbar-user .avatar { width:34px; height:34px; background:linear-gradient(135deg,#f472b6,#a855f7); border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:.9rem; }
+        .topbar-user .user-info .name { font-size:.82rem; font-weight:600; color:#1e1a4b; }
+        .topbar-user .user-info .role { font-size:.7rem; color:#6b7280; }
+        .main-content { padding:20px 24px; flex:1; max-width: calc(100vw - var(--sidebar-w)); }
+        .btn-back { color:#6b7280; font-size:.82rem; text-decoration:none; display:inline-flex; align-items:center; gap:4px; }
+        .btn-back:hover { color:#1e1a4b; }
+    </style>
 </head>
-<body class="bg-gray-50">
-    <div class="min-h-screen p-6">
-        <div class="max-w-6xl mx-auto">
-            <!-- Header -->
-            <div class="mb-6">
-                <a href="{{ route('horarios.index') }}" class="text-blue-600 hover:text-blue-800 mb-4 inline-block">
-                    ← Volver a horarios
+@php $user = auth()->user(); $rol = $user->rol ?? ''; @endphp
+<body>
+<div class="main-wrapper">
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon">💇‍♀️</div>
+            <div class="logo-name">Salón de Belleza</div>
+            <div class="logo-sub">Sistema de Gestión</div>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="{{ route('dashboard') }}" class="nav-item"><span class="nav-icon">🏠</span> Inicio</a>
+            <a href="{{ route('citas.index') }}" class="nav-item"><span class="nav-icon">📅</span> Citas</a>
+            <a href="{{ route('clientes.index') }}" class="nav-item"><span class="nav-icon">👤</span> Clientes</a>
+            <a href="{{ route('empleados.index') }}" class="nav-item"><span class="nav-icon">👔</span> Empleados</a>
+            <a href="{{ route('servicios.index') }}" class="nav-item"><span class="nav-icon">✂️</span> Servicios</a>
+            <a href="{{ route('subcategorias.index') }}" class="nav-item"><span class="nav-icon">🏷️</span> Subcategorías</a>
+            <a href="{{ route('productos.index') }}" class="nav-item"><span class="nav-icon">🛍️</span> Productos</a>
+            <a href="{{ route('cobros.index') }}" class="nav-item"><span class="nav-icon">💳</span> Cobros</a>
+            <a href="{{ route('deudas.index') }}" class="nav-item"><span class="nav-icon">💰</span> Deudas</a>
+            <a href="{{ route('bonos.index') }}" class="nav-item"><span class="nav-icon">🎫</span> Bonos</a>
+            <a href="{{ route('bonos.clientesConBonos') }}" class="nav-item"><span class="nav-icon">👥</span> Clientes con Bonos</a>
+            <a href="{{ route('caja.index') }}" class="nav-item"><span class="nav-icon">💵</span> Caja del Día</a>
+            <a href="{{ route('facturacion.index') }}" class="nav-item"><span class="nav-icon">📊</span> Facturación</a>
+            <a href="{{ route('horarios.index') }}" class="nav-item active"><span class="nav-icon">⏰</span> Horarios</a>
+            <a href="{{ route('asistencia.index') }}" class="nav-item"><span class="nav-icon">🕐</span> Asistencia</a>
+            <a href="{{ route('users.index') }}" class="nav-item"><span class="nav-icon">⚙️</span> Usuarios</a>
+        </nav>
+        <div class="sidebar-footer"><p>© 2026 Salón de Belleza</p></div>
+    </aside>
+    <div class="content">
+        <header class="topbar">
+            <span class="topbar-title">⏰ Configurar y Generar Horarios</span>
+            <div class="topbar-actions">
+                <a href="{{ route('horarios.index') }}" class="btn-back">← Volver</a>
+                <a href="{{ route('profile.edit') }}" class="topbar-user">
+                    <div class="avatar">{{ strtoupper(substr($user->nombre ?? $user->name ?? 'U', 0, 1)) }}</div>
+                    <div class="user-info">
+                        <div class="name">{{ $user->nombre ?? $user->name ?? '' }} {{ $user->apellidos ?? '' }}</div>
+                        <div class="role">{{ $rol }}</div>
+                    </div>
                 </a>
-                <h1 class="text-3xl font-bold text-gray-800">Configurar y Generar Horarios</h1>
-                <p class="text-gray-600 mt-2">
-                    Empleado: <span class="font-semibold">{{ $empleado->user->nombre }} {{ $empleado->user->apellidos }}</span>
-                </p>
-                <p class="text-sm text-blue-600 mt-1">
-                    Tipo: <strong>{{ $tipo === 'semana' ? 'Semana' : ($tipo === 'mes' ? 'Mes' : 'Año completo') }}</strong>
-                    @if($tipo === 'semana' && $fecha_inicio)
-                        - Desde: {{ \Carbon\Carbon::parse($fecha_inicio)->format('d/m/Y') }}
-                    @elseif($tipo === 'mes' && $mes && $anio)
-                        - {{ \Carbon\Carbon::create($anio, $mes, 1)->locale('es')->translatedFormat('F Y') }}
-                    @elseif($tipo === 'anual' && $anio)
-                        - Año {{ $anio }}
-                    @endif
-                </p>
             </div>
+        </header>
+        <main class="main-content">
+            <div class="max-w-6xl mx-auto">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-6 text-sm text-blue-800">
+                    <strong>Empleado:</strong> {{ $empleado->user->nombre }} {{ $empleado->user->apellidos }} &nbsp;|&nbsp;
+                    <strong>Tipo:</strong> {{ $tipo === 'semana' ? 'Semana' : ($tipo === 'mes' ? 'Mes' : 'Año completo') }}
+                    @if($tipo === 'semana' && $fecha_inicio)
+                        — Desde: {{ \Carbon\Carbon::parse($fecha_inicio)->format('d/m/Y') }}
+                    @elseif($tipo === 'mes' && $mes && $anio)
+                        — {{ \Carbon\Carbon::create($anio, $mes, 1)->locale('es')->translatedFormat('F Y') }}
+                    @elseif($tipo === 'anual' && $anio)
+                        — Año {{ $anio }}
+                    @endif
+                </div>
 
             <form action="{{ 
                 $tipo === 'semana' ? route('horarios.generarSemana') : 
@@ -175,7 +237,9 @@
                     </ul>
                 </div>
             </form>
-        </div>
+            </div>
+        </main>
     </div>
+</div>
 </body>
 </html>

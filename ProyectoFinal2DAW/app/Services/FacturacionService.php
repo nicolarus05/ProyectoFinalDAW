@@ -233,7 +233,8 @@ class FacturacionService
             // Caso normal: aplicar factor de ajuste con precios del pivot
             foreach ($servicios as $servicio) {
                 if ($servicio->pivot->precio > 0) {
-                    $categoria = $servicio->categoria ?? 'peluqueria';
+                    $catRaw = $servicio->categoria ?? 'peluqueria';
+                    $categoria = in_array($catRaw, ['peluqueria', 'estetica']) ? $catRaw : 'peluqueria';
                     $precioAjustado = $servicio->pivot->precio * $factorServicios;
                     $resultado[$categoria]['servicios'] += $precioAjustado;
                 }
@@ -247,7 +248,8 @@ class FacturacionService
         */
         if ($cobro->productos) {
             foreach ($cobro->productos as $producto) {
-                $categoria = $producto->categoria ?? 'peluqueria'; // Default si no tiene
+                $catRaw = $producto->categoria ?? 'peluqueria';
+                $categoria = in_array($catRaw, ['peluqueria', 'estetica']) ? $catRaw : 'peluqueria';
                 $precioAjustado = $producto->pivot->subtotal * $factorProductos;
                 $resultado[$categoria]['productos'] += $precioAjustado;
             }

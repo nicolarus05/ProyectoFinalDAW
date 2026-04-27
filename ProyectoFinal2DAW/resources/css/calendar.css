@@ -1,268 +1,26 @@
-/* Calendario de Citas - Estilos */
+/* ═══════════════════════════════════════════════
+   Calendario de Citas — Tema Dashboard (navy/pink/purple)
+   ═══════════════════════════════════════════════ */
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #F3FAFA;
-    padding: 20px;
-}
-
-.calendario-container {
-    max-width: 100%;
-    background: #FFFFFF;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    overflow: hidden;
-}
-
-.calendario-header {
-    background: linear-gradient(135deg, #000000 0%, #D1D5DB 100%);
-    color: white;
-    padding: 10px 14px;
-}
-
-.calendario-header h1 {
-    font-size: 16px;
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.header-actions {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: flex-start;
-    gap: 10px;
-}
-
-.header-left {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    justify-self: start;
-}
-
-.header-center {
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-}
-
-.header-right {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    justify-self: end;
-}
-
-.navegacion-fechas {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(255,255,255,0.2);
-    padding: 4px 8px;
-    border-radius: 4px;
-}
-
-.navegacion-fechas button {
-    background: rgba(255,255,255,0.9);
-    border: none;
-    padding: 4px 8px;
-    border-radius: 3px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.3s;
-    color: #000000;
-    font-size: 11px;
-}
-
-.navegacion-fechas button:hover {
-    background: #A8E8E6;
-    transform: translateY(-2px);
-}
-
-.navegacion-fechas a {
-    text-decoration: none;
-}
-
-.fecha-actual {
-    font-size: 12px;
-    font-weight: 600;
-    padding: 0 8px;
-}
-
-.btn-nueva-cita {
-    background: #6EC7C5;
-    color: #000000;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 4px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s;
-    font-size: 11px;
-}
-
-.btn-nueva-cita:hover {
-    background: #A8E8E6;
-    transform: translateY(-2px);
-}
-
-.btn-dashboard {
-    background: #4F7C7A;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 4px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 11px;
-}
-
-.btn-dashboard:hover {
-    background: #6EC7C5;
-    transform: translateY(-2px);
-}
-
-.leyenda {
-    display: flex;
-    gap: 8px;
-    margin-top: 6px;
-    flex-wrap: wrap;
-}
-
-.leyenda-item {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-}
-
-.leyenda-color {
-    width: 12px;
-    height: 12px;
-    border-radius: 2px;
-}
-
-/* Mini Calendario */
-.mini-calendario-container {
-    background: rgba(255,255,255,0.15);
-    border-radius: 8px;
-    padding: 14px;
-    max-width: 340px;
-    margin: 0;
-}
-
-.mini-calendario-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-}
-
-.mini-calendario-header h3 {
-    font-size: 15px;
-    font-weight: 600;
-}
-
-.mini-calendario-nav {
-    display: flex;
-    gap: 5px;
-}
-
-.mini-calendario-nav button {
-    background: rgba(255,255,255,0.9);
-    border: none;
-    width: 26px;
-    height: 26px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
-    color: #000000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-    font-size: 12px;
-}
-
-.mini-calendario-nav button:hover {
-    background: #A8E8E6;
-    transform: scale(1.05);
-}
-
-.mini-calendario-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 3px;
-}
-
-.mini-calendario-dia-nombre {
-    text-align: center;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 3px;
-    opacity: 0.9;
-}
-
-.mini-calendario-dia {
-    aspect-ratio: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 5px;
-    font-size: 12px;
-    cursor: pointer;
-    background: rgba(255,255,255,0.2);
-    transition: all 0.2s;
-    text-decoration: none;
-    color: white;
-    padding: 3px;
-}
-
-.mini-calendario-dia:hover {
-    background: rgba(255,255,255,0.4);
-    transform: scale(1.08);
-}
-
-.mini-calendario-dia.otro-mes {
-    opacity: 0.3;
-}
-
-.mini-calendario-dia.hoy {
-    background: #6EC7C5;
-    font-weight: bold;
-}
-
-.mini-calendario-dia.seleccionado {
-    background: rgba(255,255,255,0.95);
-    color: #C41C34;
-    font-weight: bold;
-}
+/* El body y el layout principal están gestionados por el layout del dashboard */
 
 .calendario-grid-container {
     overflow-x: auto;
-    padding: 12px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 1px 6px rgba(0,0,0,.07);
 }
 
 .calendario-grid {
     display: grid;
-    grid-template-columns: 60px repeat(var(--num-empleados), minmax(150px, 1fr));
+    grid-template-columns: 60px repeat(var(--num-empleados), minmax(165px, 1fr));
     gap: 0;
-    background: #d1d5db;
-    border: 2px solid #d1d5db;
+    background: #e5e7eb;
+    border: 1px solid #e5e7eb;
     min-width: fit-content;
 }
 
+/* ── Columna horas ── */
 .columna-horas {
     position: sticky;
     left: 0;
@@ -271,12 +29,12 @@ body {
 }
 
 .header-columna {
-    background: #000000;
+    background: #1e1a4b;
     color: white;
-    padding: 12px;
+    padding: 12px 8px;
     font-weight: 600;
     text-align: center;
-    height: 90px;
+    height: 88px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -285,52 +43,57 @@ body {
 }
 
 .header-columna.horas {
-    background: #000000;
-    height: 90px;
+    background: #1e1a4b;
+    height: 88px;
     position: relative;
     z-index: 11;
+    font-size: 11px;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    opacity: .8;
 }
 
 .empleado-avatar {
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    background: white;
+    background: linear-gradient(135deg, #f472b6, #a855f7);
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    color: #000000;
-    font-size: 16px;
+    color: #fff;
+    font-size: 13px;
+    flex-shrink: 0;
 }
 
 .header-columna .empleado-nombre {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     text-align: center;
-    color: #ffffff !important;
-    margin-top: 4px;
+    color: #fff !important;
     display: block !important;
-    line-height: 1.2;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    line-height: 1.25;
     width: 100%;
 }
 
 .celda-hora {
-    background: #F3FAFA;
-    padding: 8px;
+    background: #f8f9fb;
+    padding: 0 8px;
     text-align: center;
     font-weight: 600;
-    color: #4F7C7A;
-    border-right: 2px solid #d1d5db;
-    border-bottom: 2px solid #d1d5db;
+    color: #6b7280;
+    border-right: 1px solid #e5e7eb;
+    border-bottom: 1px solid #e5e7eb;
     display: flex;
     align-items: center;
     justify-content: center;
     height: 30px;
-    font-size: 12px;
+    font-size: 11px;
+    font-family: 'Inter', 'Segoe UI', monospace;
 }
 
+/* ── Columna empleado ── */
 .columna-empleado {
     position: relative;
     background: white;
@@ -339,33 +102,28 @@ body {
 .celda-horario {
     height: 30px;
     background: white;
-    border-bottom: 2px solid #d1d5db;
-    border-right: 2px solid #d1d5db;
-    transition: background-color 0.2s;
+    border-bottom: 1px solid #f0f0f2;
+    border-right: 1px solid #e5e7eb;
+    transition: background-color .15s;
     cursor: pointer;
 }
 
 .celda-horario:hover {
-    background: #D4B4BC;
+    background: rgba(168, 85, 247, .07);
 }
 
 .celda-horario.no-disponible {
-    background: #9ca3af;
+    background: #d1d5db;
     cursor: not-allowed;
 }
 
 .celda-horario.no-disponible:hover {
-    background: #9ca3af;
+    background: #d1d5db;
 }
 
-/* Horas deshabilitadas (bloques específicos marcados como no disponibles) */
 .celda-horario.hora-deshabilitada {
     background: repeating-linear-gradient(
-        45deg,
-        #FEE2E2,
-        #FEE2E2 10px,
-        #FCA5A5 10px,
-        #FCA5A5 20px
+        45deg, #fee2e2, #fee2e2 10px, #fca5a5 10px, #fca5a5 20px
     );
     cursor: not-allowed;
     position: relative;
@@ -373,23 +131,14 @@ body {
 
 .celda-horario.hora-deshabilitada:hover {
     background: repeating-linear-gradient(
-        45deg,
-        #FEE2E2,
-        #FEE2E2 10px,
-        #FCA5A5 10px,
-        #FCA5A5 20px
+        45deg, #fee2e2, #fee2e2 10px, #fca5a5 10px, #fca5a5 20px
     );
 }
 
-/* Celdas ocupadas por citas */
 .celda-horario.celda-ocupada {
     background: transparent;
     cursor: not-allowed;
     pointer-events: none;
-}
-
-.celda-horario.celda-ocupada:hover {
-    background: transparent;
 }
 
 .icono-deshabilitado {
@@ -397,125 +146,93 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 24px;
-    opacity: 0.7;
+    font-size: 18px;
+    opacity: .6;
 }
 
+/* ── Cita cards ── */
 .cita-card {
     position: absolute;
-    left: 5px;
-    right: 5px;
-    background: #4B5563;
-    border-radius: 5px;
+    left: 4px;
+    right: 4px;
+    background: #4b5563;
+    border-radius: 7px;
     padding: 0;
     font-size: 12px;
     cursor: move;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    transition: box-shadow .2s, transform .15s;
     z-index: 5;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    color: #1F2937;
+    color: #fff;
     min-height: 28px;
 }
 
-/* Bloques de servicios individuales */
 .cita-card.cita-bloque {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    border-bottom: 1px solid rgba(255,255,255,.25);
     border-radius: 3px;
-    margin-bottom: 0;
 }
 
-.cita-card.cita-bloque:first-of-type {
-    border-top-left-radius: 5px;
-    border-top-right-radius: 5px;
-}
+.cita-card.cita-bloque:first-of-type { border-top-left-radius: 7px; border-top-right-radius: 7px; }
+.cita-card.cita-bloque:last-of-type  { border-bottom-left-radius: 7px; border-bottom-right-radius: 7px; border-bottom: none; }
 
-.cita-card.cita-bloque:last-of-type {
-    border-bottom-left-radius: 5px;
-    border-bottom-right-radius: 5px;
-    border-bottom: none;
-}
-
-/* Citas agrupadas de peluquería (independientes pero relacionadas) */
 .cita-card.cita-grupo-peluqueria {
     border-left: 3px solid #6366f1 !important;
-    padding-left: 3px;
 }
 
 .cita-card.cita-grupo-peluqueria::before {
     content: '⚡';
     position: absolute;
-    left: -1px;
+    left: 2px;
     top: 2px;
-    font-size: 10px;
-    opacity: 0.7;
+    font-size: 9px;
+    opacity: .8;
 }
 
 .cita-card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,.22);
+    transform: translateY(-1px);
     z-index: 6;
 }
 
 .dragging {
-    opacity: 0.5;
+    opacity: .45;
     cursor: grabbing !important;
 }
 
-/* Contenido de la cita */
+/* ── Estado: pendiente (color de subcategoría via inline style) ── */
+.cita-card.pendiente {
+    background: #93c572;  /* fallback si no hay subcategoría */
+    color: #1f2937;
+}
+
+/* ── Estado: completada ── */
+.cita-card.completada {
+    background: #374151;
+    color: #d1d5db;
+    opacity: .85;
+}
+
+/* ── Estado: cancelada ── */
+.cita-card.cancelada {
+    background: #e5e7eb;
+    color: #9ca3af;
+    opacity: .55;
+    text-decoration: line-through;
+}
+
+/* ── Contenido ── */
 .cita-content {
     flex: 1;
-    padding: 6px 8px;
+    padding: 5px 8px;
     display: flex;
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     height: 100%;
-}
-
-.cita-card.pendiente {
-    background: #93C572;
-    color: #1F2937;
-}
-
-.cita-card.completada {
-    background: #4B5563;
-    color: #FFFFFF;
-}
-
-.cita-card.cancelada {
-    background: #E5E7EB;
-    color: #6B7280;
-    opacity: 0.6;
-    text-decoration: line-through;
-}
-
-.cita-cliente {
-    font-weight: 600;
-    margin-bottom: 3px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-size: 11px;
-    color: #FFFFFF;
-}
-
-.cita-servicio {
-    color: #D1D5DB;
-    font-size: 10px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.cita-duracion {
-    color: #A8E8E6;
-    font-size: 9px;
-    font-weight: 600;
-    margin-top: 2px;
 }
 
 .cita-info {
@@ -523,85 +240,38 @@ body {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 3px;
-}
-
-/* Estilos especiales para citas de menos de 30 minutos */
-.cita-card.cita-corta .cita-content {
-    padding: 2px 4px;
-    flex-direction: row;
-    align-items: center;
-    gap: 4px;
-}
-
-.cita-card.cita-corta .cita-info {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 4px;
-    align-items: center;
-}
-
-.cita-card.cita-corta .cita-cliente {
-    font-size: 10px;
-    margin-bottom: 0;
-    max-width: 40%;
-}
-
-.cita-card.cita-corta .cita-servicio {
-    font-size: 10px;
-    max-width: 35%;
-}
-
-.cita-card.cita-corta .cita-duracion {
-    font-size: 10px;
-    margin-top: 0;
-}
-
-.cita-card.cita-corta .cita-acciones {
     gap: 2px;
 }
 
-.cita-card.cita-corta .btn-accion {
-    padding: 2px 4px;
-    font-size: 8px;
-}
-
-/* Estilos para citas medianas (30-60 minutos) */
-.cita-card.cita-mediana .cita-cliente {
+.cita-cliente {
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-size: 11px;
+    color: #fff;
+    margin-bottom: 1px;
 }
 
-.cita-card.cita-mediana .cita-servicio {
-    font-size: 11px;
-}
-
-.cita-card.cita-mediana .cita-duracion {
-    font-size: 11px;
-}
-
-.cita-card.cita-mediana .btn-accion {
-    padding: 4px 8px;
+.cita-servicio {
+    color: rgba(255,255,255,.85);
     font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-/* Estilos para citas largas (60+ minutos) */
-.cita-card.cita-larga .cita-cliente {
-    font-size: 12px;
+.cita-duracion {
+    color: rgba(255,255,255,.75);
+    font-size: 9px;
+    font-weight: 600;
+    margin-top: 1px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
 }
 
-.cita-card.cita-larga .cita-servicio {
-    font-size: 12px;
-}
-
-.cita-card.cita-larga .cita-duracion {
-    font-size: 12px;
-}
-
-.cita-card.cita-larga .btn-accion {
-    padding: 5px 10px;
-    font-size: 11px;
-}
-
+/* ── Acciones ── */
 .cita-acciones {
     display: flex;
     flex-direction: row;
@@ -610,82 +280,166 @@ body {
 }
 
 .btn-accion {
-    padding: 4px 8px;
+    padding: 3px 7px;
     border: none;
-    border-radius: 4px;
+    border-radius: 5px;
     font-size: 10px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all .2s;
     white-space: nowrap;
+    font-weight: 600;
 }
 
-.btn-duracion-menos,
-.btn-duracion-mas {
-    background: #6C757D;
-    color: white;
+.btn-completar { background: #22c55e; color: #fff; }
+.btn-completar:hover { background: #16a34a; }
+
+.btn-cancelar { background: #ef4444; color: #fff; }
+.btn-cancelar:hover { background: #dc2626; }
+
+.btn-ver { background: #a855f7; color: #fff; }
+.btn-ver:hover { background: #9333ea; }
+
+/* ── Tamaños de cita ── */
+.cita-card.cita-corta .cita-content {
+    padding: 2px 4px;
+    flex-direction: row;
+    align-items: center;
+    gap: 3px;
+}
+.cita-card.cita-corta .cita-info {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 3px;
+    align-items: center;
+}
+.cita-card.cita-corta .cita-cliente  { font-size: 10px; margin-bottom: 0; max-width: 40%; }
+.cita-card.cita-corta .cita-servicio { font-size: 10px; max-width: 35%; }
+.cita-card.cita-corta .cita-duracion { font-size: 9px; margin-top: 0; }
+.cita-card.cita-corta .cita-acciones { gap: 2px; }
+.cita-card.cita-corta .btn-accion    { padding: 2px 4px; font-size: 8px; }
+
+/* ── Mini calendario (dentro de la tarjeta del dashboard) ── */
+.mini-calendario-container {
+    background: #1e1a4b;
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+
+.mini-calendario-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.mini-calendario-header h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    text-transform: capitalize;
+}
+
+.mini-calendario-nav {
+    display: flex;
+    gap: 4px;
+}
+
+.mini-calendario-nav button {
+    background: rgba(255,255,255,.15);
+    border: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    cursor: pointer;
     font-weight: bold;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .2s;
+    font-size: 11px;
 }
 
-.btn-duracion-menos:hover {
-    background: #5A6268;
+.mini-calendario-nav button:hover {
+    background: rgba(244,114,182,.5);
 }
 
-.btn-duracion-mas:hover {
-    background: #545B62;
+.mini-calendario-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
 }
 
-.btn-completar {
-    background: #6EC7C5;
-    color: #000000;
+.mini-calendario-dia-nombre {
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 0;
+    color: rgba(255,255,255,.5);
+    text-transform: uppercase;
 }
 
-.btn-completar:hover {
-    background: #A8E8E6;
+.mini-calendario-dia {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    background: rgba(255,255,255,.08);
+    transition: all .18s;
+    text-decoration: none;
+    color: rgba(255,255,255,.8);
+    padding: 2px;
+    font-weight: 500;
 }
 
-.btn-cancelar {
-    background: #EF4444;
-    color: white;
+.mini-calendario-dia:hover {
+    background: rgba(244,114,182,.35);
+    color: #fff;
 }
 
-.btn-cancelar:hover {
-    background: #DC2626;
+.mini-calendario-dia.otro-mes {
+    opacity: .25;
 }
 
-.btn-ver {
-    background: #C41C34;
-    color: white;
+.mini-calendario-dia.hoy {
+    background: rgba(168,85,247,.4);
+    color: #fff;
+    font-weight: 700;
 }
 
-.btn-ver:hover {
-    background: #DC8A97;
+.mini-calendario-dia.seleccionado {
+    background: linear-gradient(135deg, #f472b6, #a855f7);
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 2px 6px rgba(168,85,247,.4);
 }
 
+/* ── Modal ── */
 .modal {
     display: none;
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.5);
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,.45);
     z-index: 1000;
     align-items: center;
     justify-content: center;
 }
 
-.modal.active {
-    display: flex;
-}
+.modal.active { display: flex; }
 
 .modal-content {
     background: white;
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 24px;
     max-width: 500px;
     width: 90%;
     max-height: 90vh;
     overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,.2);
 }
 
 .modal-header {
@@ -694,62 +448,39 @@ body {
     align-items: center;
     margin-bottom: 20px;
     padding-bottom: 12px;
-    border-bottom: 2px solid #e5e7eb;
+    border-bottom: 2px solid #f3f4f6;
 }
 
 .modal-header h2 {
-    font-size: 24px;
-    color: #000000;
+    font-size: 20px;
+    color: #1e1a4b;
+    font-weight: 700;
 }
 
 .btn-cerrar {
     background: none;
     border: none;
-    font-size: 28px;
+    font-size: 26px;
     cursor: pointer;
-    color: #4F7C7A;
+    color: #9ca3af;
     line-height: 1;
+    transition: color .2s;
 }
 
-.btn-cerrar:hover {
-    color: #C41C34;
-}
+.btn-cerrar:hover { color: #ef4444; }
 
 .mensaje-vacio {
     text-align: center;
     padding: 40px;
-    color: #4F7C7A;
+    color: #9ca3af;
 }
 
-/* Animaciones para mensajes flotantes */
-@keyframes slideIn {
-    from {
-        transform: translateX(400px);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
-}
-
-@keyframes slideOut {
-    from {
-        transform: translateX(0);
-        opacity: 1;
-    }
-    to {
-        transform: translateX(400px);
-        opacity: 0;
-    }
-}
+/* ── Animaciones ── */
+@keyframes slideIn  { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(400px); opacity: 0; } }
 
 @media (max-width: 768px) {
-    .calendario-grid {
-        font-size: 12px;
-    }
-    
-    .header-actions {
-        flex-direction: column;
-    }
+    .calendario-grid { font-size: 11px; }
 }
+
+

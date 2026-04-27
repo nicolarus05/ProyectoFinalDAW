@@ -63,7 +63,7 @@ class CitaController extends Controller{
                 abort(403, 'No tienes permiso para acceder a esta sección.');
             }
             // Solo las citas del cliente para la fecha seleccionada (excluir canceladas)
-            $citas = Cita::with(['cliente.user', 'empleado.user', 'servicios'])
+            $citas = Cita::with(['cliente.user', 'empleado.user', 'servicios.subcategoria'])
                 ->where('id_cliente', $cliente->id)
                 ->where('estado', '!=', 'cancelada')
                 ->porFecha($fecha)
@@ -82,7 +82,7 @@ class CitaController extends Controller{
                           ->with(['servicios' => function($q) {
                               $q->withPivot('cantidad_total', 'cantidad_usada');
                           }]);
-                }, 'empleado.user', 'servicios'])
+                }, 'empleado.user', 'servicios.subcategoria'])
                 ->where('estado', '!=', 'cancelada')
                 ->porFecha($fecha)
                 ->orderBy('fecha_hora')
@@ -96,7 +96,7 @@ class CitaController extends Controller{
                           ->with(['servicios' => function($q) {
                               $q->withPivot('cantidad_total', 'cantidad_usada');
                           }]);
-                }, 'empleado.user', 'servicios'])
+                }, 'empleado.user', 'servicios.subcategoria'])
                 ->where('estado', '!=', 'cancelada')
                 ->porFecha($fecha)
                 ->orderBy('fecha_hora')
@@ -113,7 +113,10 @@ class CitaController extends Controller{
             ->get()
             ->groupBy('id_empleado');
 
-        return view('citas.index', compact('citas', 'empleados', 'fecha', 'horariosArray', 'horariosEmpleados'));
+        // Subcategorías activas para la leyenda
+        $subcategorias = \App\Models\Subcategoria::where('activo', true)->orderBy('categoria')->orderBy('nombre')->get();
+
+        return view('citas.index', compact('citas', 'empleados', 'fecha', 'horariosArray', 'horariosEmpleados', 'subcategorias'));
     }
 
 
@@ -207,6 +210,17 @@ class CitaController extends Controller{
         $serviciosSeleccionados = Servicio::whereIn('id', $servicios)->get();
         $duracionTotalNuevaCita = $serviciosSeleccionados->sum('tiempo_estimado');
         $finNuevaCita = $fechaHora->copy()->addMinutes($duracionTotalNuevaCita);
+
+        // Validar que la cita no termine después del horario de cierre
+        $horarioDia = HorarioTrabajo::obtenerHorarioPorFecha($fecha);
+        if ($horarioDia) {
+            $cierreSalon = Carbon::parse($fecha . ' ' . $horarioDia['fin']);
+            if ($finNuevaCita->greaterThan($cierreSalon)) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['fecha_hora' => 'La cita terminaría a las ' . $finNuevaCita->format('H:i') . ', después del cierre del salón a las ' . $cierreSalon->format('H:i') . '. Reduzca los servicios o elija una hora anterior.']);
+            }
+        }
 
         // Verificar solapamiento real con otras citas del empleado
         // Solo verificar citas pendientes, no las completadas ni canceladas
@@ -516,6 +530,18 @@ class CitaController extends Controller{
 
         // Validar superposición con otras citas del mismo empleado
         $horaFin = $nuevaFechaHora->copy()->addMinutes($duracionMinutos);
+
+        // Validar que la cita no termine después del horario de cierre
+        $horarioDia = HorarioTrabajo::obtenerHorarioPorFecha($nuevaFechaHora->toDateString());
+        if ($horarioDia) {
+            $cierreSalon = Carbon::parse($nuevaFechaHora->toDateString() . ' ' . $horarioDia['fin']);
+            if ($horaFin->greaterThan($cierreSalon)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'La cita terminaría a las ' . $horaFin->format('H:i') . ', después del cierre a las ' . $cierreSalon->format('H:i') . '.'
+                ], 400);
+            }
+        }
         
         // Obtener todas las citas del empleado en el día para validar manualmente
         $citasDelDia = Cita::with('servicios')
