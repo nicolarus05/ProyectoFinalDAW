@@ -131,12 +131,10 @@ Route::middleware([
         Route::get('/servicios/{servicio}/citas', [ServicioController::class, 'citas'])->name('servicios.citas');
         Route::post('/servicios/{servicio}/citas', [ServicioController::class, 'addCita'])->name('servicios.addcita');
 
-        // Bonos (solo admin)
+        // Bonos - operaciones de escritura (solo admin/gerente)
         Route::prefix('bonos')->name('bonos.')->group(function () {
-            Route::get('/', [BonoController::class, 'index'])->name('index');
             Route::get('/crear', [BonoController::class, 'create'])->name('create');
             Route::post('/', [BonoController::class, 'store'])->name('store');
-            Route::get('/clientes-con-bonos', [BonoController::class, 'clientesConBonos'])->name('clientesConBonos');
             Route::get('/venta-multiple', [BonoController::class, 'ventaMultiple'])->name('ventaMultiple');
             Route::post('/venta-multiple', [BonoController::class, 'procesarVentaMultiple'])->name('procesarVentaMultiple');
             Route::get('/{plantilla}/comprar', [BonoController::class, 'comprar'])->name('comprar');
@@ -187,6 +185,12 @@ Route::middleware([
             Route::get('/cliente/{cliente}/historial', [DeudaController::class, 'historial'])->name('historial');
         });
         
+        // Bonos - lectura (admin, gerente y empleado)
+        Route::prefix('bonos')->name('bonos.')->group(function () {
+            Route::get('/', [BonoController::class, 'index'])->name('index');
+            Route::get('/clientes-con-bonos', [BonoController::class, 'clientesConBonos'])->name('clientesConBonos');
+        });
+
         // Caja diaria
         Route::get('/caja', [CajaDiariaController::class, 'index'])->name('caja.index');
         

@@ -359,13 +359,16 @@ class CitaController extends Controller{
      * Update the specified resource in storage.
      */
     public function update(UpdateCitaRequest $request, Cita $cita){
-        // Los datos ya vienen validados y sanitizados del Form Request
         $data = $request->validated();
+
+        $serviciosIds = $data['servicios'] ?? [];
+        unset($data['servicios']);
 
         $estadoAnterior = $cita->estado;
         $cita->update($data);
-        
-        // Ya no se envían notificaciones por cambio de estado (solo pendiente y completada)
+
+        // Sincronizar servicios (many-to-many)
+        $cita->servicios()->sync($serviciosIds);
         
         return redirect()->route('citas.index');
     }

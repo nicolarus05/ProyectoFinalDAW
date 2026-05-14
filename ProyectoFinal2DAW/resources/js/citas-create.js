@@ -274,7 +274,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Empleado
         const empleadoRadio = document.querySelector('input[name="id_empleado"]:checked');
         const empleadoLabel = empleadoRadio?.closest('.empleado-option');
-        const empleadoNombre = empleadoLabel?.querySelector('p.font-semibold')?.textContent.trim() || 'Empleado';
+        const empleadoPs = empleadoLabel?.querySelectorAll('p');
+        const empleadoNombre = (empleadoPs && empleadoPs[0] ? empleadoPs[0].textContent : 'Empleado').trim();
         document.getElementById('confirm-empleado').textContent = empleadoNombre;
         
         // Fecha y Hora
@@ -365,8 +366,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const clienteItem = e.target.closest('.cliente-item');
             if (clienteItem) {
                 const clienteId = clienteItem.dataset.clienteId;
-                const clienteNombre = clienteItem.querySelector('p.font-semibold').textContent;
-                const clienteEmail = clienteItem.querySelector('p.text-sm').textContent;
+                const ps = clienteItem.querySelectorAll('p');
+                const clienteNombre = (ps[0] ? ps[0].textContent : '').trim();
+                const clienteEmail = (ps[1] ? ps[1].textContent : '').trim();
                 const clienteInicial = clienteNombre.charAt(0).toUpperCase();
                 
                 // Actualizar select oculto

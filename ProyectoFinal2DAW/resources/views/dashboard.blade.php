@@ -639,6 +639,16 @@
                     <div style="flex:1"><div style="font-size:13px;font-weight:700;color:#111827">Caja del Día</div></div>
                     <div class="qa-arrow">›</div>
                 </a>
+                <a href="{{ route('bonos.index') }}" class="qa-card">
+                    <div class="qa-icon" style="background:#f3e8ff"><span>🎫</span></div>
+                    <div style="flex:1"><div style="font-size:13px;font-weight:700;color:#111827">Bonos</div></div>
+                    <div class="qa-arrow">›</div>
+                </a>
+                <a href="{{ route('bonos.clientesConBonos') }}" class="qa-card">
+                    <div class="qa-icon" style="background:#fce7f3"><span>👥</span></div>
+                    <div style="flex:1"><div style="font-size:13px;font-weight:700;color:#111827">Clientes con Bonos</div></div>
+                    <div class="qa-arrow">›</div>
+                </a>
             </div>
             @endif
 
