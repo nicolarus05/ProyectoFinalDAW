@@ -375,7 +375,13 @@
                     <div class="columna-empleado">
                         <div class="header-columna">
                             <div class="empleado-avatar">
-                                {{ strtoupper(substr($empleado->user->nombre, 0, 1)) }}{{ strtoupper(substr($empleado->user->apellidos, 0, 1)) }}
+                                @if($empleado->user->foto_perfil)
+                                    <img src="{{ route('tenant.file', $empleado->user->foto_perfil) }}"
+                                         alt="{{ $empleado->user->nombre }}"
+                                         style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+                                @else
+                                    {{ strtoupper(substr($empleado->user->nombre, 0, 1)) }}{{ strtoupper(substr($empleado->user->apellidos, 0, 1)) }}
+                                @endif
                             </div>
                             <div class="empleado-nombre">
                                 {{ $empleado->user->nombre }} {{ $empleado->user->apellidos }}

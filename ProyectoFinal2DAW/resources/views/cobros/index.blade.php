@@ -143,6 +143,17 @@
             </div>
         </div>
 
+        @if(session('success'))
+            <div class="mb-4 bg-green-100 border border-green-400 text-green-800 px-4 py-3 rounded-lg flex items-center gap-2">
+                <span>✅</span> {{ session('success') }}
+            </div>
+        @endif
+        @if(session('error') || $errors->any())
+            <div class="mb-4 bg-red-100 border border-red-400 text-red-800 px-4 py-3 rounded-lg flex items-center gap-2">
+                <span>❌</span> {{ session('error') ?? $errors->first('error') }}
+            </div>
+        @endif
+
         <div class="mb-6 flex gap-3">
             <a href="{{ route('cobros.create') }}" class="bg-blue-600 text-white px-5 py-3 rounded-lg hover:bg-blue-700 font-semibold shadow-md hover:shadow-lg transition">
                 🎫 Cobrar Cita
@@ -806,6 +817,7 @@
                                   onsubmit="return confirm('¿Seguro que deseas eliminar este cobro?')" class="inline">
                                 @csrf
                                 @method('DELETE')
+                                <input type="hidden" name="fecha" value="{{ $fecha }}">
                                 <button type="submit" 
                                         class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition text-sm font-medium">
                                     🗑️ Eliminar

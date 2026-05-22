@@ -1910,7 +1910,7 @@ class RegistroCobroController extends Controller{
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(RegistroCobro $cobro){
+    public function destroy(Request $request, RegistroCobro $cobro){
         $cobro->load(['productos', 'servicios', 'bonosVendidos.servicios', 'citasAgrupadas', 'movimientosDeuda.deuda']);
 
         DB::beginTransaction();
@@ -2026,27 +2026,36 @@ class RegistroCobroController extends Controller{
             }
             $cobro->bonosVendidos()->detach();
 
-            // 5. Restaurar estado de citas a 'confirmada'
-            if ($cobro->id_cita) {
-                $cita = Cita::find($cobro->id_cita);
-                if ($cita && $cita->estado === 'completada') {
-                    $cita->update(['estado' => 'confirmada']);
-                }
-            }
-            if ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
-                foreach ($cobro->citasAgrupadas as $citaAgrupada) {
-                    if ($citaAgrupada->estado === 'completada') {
-                        $citaAgrupada->update(['estado' => 'confirmada']);
-                    }
-                }
-            }
+            // 5. Eliminar el cobro
+            $citaIdPrincipal = $cobro->id_cita;
+            $citasAgrupadasIds = $cobro->citasAgrupadas?->pluck('id') ?? collect();
 
             $cobro->delete();
             DB::commit();
 
-            return $this->redirectWithSuccess('cobros.index', 'Cobro eliminado correctamente. Stock, deuda y bonos restaurados.');
+            // 6. Restaurar estado de citas a 'confirmada' (fuera de la transacción,
+            //    operación secundaria que no debe bloquear la eliminación)
+            try {
+                if ($citaIdPrincipal) {
+                    $cita = Cita::find($citaIdPrincipal);
+                    if ($cita && $cita->estado === 'completada') {
+                        DB::table('citas')->where('id', $cita->id)->update(['estado' => 'confirmada']);
+                    }
+                }
+                if ($citasAgrupadasIds->isNotEmpty()) {
+                    DB::table('citas')
+                        ->whereIn('id', $citasAgrupadasIds)
+                        ->where('estado', 'completada')
+                        ->update(['estado' => 'confirmada']);
+                }
+            } catch (\Throwable $ex) {
+                Log::warning('Cobro #' . $cobro->id . ' eliminado OK, pero no se pudo restaurar el estado de la cita: ' . $ex->getMessage());
+            }
 
-        } catch (\Exception $e) {
+            $fecha = $request->input('fecha', now()->format('Y-m-d'));
+            return $this->redirectWithSuccess('cobros.index', 'Cobro eliminado correctamente. Stock, deuda y bonos restaurados.', ['fecha' => $fecha]);
+
+        } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('Error al eliminar cobro #' . $cobro->id . ': ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()
