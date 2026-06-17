@@ -82,6 +82,20 @@
             display: flex; align-items: center; justify-content: center;
             color: #fff; font-weight: 700; font-size: 13px;
         }
+        .topbar-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .topbar-action {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
+            text-decoration: none; border: 1.5px solid #e5e7eb; color: #374151;
+            background: #fff; cursor: pointer; transition: background .2s, opacity .2s;
+            white-space: nowrap;
+        }
+        .topbar-action:hover { background: #f3f4f6; }
+        .topbar-action.logout {
+            border-color: transparent; color: #fff;
+            background: linear-gradient(135deg,#f472b6,#a855f7);
+        }
+        .topbar-action.logout:hover { opacity: .85; }
 
         /* ── CONTENT ── */
         .content { flex: 1; padding: 14px 18px; }
@@ -203,8 +217,13 @@
     $progreso     = min(100, round(($ingresosMes / $objetivoMes) * 100));
 
     $nombreBienvenida = $user->nombre ?? 'Usuario';
-    $genero = $user->genero ?? 'hombre';
-    $saludoGenero = $genero === 'mujer' ? '¡Bienvenida' : '¡Bienvenido';
+    $generoNormalizado = strtolower(trim((string) ($user->genero ?? '')));
+    $saludoGenero = match (true) {
+        in_array($generoNormalizado, ['femenino', 'mujer', 'female', 'f'], true) => '¡Bienvenida',
+        in_array($generoNormalizado, ['masculino', 'hombre', 'male', 'm'], true) => '¡Bienvenido',
+        default => '¡Bienvenido/a',
+    };
+    $tituloDashboard = $rol === 'empleado' ? 'Página del empleado/a' : 'Panel de Control';
 @endphp
 <!-- ═══════════════════════ SIDEBAR ═══════════════════════ -->
 <aside class="sidebar">
@@ -294,12 +313,23 @@
     <!-- TOPBAR -->
     <header class="topbar">
         <div class="menu-btn" id="sidebarToggle" onclick="document.body.classList.toggle('sidebar-collapsed')">☰</div>
-        <span class="page-title">Panel de Control ✨</span>
+        <span class="page-title">{{ $tituloDashboard }} ✨</span>
         <div class="search-bar">
             <span style="color:#9ca3af">🔍</span>
             <span>Buscar en el sistema...</span>
         </div>
         <div style="flex:1"></div>
+        <div class="topbar-actions">
+            <a href="{{ route('profile.edit') }}" class="topbar-action">
+                ✏️ Editar mi perfil
+            </a>
+            <form method="POST" action="{{ route('logout') }}" style="display:inline">
+                @csrf
+                <button type="submit" class="topbar-action logout">
+                    🚪 Cerrar sesión
+                </button>
+            </form>
+        </div>
         <a href="{{ route('profile.edit') }}" class="user-area" style="text-decoration:none;color:inherit">
             @if ($user && $user->foto_perfil)
                 <img src="{{ route('tenant.file', $user->foto_perfil) }}" loading="lazy" style="width:38px;height:38px;border-radius:50%;object-fit:cover">
@@ -332,7 +362,7 @@
                 </div>
                 <div style="font-size:22px;font-weight:800;display:flex;align-items:center;gap:6px">
                     <span>⏰</span>
-                    <span id="reloj">{{ \Carbon\Carbon::now()->format('h:i A') }}</span>
+                    <span id="reloj">{{ \Carbon\Carbon::now()->format('H:i') }}</span>
                 </div>
             </div>
         </div>
@@ -583,7 +613,7 @@
                 <a href="{{ route('asistencia.index') }}" class="qa-card">
                     <div class="qa-icon" style="background:#ede9fe"><span>🕐</span></div>
                     <div style="flex:1;min-width:0">
-                        <div style="font-size:12px;font-weight:700;color:#111827">Control Asistencia</div>
+                        <div style="font-size:12px;font-weight:700;color:#111827">Control de asistencia</div>
                         <div style="font-size:10px;color:#6b7280">Entrada/salida empleados</div>
                     </div>
                     <div class="qa-arrow">›</div>
@@ -700,17 +730,6 @@
             <div style="text-align:right;font-size:10px;color:#15803d;margin-top:1px;font-weight:600"><span id="obj-pct">{{ $progreso }}</span>%</div>
         </div>
         @endif
-        <div style="display:flex;gap:8px;flex-shrink:0">
-            <a href="{{ route('profile.edit') }}" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:12px;font-weight:600;color:#374151;text-decoration:none;transition:background .2s" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
-                ✏️ Editar Mi Perfil
-            </a>
-            <form method="POST" action="{{ route('logout') }}" style="display:inline">
-                @csrf
-                <button type="submit" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;background:linear-gradient(135deg,#f472b6,#a855f7);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
-                    🚪 Cerrar Sesión
-                </button>
-            </form>
-        </div>
     </div>
 
 </div><!-- /main-wrapper -->
@@ -771,10 +790,9 @@ function guardarObjetivo(){
     function pad(n){ return n < 10 ? '0'+n : n; }
     function tick(){
         var d = new Date();
-        var h = d.getHours(), m = d.getMinutes(), ampm = h >= 12 ? 'PM' : 'AM';
-        h = h % 12 || 12;
+        var h = d.getHours(), m = d.getMinutes();
         var el = document.getElementById('reloj');
-        if(el) el.textContent = h + ':' + pad(m) + ' ' + ampm;
+        if(el) el.textContent = pad(h) + ':' + pad(m);
     }
     tick();
     setInterval(tick, 30000);

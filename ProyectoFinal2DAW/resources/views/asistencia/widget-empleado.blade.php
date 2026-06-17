@@ -27,7 +27,7 @@
 
 <div class="bg-white rounded-lg shadow-md p-6 mb-6">
     <div class="flex items-center justify-between mb-4">
-        <h2 class="text-2xl font-bold text-gray-800">📅 Asistencia</h2>
+        <h2 class="text-2xl font-bold text-gray-800">📅 Control de asistencia</h2>
         <div class="text-sm text-gray-600">
             {{ Carbon::now()->locale('es')->isoFormat('dddd, D [de] MMMM [de] YYYY') }}
         </div>
@@ -133,7 +133,7 @@
                     @endif
 
                     <a href="{{ route('asistencia.mi-historial') }}" class="block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 text-center">
-                        📊 Ver Mi Historial
+                        📊 Historial de asistencia
                     </a>
                 </div>
             </div>
