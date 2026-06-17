@@ -41,7 +41,7 @@ class FacturacionController extends Controller
         // CÁLCULO DE CAJAS DIARIAS
         // ============================================================================
         // Obtener todos los cobros del mes para calcular cajas diarias
-        $cobros = RegistroCobro::with(['bonosVendidos', 'servicios', 'productos', 'cita.servicios', 'citasAgrupadas.servicios'])
+        $cobros = RegistroCobro::with(['bonosVendidos.bonoPlantilla', 'servicios', 'productos', 'cita.servicios', 'citasAgrupadas.servicios'])
             ->whereBetween('created_at', [$fechaInicio, $fechaFin])
             ->get();
         
@@ -150,6 +150,102 @@ class FacturacionController extends Controller
         
         // Total realmente cobrado (lo que ingresó en caja)
         $totalRealmenteCobrado = $totalGeneral - $deudaTotal;
+
+        // ============================================================================
+        // CONSULTA DE FACTURACIÓN POR DÍA
+        // ============================================================================
+        $diaSeleccionado = $request->get('dia');
+        $fechaDiaSeleccionado = null;
+        $datosDiaSeleccionado = null;
+        $cobrosDiaSeleccionado = collect();
+        $deudaDiaSeleccionado = 0;
+        $deudaBonosDiaSeleccionado = 0;
+        $facturacionDia = [
+            'serviciosPeluqueria' => 0,
+            'serviciosEstetica' => 0,
+            'productosPeluqueria' => 0,
+            'productosEstetica' => 0,
+            'bonosPeluqueria' => 0,
+            'bonosEstetica' => 0,
+            'totalServicios' => 0,
+            'totalProductos' => 0,
+            'totalBonos' => 0,
+            'totalGeneral' => 0,
+        ];
+
+        if ($diaSeleccionado !== null && $diaSeleccionado !== '') {
+            $diaEntero = (int) $diaSeleccionado;
+
+            if ($diaEntero >= 1 && $diaEntero <= $fechaFin->day) {
+                $fechaDiaSeleccionado = Carbon::create($anio, $mes, $diaEntero)->startOfDay();
+                $fechaDiaKey = $fechaDiaSeleccionado->toDateString();
+                $datosDiaSeleccionado = $cajasDiarias[$fechaDiaKey] ?? [
+                    'total' => 0,
+                    'efectivo' => 0,
+                    'tarjeta' => 0,
+                    'peluqueria' => 0,
+                    'estetica' => 0,
+                ];
+
+                $cobrosDiaSeleccionado = $cobros
+                    ->filter(fn ($cobro) => $cobro->created_at->isSameDay($fechaDiaSeleccionado))
+                    ->values();
+
+                $bonosDiaContados = collect();
+                foreach ($cobrosDiaSeleccionado as $cobroDia) {
+                    foreach ($cobroDia->bonosVendidos ?? collect() as $bonoDia) {
+                        if (!$bonosDiaContados->contains($bonoDia->id)) {
+                            $bonosDiaContados->push($bonoDia->id);
+                            $deudaBonosDiaSeleccionado += max(0, ($bonoDia->pivot->precio ?? 0) - ($bonoDia->precio_pagado ?? 0));
+                        }
+                    }
+                }
+
+                $cobrosDiaFacturables = $cobrosDiaSeleccionado
+                    ->filter(fn ($cobro) => $cobro->metodo_pago !== 'deuda')
+                    ->values();
+
+                foreach ($cobrosDiaFacturables as $cobroDia) {
+                    $desgloseDia = $facturacionService->desglosarCobroPorCategoria($cobroDia);
+
+                    $facturacionDia['serviciosPeluqueria'] += $desgloseDia['peluqueria']['servicios'] ?? 0;
+                    $facturacionDia['serviciosEstetica'] += $desgloseDia['estetica']['servicios'] ?? 0;
+                    $facturacionDia['productosPeluqueria'] += $desgloseDia['peluqueria']['productos'] ?? 0;
+                    $facturacionDia['productosEstetica'] += $desgloseDia['estetica']['productos'] ?? 0;
+                    $facturacionDia['bonosPeluqueria'] += $desgloseDia['peluqueria']['bonos'] ?? 0;
+                    $facturacionDia['bonosEstetica'] += $desgloseDia['estetica']['bonos'] ?? 0;
+
+                    $tieneServicios = ($cobroDia->cita && $cobroDia->cita->servicios && $cobroDia->cita->servicios->count() > 0)
+                        || ($cobroDia->citasAgrupadas && $cobroDia->citasAgrupadas->count() > 0)
+                        || ($cobroDia->servicios && $cobroDia->servicios->count() > 0);
+                    $tieneProductos = $cobroDia->productos && $cobroDia->productos->count() > 0;
+                    $desgloseTotalDia = ($desgloseDia['peluqueria']['servicios'] ?? 0)
+                        + ($desgloseDia['peluqueria']['productos'] ?? 0)
+                        + ($desgloseDia['peluqueria']['bonos'] ?? 0)
+                        + ($desgloseDia['estetica']['servicios'] ?? 0)
+                        + ($desgloseDia['estetica']['productos'] ?? 0)
+                        + ($desgloseDia['estetica']['bonos'] ?? 0);
+
+                    if (!$tieneServicios && !$tieneProductos && $cobroDia->total_final > 0 && $desgloseTotalDia < 0.01) {
+                        $empleado = Empleado::find($cobroDia->id_empleado);
+                        $categoriaEmpleado = $empleado?->categoria === 'estetica' ? 'Estetica' : 'Peluqueria';
+                        $facturacionDia['servicios' . $categoriaEmpleado] += $cobroDia->total_final;
+                    }
+                }
+
+                $facturacionDia['totalServicios'] = $facturacionDia['serviciosPeluqueria'] + $facturacionDia['serviciosEstetica'];
+                $facturacionDia['totalProductos'] = $facturacionDia['productosPeluqueria'] + $facturacionDia['productosEstetica'];
+                $facturacionDia['totalBonos'] = $facturacionDia['bonosPeluqueria'] + $facturacionDia['bonosEstetica'];
+                $facturacionDia['totalGeneral'] = $facturacionDia['totalServicios'] + $facturacionDia['totalProductos'] + $facturacionDia['totalBonos'];
+                $deudaDiaSeleccionado = $cobrosDiaSeleccionado->sum('deuda') + $deudaBonosDiaSeleccionado;
+
+                foreach ($facturacionDia as $clave => $valor) {
+                    $facturacionDia[$clave] = round($valor, 2);
+                }
+            } else {
+                $diaSeleccionado = null;
+            }
+        }
         
         // Obtener lista de meses para el selector
         $meses = [
@@ -177,7 +273,13 @@ class FacturacionController extends Controller
             'meses',
             'fechaInicio',
             'fechaFin',
-            'cajasDiarias'
+            'cajasDiarias',
+            'diaSeleccionado',
+            'fechaDiaSeleccionado',
+            'datosDiaSeleccionado',
+            'cobrosDiaSeleccionado',
+            'deudaDiaSeleccionado',
+            'facturacionDia'
         ));
     }
 }

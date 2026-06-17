@@ -10,8 +10,18 @@ use Carbon\Carbon;
 class CajaDiariaController extends Controller{
     public function index(Request $request){
         
-        // Fecha que queremos ver Por defecto hoy.
-        $fecha = $request->input('fecha', Carbon::today()->toDateString());
+        // Fecha que queremos ver. Por defecto hoy.
+        try {
+            $fechaCarbon = Carbon::parse($request->input('fecha', Carbon::today()->toDateString()))->startOfDay();
+        } catch (\Throwable $e) {
+            $fechaCarbon = Carbon::today();
+        }
+
+        $fecha = $fechaCarbon->toDateString();
+        $fechaAnterior = $fechaCarbon->copy()->subDay()->toDateString();
+        $fechaSiguiente = $fechaCarbon->copy()->addDay()->toDateString();
+        $fechaHoy = Carbon::today()->toDateString();
+        $esHoy = $fecha === $fechaHoy;
 
         // Totales por metodo de pago - SOLO lo que realmente se pagó
         // Inicializamos totales
@@ -413,6 +423,10 @@ class CajaDiariaController extends Controller{
 
         return view('caja.index', compact(
             'fecha',
+            'fechaAnterior',
+            'fechaSiguiente',
+            'fechaHoy',
+            'esHoy',
             'totalEfectivo',
             'totalTarjeta',
             'totalBono',

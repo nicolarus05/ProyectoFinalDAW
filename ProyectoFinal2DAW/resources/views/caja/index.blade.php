@@ -98,6 +98,37 @@
         </header>
         <main class="main-content">
 
+        <!-- Selector de fecha -->
+        <div class="bg-white rounded-xl shadow-sm mb-5 p-5">
+            <div class="flex flex-wrap items-end justify-between gap-4">
+                <form method="GET" action="{{ route('caja.index') }}" class="flex flex-wrap items-end gap-3">
+                    <div>
+                        <label for="fecha" class="block text-sm font-semibold text-gray-700 mb-2">Consultar caja</label>
+                        <input type="date" id="fecha" name="fecha" value="{{ $fecha }}"
+                               class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                    </div>
+                    <button type="submit" class="bg-purple-600 text-white px-5 py-2 rounded-lg hover:bg-purple-700 transition font-semibold">
+                        🔍 Ver día
+                    </button>
+                </form>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    <a href="{{ route('caja.index', ['fecha' => $fechaAnterior]) }}"
+                       class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition">
+                        ← Día anterior
+                    </a>
+                    <a href="{{ route('caja.index', ['fecha' => $fechaHoy]) }}"
+                       class="px-4 py-2 rounded-lg text-sm font-semibold transition {{ $esHoy ? 'bg-gray-100 text-gray-400 cursor-default pointer-events-none' : 'bg-emerald-600 text-white hover:bg-emerald-700' }}">
+                        Hoy
+                    </a>
+                    <a href="{{ route('caja.index', ['fecha' => $fechaSiguiente]) }}"
+                       class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition">
+                        Día siguiente →
+                    </a>
+                </div>
+            </div>
+        </div>
+
         <!-- Resumen General -->
         <div class="bg-white rounded-xl shadow-sm mb-5 overflow-hidden">
             <div style="background:#1e1a4b;color:#fff;padding:14px 20px;font-size:15px;font-weight:700">📊 Resumen General</div>

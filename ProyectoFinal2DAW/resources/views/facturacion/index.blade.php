@@ -107,15 +107,110 @@
                             @endfor
                         </select>
                     </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Día</label>
+                        <select name="dia" class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500">
+                            <option value="">Mes completo</option>
+                            @for($d = 1; $d <= $fechaFin->day; $d++)
+                                <option value="{{ $d }}" {{ (int) $diaSeleccionado === $d ? 'selected' : '' }}>
+                                    {{ str_pad($d, 2, '0', STR_PAD_LEFT) }}
+                                </option>
+                            @endfor
+                        </select>
+                    </div>
                     <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-semibold">
                         🔍 Consultar
                     </button>
+                    @if($fechaDiaSeleccionado)
+                        <a href="{{ route('facturacion.index', ['mes' => $mes, 'anio' => $anio]) }}"
+                           class="text-sm font-semibold text-gray-600 px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition">
+                            Ver mes completo
+                        </a>
+                    @endif
                 </form>
                 <p class="text-sm text-gray-600 mt-3">
                     Mostrando facturación de <strong>{{ $meses[$mes] }} {{ $anio }}</strong>
                     ({{ $fechaInicio->format('d/m/Y') }} - {{ $fechaFin->format('d/m/Y') }})
                 </p>
             </div>
+
+            @if($fechaDiaSeleccionado && $datosDiaSeleccionado)
+            <!-- Facturación diaria -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6 border-l-4 border-indigo-500">
+                <div class="flex flex-wrap items-start justify-between gap-4 mb-5">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">📆 Facturación del día</h2>
+                        <p class="text-sm text-gray-600 mt-1">
+                            {{ $fechaDiaSeleccionado->locale('es')->isoFormat('dddd, D [de] MMMM [de] YYYY') }}
+                        </p>
+                    </div>
+                    <a href="{{ route('caja.index', ['fecha' => $fechaDiaSeleccionado->toDateString()]) }}"
+                       class="bg-purple-600 text-white px-5 py-2 rounded-lg hover:bg-purple-700 transition font-semibold">
+                        Ver caja diaria →
+                    </a>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-5">
+                    <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                        <div class="text-xs text-indigo-700 font-semibold mb-1">Total facturado</div>
+                        <div class="text-2xl font-bold text-indigo-900">€{{ number_format($facturacionDia['totalGeneral'], 2) }}</div>
+                    </div>
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <div class="text-xs text-green-700 font-semibold mb-1">Total cobrado</div>
+                        <div class="text-2xl font-bold text-green-900">€{{ number_format($datosDiaSeleccionado['total'], 2) }}</div>
+                    </div>
+                    <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                        <div class="text-xs text-emerald-700 font-semibold mb-1">Efectivo</div>
+                        <div class="text-xl font-bold text-emerald-900">€{{ number_format($datosDiaSeleccionado['efectivo'], 2) }}</div>
+                    </div>
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div class="text-xs text-blue-700 font-semibold mb-1">Tarjeta</div>
+                        <div class="text-xl font-bold text-blue-900">€{{ number_format($datosDiaSeleccionado['tarjeta'], 2) }}</div>
+                    </div>
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div class="text-xs text-red-700 font-semibold mb-1">Deuda</div>
+                        <div class="text-xl font-bold text-red-900">€{{ number_format($deudaDiaSeleccionado, 2) }}</div>
+                    </div>
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <div class="text-xs text-gray-700 font-semibold mb-1">Cobros</div>
+                        <div class="text-xl font-bold text-gray-900">{{ $cobrosDiaSeleccionado->count() }}</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="font-semibold text-gray-800">Servicios</span>
+                            <span class="font-bold text-blue-700">€{{ number_format($facturacionDia['totalServicios'], 2) }}</span>
+                        </div>
+                        <div class="text-xs text-gray-600 space-y-1">
+                            <div class="flex justify-between"><span>Peluquería</span><span>€{{ number_format($facturacionDia['serviciosPeluqueria'], 2) }}</span></div>
+                            <div class="flex justify-between"><span>Estética</span><span>€{{ number_format($facturacionDia['serviciosEstetica'], 2) }}</span></div>
+                        </div>
+                    </div>
+                    <div class="rounded-lg border border-purple-200 bg-purple-50 p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="font-semibold text-gray-800">Productos</span>
+                            <span class="font-bold text-purple-700">€{{ number_format($facturacionDia['totalProductos'], 2) }}</span>
+                        </div>
+                        <div class="text-xs text-gray-600 space-y-1">
+                            <div class="flex justify-between"><span>Peluquería</span><span>€{{ number_format($facturacionDia['productosPeluqueria'], 2) }}</span></div>
+                            <div class="flex justify-between"><span>Estética</span><span>€{{ number_format($facturacionDia['productosEstetica'], 2) }}</span></div>
+                        </div>
+                    </div>
+                    <div class="rounded-lg border border-pink-200 bg-pink-50 p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="font-semibold text-gray-800">Bonos</span>
+                            <span class="font-bold text-pink-700">€{{ number_format($facturacionDia['totalBonos'], 2) }}</span>
+                        </div>
+                        <div class="text-xs text-gray-600 space-y-1">
+                            <div class="flex justify-between"><span>Peluquería</span><span>€{{ number_format($facturacionDia['bonosPeluqueria'], 2) }}</span></div>
+                            <div class="flex justify-between"><span>Estética</span><span>€{{ number_format($facturacionDia['bonosEstetica'], 2) }}</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            @endif
 
             <!-- Resumen Total Destacado -->
             <div class="bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg shadow-lg p-8 mb-8 text-white">
@@ -341,7 +436,12 @@
                 <h2 class="text-2xl font-bold text-gray-800 mb-4">📅 Cajas Diarias</h2>
                 <div class="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-10 gap-2">
                     @foreach($cajasDiarias as $fecha => $datos)
-                        <div class="p-2 rounded {{ $datos['total'] > 0 ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-200 opacity-60' }}">
+                        @php
+                            $esDiaConsultado = $fechaDiaSeleccionado && $fechaDiaSeleccionado->toDateString() === $fecha;
+                        @endphp
+                        <a href="{{ route('caja.index', ['fecha' => $fecha]) }}"
+                           class="block no-underline p-2 rounded transition hover:shadow-md hover:-translate-y-0.5 {{ $datos['total'] > 0 ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-200 opacity-60' }} {{ $esDiaConsultado ? 'ring-2 ring-indigo-500' : '' }}"
+                           title="Ver caja diaria del {{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}">
                             <div class="text-[10px] text-gray-500 mb-1 uppercase font-semibold text-center">
                                 {{ \Carbon\Carbon::parse($fecha)->translatedFormat('D d') }}
                             </div>
@@ -385,7 +485,8 @@
                                     </div>
                                 @endif
                             @endif
-                        </div>
+                            <div class="text-[9px] text-center mt-1 text-indigo-600 font-semibold">Ver caja</div>
+                        </a>
                     @endforeach
                 </div>
             </div>
