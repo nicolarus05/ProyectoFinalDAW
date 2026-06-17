@@ -11,8 +11,8 @@ class StoreRegistroCobroRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Solo admins y empleados pueden registrar cobros
-        return auth()->check() && in_array(auth()->user()->rol, ['admin', 'empleado']);
+        // Admins, gerentes y empleados pueden registrar cobros.
+        return auth()->check() && in_array(auth()->user()->rol, ['admin', 'gerente', 'empleado']);
     }
 
     /**

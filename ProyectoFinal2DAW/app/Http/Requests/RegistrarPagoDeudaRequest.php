@@ -11,7 +11,7 @@ class RegistrarPagoDeudaRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return auth()->check() && in_array(auth()->user()->rol, ['admin', 'empleado']);
+        return auth()->check() && in_array(auth()->user()->rol, ['admin', 'gerente', 'empleado']);
     }
 
     /**

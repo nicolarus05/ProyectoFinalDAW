@@ -21,6 +21,7 @@ return [
     'central_domains' => [
         '127.0.0.1',
         'localhost',
+        'www.salonlh.com',
         // NO incluir puerto aquí - interfiere con detección de tenant
     ],
 

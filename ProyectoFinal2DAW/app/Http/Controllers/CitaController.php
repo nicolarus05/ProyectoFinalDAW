@@ -13,6 +13,7 @@ use App\Services\CacheService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Collection;
 use App\Http\Requests\StoreCitaRequest;
 use App\Http\Requests\UpdateCitaRequest;
 use App\Http\Resources\CitaResource;
@@ -27,6 +28,75 @@ class CitaController extends Controller{
     {
         return 'cita';
     }
+
+    private function horariosArrayParaAgenda(Carbon $fecha): array
+    {
+        $horasReales = HorarioTrabajo::whereDate('fecha', $fecha->format('Y-m-d'))
+            ->whereNotNull('hora')
+            ->distinct()
+            ->orderBy('hora')
+            ->pluck('hora')
+            ->all();
+
+        if (!empty($horasReales)) {
+            return $horasReales;
+        }
+
+        $horarioDia = HorarioTrabajo::obtenerHorarioPorFecha($fecha);
+
+        if (!$horarioDia) {
+            return [];
+        }
+
+        return HorarioTrabajo::generarBloquesHorarios(
+            $horarioDia['inicio'],
+            $horarioDia['fin']
+        );
+    }
+
+    private function bloquesDisponiblesParaRango(int $empleadoId, Carbon $fechaHoraInicio, int $duracionMinutos): bool
+    {
+        $bloques = $this->bloquesDelEmpleadoEnFecha($empleadoId, $fechaHoraInicio);
+
+        if ($bloques->isEmpty()) {
+            return false;
+        }
+
+        $fechaHoraFin = $fechaHoraInicio->copy()->addMinutes($duracionMinutos);
+        $horaFinJornada = Carbon::parse(
+            $fechaHoraInicio->format('Y-m-d') . ' ' . $bloques->max('hora')
+        );
+
+        if ($fechaHoraFin->greaterThan($horaFinJornada)) {
+            return false;
+        }
+
+        $bloquesDisponibles = $bloques
+            ->where('disponible', true)
+            ->pluck('hora')
+            ->flip();
+
+        $horaActual = $fechaHoraInicio->copy();
+        while ($horaActual->lessThan($fechaHoraFin)) {
+            if (!$bloquesDisponibles->has($horaActual->format('H:i:s'))) {
+                return false;
+            }
+
+            $horaActual->addMinutes(15);
+        }
+
+        return true;
+    }
+
+    private function bloquesDelEmpleadoEnFecha(int $empleadoId, Carbon $fecha): Collection
+    {
+        return HorarioTrabajo::where('id_empleado', $empleadoId)
+            ->whereDate('fecha', $fecha->format('Y-m-d'))
+            ->whereNotNull('hora')
+            ->orderBy('hora')
+            ->get(['hora', 'disponible']);
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -43,19 +113,7 @@ class CitaController extends Controller{
             ->orderBy('id')
             ->get();
 
-        // Obtener horario según la fecha (invierno/verano, día de la semana)
-        $horarioDia = HorarioTrabajo::obtenerHorarioPorFecha($fecha);
-        
-        if (!$horarioDia) {
-            // Día no laborable (domingo)
-            $horariosArray = [];
-        } else {
-            // Generar franjas horarias cada 15 minutos según el horario del día
-            $horariosArray = HorarioTrabajo::generarBloquesHorarios(
-                $horarioDia['inicio'], 
-                $horarioDia['fin']
-            );
-        }
+        $horariosArray = $this->horariosArrayParaAgenda($fecha);
 
         if ($user->rol === 'cliente') {
             $cliente = $user->cliente;
@@ -180,30 +238,6 @@ class CitaController extends Controller{
 
         // Extraer fecha y hora
         $fechaHora = Carbon::parse($data['fecha_hora']);
-        $fecha = $fechaHora->toDateString(); // 'Y-m-d'
-        $hora = $fechaHora->format('H:i:s');
-
-        // Validar disponibilidad exacta en horario_trabajo
-        // Buscar por hora exacta O por rango hora_inicio/hora_fin
-        $horario = HorarioTrabajo::where('id_empleado', $data['id_empleado'])
-            ->where('fecha', $fecha)
-            ->where('disponible', true)
-            ->where(function($query) use ($hora) {
-                // Opción 1: Bloque específico con hora exacta
-                $query->where('hora', $hora)
-                    // Opción 2: Rango de horas (hora_inicio y hora_fin)
-                    ->orWhere(function($q) use ($hora) {
-                        $q->whereTime('hora_inicio', '<=', $hora)
-                          ->whereTime('hora_fin', '>=', $hora);
-                    });
-            })
-            ->first();
-
-        if (!$horario) {
-            return redirect()->back()
-                ->withInput()
-                ->withErrors(['id_empleado' => 'El empleado no está disponible en la fecha y hora seleccionadas.']);
-        }
 
         // Calcular la duración total de la nueva cita
         $servicios = $data['servicios'];
@@ -211,15 +245,10 @@ class CitaController extends Controller{
         $duracionTotalNuevaCita = $serviciosSeleccionados->sum('tiempo_estimado');
         $finNuevaCita = $fechaHora->copy()->addMinutes($duracionTotalNuevaCita);
 
-        // Validar que la cita no termine después del horario de cierre
-        $horarioDia = HorarioTrabajo::obtenerHorarioPorFecha($fecha);
-        if ($horarioDia) {
-            $cierreSalon = Carbon::parse($fecha . ' ' . $horarioDia['fin']);
-            if ($finNuevaCita->greaterThan($cierreSalon)) {
-                return redirect()->back()
-                    ->withInput()
-                    ->withErrors(['fecha_hora' => 'La cita terminaría a las ' . $finNuevaCita->format('H:i') . ', después del cierre del salón a las ' . $cierreSalon->format('H:i') . '. Reduzca los servicios o elija una hora anterior.']);
-            }
+        if (!$this->bloquesDisponiblesParaRango($data['id_empleado'], $fechaHora, $duracionTotalNuevaCita)) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['id_empleado' => 'El empleado no está disponible durante todo el rango solicitado.']);
         }
 
         // Verificar solapamiento real con otras citas del empleado
@@ -500,51 +529,17 @@ class CitaController extends Controller{
         $nuevaFechaHora = Carbon::parse($request->nueva_fecha_hora);
         $nuevoEmpleadoId = $request->nuevo_empleado_id;
 
-        // Validar que todos los bloques necesarios estén disponibles
         $duracionMinutos = $cita->duracion_minutos;
-        $bloquesNecesarios = ceil($duracionMinutos / 15);
-        
-        $horaActual = $nuevaFechaHora->copy();
-        for ($i = 0; $i < $bloquesNecesarios; $i++) {
-            $horarioDisponible = HorarioTrabajo::where('id_empleado', $nuevoEmpleadoId)
-                ->where('fecha', $horaActual->format('Y-m-d'))
-                ->where('disponible', true)
-                ->where(function($query) use ($horaActual) {
-                    $hora = $horaActual->format('H:i:s');
-                    // Opción 1: Bloque específico con hora exacta
-                    $query->where('hora', $hora)
-                        // Opción 2: Rango de horas (hora_inicio y hora_fin)
-                        ->orWhere(function($q) use ($hora) {
-                            $q->whereTime('hora_inicio', '<=', $hora)
-                              ->whereTime('hora_fin', '>=', $hora);
-                        });
-                })
-                ->exists();
 
-            if (!$horarioDisponible) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No hay suficiente espacio disponible en este horario. La cita necesita ' . $duracionMinutos . ' minutos (' . $bloquesNecesarios . ' bloques de 15min).'
-                ], 400);
-            }
-            
-            $horaActual->addMinutes(15);
+        if (!$this->bloquesDisponiblesParaRango($nuevoEmpleadoId, $nuevaFechaHora, $duracionMinutos)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay suficiente espacio disponible en este horario. La cita necesita ' . $duracionMinutos . ' minutos.'
+            ], 400);
         }
 
         // Validar superposición con otras citas del mismo empleado
         $horaFin = $nuevaFechaHora->copy()->addMinutes($duracionMinutos);
-
-        // Validar que la cita no termine después del horario de cierre
-        $horarioDia = HorarioTrabajo::obtenerHorarioPorFecha($nuevaFechaHora->toDateString());
-        if ($horarioDia) {
-            $cierreSalon = Carbon::parse($nuevaFechaHora->toDateString() . ' ' . $horarioDia['fin']);
-            if ($horaFin->greaterThan($cierreSalon)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'La cita terminaría a las ' . $horaFin->format('H:i') . ', después del cierre a las ' . $cierreSalon->format('H:i') . '.'
-                ], 400);
-            }
-        }
         
         // Obtener todas las citas del empleado en el día para validar manualmente
         $citasDelDia = Cita::with('servicios')

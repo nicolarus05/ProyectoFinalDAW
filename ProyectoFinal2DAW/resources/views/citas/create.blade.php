@@ -533,13 +533,31 @@
 
             console.log('Inicializando modal crear cliente...');
 
+            function mostrarErrorCliente(message) {
+                errorDiv.style.display = 'block';
+                errorDiv.querySelector('p').textContent = message;
+            }
+
+            function ocultarErrorCliente() {
+                errorDiv.style.display = 'none';
+                errorDiv.querySelector('p').textContent = '';
+            }
+
+            function buscarClienteExistentePorEmail(email) {
+                const emailNormalizado = (email || '').trim().toLowerCase();
+                if (!emailNormalizado) return null;
+
+                return Array.from(document.querySelectorAll('#clientes-list .cliente-item'))
+                    .find(item => (item.dataset.email || '').trim().toLowerCase() === emailNormalizado);
+            }
+
             // Abrir modal
             btnAbrirModal.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
                 console.log('Abriendo modal crear cliente');
                 modalCrearCliente.style.display = 'flex';
-                errorDiv.classList.add('hidden');
+                ocultarErrorCliente();
                 formCrearCliente.reset();
             });
 
@@ -567,9 +585,17 @@
             
             submitBtn.disabled = true;
             submitBtn.textContent = 'Guardando...';
-            errorDiv.classList.add('hidden');
+            ocultarErrorCliente();
 
             try {
+                const clienteExistente = buscarClienteExistentePorEmail(formData.get('email'));
+                if (clienteExistente) {
+                    clienteExistente.click();
+                    cerrarModal();
+                    formCrearCliente.reset();
+                    return;
+                }
+
                 const response = await fetch('{{ route("clientes.store") }}', {
                     method: 'POST',
                     headers: {
@@ -631,11 +657,10 @@
                 formCrearCliente.reset();
 
             } catch (error) {
-                errorDiv.classList.remove('hidden');
-                errorDiv.querySelector('p').textContent = error.message;
+                mostrarErrorCliente(error.message);
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Guardar Cliente';
+                submitBtn.textContent = '✅ Guardar Cliente';
             }
         });
         }); // Fin window.load

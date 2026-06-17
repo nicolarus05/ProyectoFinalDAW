@@ -440,8 +440,7 @@
                         @foreach($citasEmpleado as $cita)
                             @php
                                 $horaInicio = \Carbon\Carbon::parse($cita->fecha_hora);
-                                $horarioDia = \App\Models\HorarioTrabajo::obtenerHorarioPorFecha($fecha);
-                                $horaBaseStr = $horarioDia ? $horarioDia['inicio'] : '09:00';
+                                $horaBaseStr = $horariosArray[0] ?? '09:00:00';
                                 $horaBase    = \Carbon\Carbon::parse($fecha->format('Y-m-d') . ' ' . $horaBaseStr);
                                 $minutosDesdeInicio = $horaBase->diffInMinutes($horaInicio, false);
                                 $numeroBloque  = $minutosDesdeInicio / 15;

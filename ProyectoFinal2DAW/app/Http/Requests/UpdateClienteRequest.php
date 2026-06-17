@@ -11,8 +11,8 @@ class UpdateClienteRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Solo admins y empleados pueden actualizar clientes
-        return auth()->check() && in_array(auth()->user()->rol, ['admin', 'empleado']);
+        // Admins, gerentes y empleados pueden actualizar clientes.
+        return auth()->check() && in_array(auth()->user()->rol, ['admin', 'gerente', 'empleado']);
     }
 
     /**

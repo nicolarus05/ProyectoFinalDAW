@@ -13,8 +13,11 @@ $app = Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         using: function () {
             // Rutas centrales (sin tenant)
-            Route::middleware('web')
-                ->group(base_path('routes/web.php'));
+            foreach (config('tenancy.central_domains') as $domain) {
+                Route::middleware('web')
+                    ->domain($domain)
+                    ->group(base_path('routes/web.php'));
+            }
             
             // Rutas de tenant (middleware 'web' aplicado dentro de tenant.php)
             Route::group([], function () {

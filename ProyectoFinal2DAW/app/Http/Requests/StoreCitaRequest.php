@@ -82,6 +82,18 @@ class StoreCitaRequest extends FormRequest
      */
     protected function prepareForValidation()
     {
+        if ($this->filled(['fecha_cita', 'hora_cita'])) {
+            $hora = trim((string) $this->input('hora_cita'));
+
+            if (preg_match('/^\d{2}:\d{2}$/', $hora)) {
+                $hora .= ':00';
+            }
+
+            $this->merge([
+                'fecha_hora' => trim((string) $this->input('fecha_cita')) . ' ' . $hora,
+            ]);
+        }
+
         // Sanitizar notas si existen
         if ($this->has('notas_adicionales') && $this->notas_adicionales) {
             $this->merge([

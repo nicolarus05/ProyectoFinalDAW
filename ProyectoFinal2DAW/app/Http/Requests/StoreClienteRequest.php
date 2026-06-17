@@ -11,8 +11,8 @@ class StoreClienteRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Solo admin y empleado pueden crear clientes
-        return auth()->check() && in_array(auth()->user()->rol, ['admin', 'empleado']);
+        // Admins, gerentes y empleados pueden crear clientes.
+        return auth()->check() && in_array(auth()->user()->rol, ['admin', 'gerente', 'empleado']);
     }
 
     /**
