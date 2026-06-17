@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registrar Cobro</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    {!! vite_asset(['resources/css/app.css', 'resources/css/cobros.css', 'resources/js/cobros.js']) !!}
+    {!! vite_asset(['resources/css/app.css', 'resources/css/cobros.css', 'resources/js/app.js', 'resources/js/cobros.js']) !!}
     <style>
         :root { --sidebar-w: 210px; }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -540,4 +540,3 @@ window.citasData = {
 </div>
 </body>
 </html>
-

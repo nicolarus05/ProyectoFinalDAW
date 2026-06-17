@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nuevo Cobro Directo</title>
-    {!! vite_asset(['resources/css/app.css', 'resources/css/cobros.css', 'resources/js/cobros.js']) !!}
+    {!! vite_asset(['resources/css/app.css', 'resources/css/cobros.css', 'resources/js/app.js', 'resources/js/cobros.js']) !!}
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <style>
         :root { --sidebar-w: 210px; }

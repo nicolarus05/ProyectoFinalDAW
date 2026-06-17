@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Informe Horas Mensuales - {{ $nombreMes }}</title>
-    {!! vite_asset(['resources/css/app.css']) !!}
+    {!! vite_asset(['resources/css/app.css', 'resources/js/app.js']) !!}
     <style>
         :root { --sidebar-w: 210px; }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

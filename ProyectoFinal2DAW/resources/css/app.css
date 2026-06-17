@@ -52,3 +52,100 @@
   from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* Sidebar unificado */
+body.has-sidebar .sidebar {
+  transition: transform 0.25s ease;
+}
+
+body.has-sidebar.sidebar-collapsed .sidebar {
+  transform: translateX(calc(-1 * var(--sidebar-w, 210px))) !important;
+}
+
+body.has-sidebar.sidebar-collapsed .content,
+body.has-sidebar.sidebar-collapsed .main-wrapper {
+  margin-left: 0 !important;
+}
+
+.global-sidebar-toggle,
+.sidebar-overlay {
+  display: none;
+}
+
+.global-sidebar-toggle {
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f472b6, #a855f7);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.24);
+}
+
+body.has-injected-sidebar-toggle .global-sidebar-toggle.in-topbar {
+  display: inline-flex;
+}
+
+.global-sidebar-toggle.floating {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 1100;
+}
+
+body.has-injected-sidebar-toggle .global-sidebar-toggle.floating {
+  display: inline-flex;
+}
+
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  background: rgba(17, 24, 39, 0.45);
+  z-index: 900;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  body.has-sidebar {
+    overflow-x: hidden;
+  }
+
+  body.has-sidebar .sidebar {
+    transform: translateX(-100%) !important;
+    z-index: 1000 !important;
+  }
+
+  body.has-sidebar.sidebar-mobile-open .sidebar {
+    transform: translateX(0) !important;
+  }
+
+  body.has-sidebar .content,
+  body.has-sidebar .main-wrapper {
+    margin-left: 0 !important;
+    max-width: 100vw;
+  }
+
+  body.has-sidebar.sidebar-mobile-open {
+    overflow: hidden;
+  }
+
+  body.has-sidebar.sidebar-mobile-open .sidebar-overlay {
+    display: block;
+  }
+
+  body.has-sidebar .global-sidebar-toggle.in-topbar,
+  body.has-sidebar .global-sidebar-toggle.floating {
+    display: inline-flex;
+  }
+
+  body.has-injected-sidebar-toggle .topbar {
+    gap: 10px;
+  }
+}
