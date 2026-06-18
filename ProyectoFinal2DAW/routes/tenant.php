@@ -195,6 +195,7 @@ Route::middleware([
         Route::get('/caja', [CajaDiariaController::class, 'index'])->name('caja.index');
         
         // Facturación mensual
+        Route::get('/facturacion/exportar/{formato}', [FacturacionController::class, 'exportar'])->name('facturacion.exportar');
         Route::get('/facturacion', [FacturacionController::class, 'index'])->name('facturacion.index');
     });
 

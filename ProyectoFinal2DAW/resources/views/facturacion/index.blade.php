@@ -128,6 +128,21 @@
                         </a>
                     @endif
                 </form>
+                <div class="mt-5 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-4">
+                    <span class="text-sm font-semibold text-gray-700">Exportar informe mensual:</span>
+                    <a href="{{ route('facturacion.exportar', ['formato' => 'excel', 'mes' => $mes, 'anio' => $anio]) }}"
+                       class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition text-sm font-semibold">
+                        Excel
+                    </a>
+                    <a href="{{ route('facturacion.exportar', ['formato' => 'word', 'mes' => $mes, 'anio' => $anio]) }}"
+                       class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-semibold">
+                        Word
+                    </a>
+                    <a href="{{ route('facturacion.exportar', ['formato' => 'pdf', 'mes' => $mes, 'anio' => $anio]) }}"
+                       class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm font-semibold">
+                        PDF
+                    </a>
+                </div>
                 <p class="text-sm text-gray-600 mt-3">
                     Mostrando facturación de <strong>{{ $meses[$mes] }} {{ $anio }}</strong>
                     ({{ $fechaInicio->format('d/m/Y') }} - {{ $fechaFin->format('d/m/Y') }})
@@ -218,6 +233,103 @@
                     <h2 class="text-2xl font-bold mb-2">Total Facturado</h2>
                     <p class="text-6xl font-bold">€{{ number_format($totalGeneral, 2) }}</p>
                     <p class="text-sm opacity-90 mt-2">{{ $meses[$mes] }} {{ $anio }}</p>
+                </div>
+            </div>
+
+            <!-- Estadísticas Avanzadas -->
+            @php
+                $variacionClass = function ($estado) {
+                    return match ($estado) {
+                        'up' => 'bg-green-50 border-green-200 text-green-700',
+                        'down' => 'bg-red-50 border-red-200 text-red-700',
+                        default => 'bg-gray-50 border-gray-200 text-gray-700',
+                    };
+                };
+                $variacionTexto = function ($variacion) {
+                    $signo = ($variacion['diferencia'] ?? 0) > 0 ? '+' : '';
+                    return $signo . number_format($variacion['porcentaje'] ?? 0, 1) . '%';
+                };
+                $diferenciaTexto = function ($variacion) {
+                    $signo = ($variacion['diferencia'] ?? 0) > 0 ? '+' : '';
+                    return $signo . '€' . number_format($variacion['diferencia'] ?? 0, 2);
+                };
+            @endphp
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <div class="flex flex-wrap items-start justify-between gap-4 mb-5">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">📈 Estadísticas del negocio</h2>
+                        <p class="text-sm text-gray-600 mt-1">Comparativas de ventas, productos, rendimiento anual y actividad diaria.</p>
+                    </div>
+                    <div class="text-sm text-gray-500">
+                        {{ $meses[$mes] }} {{ $anio }}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+                    <div class="border rounded-lg p-4 {{ $variacionClass($estadisticasAvanzadas['mesAnterior']['variacionTotal']['estado']) }}">
+                        <div class="text-xs font-semibold uppercase mb-1">Vs mes anterior</div>
+                        <div class="text-2xl font-bold">{{ $variacionTexto($estadisticasAvanzadas['mesAnterior']['variacionTotal']) }}</div>
+                        <div class="text-sm mt-1">{{ $diferenciaTexto($estadisticasAvanzadas['mesAnterior']['variacionTotal']) }}</div>
+                        <div class="text-xs mt-2 opacity-80">Base: {{ $estadisticasAvanzadas['mesAnterior']['etiqueta'] }}</div>
+                    </div>
+                    <div class="border rounded-lg p-4 {{ $variacionClass($estadisticasAvanzadas['mismoMesAnioAnterior']['variacionTotal']['estado']) }}">
+                        <div class="text-xs font-semibold uppercase mb-1">Vs mismo mes año anterior</div>
+                        <div class="text-2xl font-bold">{{ $variacionTexto($estadisticasAvanzadas['mismoMesAnioAnterior']['variacionTotal']) }}</div>
+                        <div class="text-sm mt-1">{{ $diferenciaTexto($estadisticasAvanzadas['mismoMesAnioAnterior']['variacionTotal']) }}</div>
+                        <div class="text-xs mt-2 opacity-80">Base: {{ $estadisticasAvanzadas['mismoMesAnioAnterior']['etiqueta'] }}</div>
+                    </div>
+                    <div class="border rounded-lg p-4 {{ $variacionClass($estadisticasAvanzadas['mesAnterior']['variacionProductos']['estado']) }}">
+                        <div class="text-xs font-semibold uppercase mb-1">Productos vs mes anterior</div>
+                        <div class="text-2xl font-bold">{{ $variacionTexto($estadisticasAvanzadas['mesAnterior']['variacionProductos']) }}</div>
+                        <div class="text-sm mt-1">{{ $diferenciaTexto($estadisticasAvanzadas['mesAnterior']['variacionProductos']) }}</div>
+                        <div class="text-xs mt-2 opacity-80">Ventas de productos</div>
+                    </div>
+                    <div class="border rounded-lg p-4 {{ $variacionClass($estadisticasAvanzadas['anio']['variacionTotal']['estado']) }}">
+                        <div class="text-xs font-semibold uppercase mb-1">Año {{ $anio }} vs {{ $anio - 1 }}</div>
+                        <div class="text-2xl font-bold">{{ $variacionTexto($estadisticasAvanzadas['anio']['variacionTotal']) }}</div>
+                        <div class="text-sm mt-1">{{ $diferenciaTexto($estadisticasAvanzadas['anio']['variacionTotal']) }}</div>
+                        <div class="text-xs mt-2 opacity-80">Comparativa anual completa</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                        <h3 class="font-bold text-gray-800 mb-3">Indicadores operativos</h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between"><span>Días con ventas</span><span class="font-bold">{{ $estadisticasAvanzadas['operativa']['diasConVentas'] }}</span></div>
+                            <div class="flex justify-between"><span>Cobros facturables</span><span class="font-bold">{{ $estadisticasAvanzadas['operativa']['cobrosFacturables'] }}</span></div>
+                            <div class="flex justify-between"><span>Ticket medio</span><span class="font-bold">€{{ number_format($estadisticasAvanzadas['operativa']['ticketMedio'], 2) }}</span></div>
+                            <div class="flex justify-between"><span>Promedio por día activo</span><span class="font-bold">€{{ number_format($estadisticasAvanzadas['operativa']['promedioDiaActivo'], 2) }}</span></div>
+                            <div class="flex justify-between"><span>Mejor día</span><span class="font-bold">{{ $estadisticasAvanzadas['operativa']['mejorDiaLabel'] }}</span></div>
+                            <div class="flex justify-between"><span>Importe mejor día</span><span class="font-bold">€{{ number_format($estadisticasAvanzadas['operativa']['mejorDiaTotal'], 2) }}</span></div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+                        <h3 class="font-bold text-gray-800 mb-3">Peso por área</h3>
+                        <div class="space-y-3">
+                            <div>
+                                <div class="flex justify-between text-sm mb-1"><span>Peluquería</span><span class="font-bold">{{ number_format($estadisticasAvanzadas['mix']['peluqueria'], 1) }}%</span></div>
+                                <div class="h-3 bg-white rounded-full overflow-hidden"><div class="h-3 bg-blue-600 rounded-full" style="width: {{ $estadisticasAvanzadas['mix']['peluqueria'] }}%"></div></div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-sm mb-1"><span>Estética</span><span class="font-bold">{{ number_format($estadisticasAvanzadas['mix']['estetica'], 1) }}%</span></div>
+                                <div class="h-3 bg-white rounded-full overflow-hidden"><div class="h-3 bg-pink-500 rounded-full" style="width: {{ $estadisticasAvanzadas['mix']['estetica'] }}%"></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                        <h3 class="font-bold text-gray-800 mb-3">Mix de ingresos</h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between"><span>Servicios</span><span class="font-bold">{{ number_format($estadisticasAvanzadas['mix']['servicios'], 1) }}%</span></div>
+                            <div class="flex justify-between"><span>Productos</span><span class="font-bold">{{ number_format($estadisticasAvanzadas['mix']['productos'], 1) }}%</span></div>
+                            <div class="flex justify-between"><span>Bonos</span><span class="font-bold">{{ number_format($estadisticasAvanzadas['mix']['bonos'], 1) }}%</span></div>
+                            <div class="border-t border-amber-200 pt-2 mt-2">
+                                <div class="flex justify-between"><span>Productos año vs anterior</span><span class="font-bold">{{ $variacionTexto($estadisticasAvanzadas['anio']['variacionProductos']) }}</span></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 

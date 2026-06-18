@@ -38,6 +38,7 @@
         .btn-secondary { padding:8px 14px;background:#f3f4f6;border:1.5px solid #e5e7eb;border-radius:9px;font-size:12.5px;font-weight:600;cursor:pointer;color:#374151;text-decoration:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap; }
         .search-input { flex:1;min-width:200px;max-width:340px;padding:8px 14px 8px 36px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:13px;outline:none;background:#f9fafb url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 10px center; }
         .search-input:focus { border-color:#a855f7;background-color:#fff; }
+        .result-info { margin-left:auto;font-size:12px;color:#6b7280; }
         .table-wrap { overflow-x:auto; }
         table { width:100%;border-collapse:collapse; }
         thead th { background:#f8f9fa;padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid #e5e7eb;white-space:nowrap; }
@@ -128,91 +129,72 @@
                 <a href="{{ route('servicios.create') }}" class="btn-primary">➕ Nuevo Servicio</a>
                 <a href="{{ route('servicios.exportar') }}" class="btn-secondary">⬇️ Exportar CSV</a>
                 <input type="text" id="buscar-servicio" class="search-input" placeholder="Buscar por nombre o categoría...">
+                <span class="result-info" id="servicios-result-count"></span>
             </div>
             <div class="table-wrap">
                 <table>
-                    
-                    <tbody>
-    <div class="max-w-4xl mx-auto bg-white p-6 rounded shadow">
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-3xl font-bold">Servicios</h1>
-            <a href="{{ route('dashboard') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">← Volver al Inicio</a>
-        </div>
-
-        <div class="mb-4 flex gap-3">
-            <a href="{{ route('servicios.create') }}" 
-               class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Nuevo Servicio</a>
-            <a href="{{ route('servicios.exportar') }}" 
-               class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">&#8595; Exportar CSV</a>
-        </div>
-
-        <!-- Barra de búsqueda -->
-        <div class="mb-4">
-            <input type="text" 
-                   id="buscar-servicio" 
-                   placeholder="🔍 Buscar por nombre o categoría..."
-                   class="w-full border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-        </div>
-
-        <table class="w-full border border-gray-300 rounded">
-            <thead>
-                <tr class="bg-gray-200 text-left">
-                    <th class="px-3 py-2">Nombre</th>
-                    <th class="px-3 py-2">Tiempo</th>
-                    <th class="px-3 py-2">Precio</th>
-                    <th class="px-3 py-2">Categoría</th>
-                    <th class="px-3 py-2">Subcategoría</th>
-                    <th class="px-3 py-2">Activo</th>
-                    <th class="px-3 py-2">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($servicios as $servicio)
-                    <tr>
-                        <td style="font-weight:600;color:#1f2937">{{ $servicio->nombre }}</td>
-                        <td><span class="badge badge-blue">⏱️ {{ $servicio->tiempo_estimado }} min</span></td>
-                        <td style="font-weight:700;color:#059669">{{ number_format($servicio->precio, 2) }} €</td>
-                        <td>
-                            @if($servicio->categoria === 'peluqueria')
-                                <span class="badge badge-blue">✂️ Peluquería</span>
-                            @else
-                                <span class="badge badge-pink">💅 Estética</span>
-                            @endif
-                        </td>
-                        <td>
-                            @if($servicio->subcategoria)
-                                <span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;background-color:{{ $servicio->subcategoria->color }}20;border:1px solid {{ $servicio->subcategoria->color }};color:{{ $servicio->subcategoria->color }}">
-                                    <span style="width:7px;height:7px;border-radius:50%;background:{{ $servicio->subcategoria->color }};flex-shrink:0"></span>
-                                    {{ $servicio->subcategoria->nombre }}
-                                </span>
-                            @else
-                                <span style="color:#9ca3af;font-size:12px">—</span>
-                            @endif
-                        </td>
-                        <td style="text-align:center">
-                            @if($servicio->activo)
-                                <span class="badge badge-green">✓ Sí</span>
-                            @else
-                                <span class="badge badge-gray">✕ No</span>
-                            @endif
-                        </td>
-                        <td>
-                            <div style="display:flex;gap:6px;flex-wrap:wrap">
-                                <a href="{{ route('servicios.show', $servicio) }}" class="action-link al-purple">👁️ Ver</a>
-                                <a href="{{ route('servicios.edit', $servicio) }}" class="action-link al-yellow">✏️ Editar</a>
-                                <a href="{{ route('servicios.empleados', $servicio) }}" class="action-link al-violet">👥 Empleados</a>
-                                <form action="{{ route('servicios.destroy', $servicio) }}" method="POST" onsubmit="return confirm('¿Eliminar este servicio?')" style="display:inline">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="action-link al-red" style="border:none;cursor:pointer">🗑️ Eliminar</button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="7" style="padding:32px;text-align:center;color:#9ca3af;font-size:13px">No hay servicios registrados</td>
-                    </tr>
-                @endforelse
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Tiempo</th>
+                            <th>Precio</th>
+                            <th>Categoría</th>
+                            <th>Subcategoría</th>
+                            <th>Activo</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-servicios">
+                        @forelse($servicios as $servicio)
+                            @php
+                                $categoriaTexto = $servicio->categoria === 'peluqueria' ? 'Peluqueria Peluquería' : 'Estetica Estética';
+                                $subcategoriaTexto = $servicio->subcategoria->nombre ?? '';
+                            @endphp
+                            <tr data-search="{{ $servicio->nombre }} {{ $categoriaTexto }} {{ $subcategoriaTexto }} {{ $servicio->tiempo_estimado }} {{ number_format($servicio->precio, 2, '.', '') }}">
+                                <td style="font-weight:600;color:#1f2937">{{ $servicio->nombre }}</td>
+                                <td><span class="badge badge-blue">⏱️ {{ $servicio->tiempo_estimado }} min</span></td>
+                                <td style="font-weight:700;color:#059669">{{ number_format($servicio->precio, 2) }} €</td>
+                                <td>
+                                    @if($servicio->categoria === 'peluqueria')
+                                        <span class="badge badge-blue">✂️ Peluquería</span>
+                                    @else
+                                        <span class="badge badge-pink">💅 Estética</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($servicio->subcategoria)
+                                        <span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;background-color:{{ $servicio->subcategoria->color }}20;border:1px solid {{ $servicio->subcategoria->color }};color:{{ $servicio->subcategoria->color }}">
+                                            <span style="width:7px;height:7px;border-radius:50%;background:{{ $servicio->subcategoria->color }};flex-shrink:0"></span>
+                                            {{ $servicio->subcategoria->nombre }}
+                                        </span>
+                                    @else
+                                        <span style="color:#9ca3af;font-size:12px">—</span>
+                                    @endif
+                                </td>
+                                <td style="text-align:center">
+                                    @if($servicio->activo)
+                                        <span class="badge badge-green">✓ Sí</span>
+                                    @else
+                                        <span class="badge badge-gray">✕ No</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    <div style="display:flex;gap:6px;flex-wrap:wrap">
+                                        <a href="{{ route('servicios.show', $servicio) }}" class="action-link al-purple">👁️ Ver</a>
+                                        <a href="{{ route('servicios.edit', $servicio) }}" class="action-link al-yellow">✏️ Editar</a>
+                                        <a href="{{ route('servicios.empleados', $servicio) }}" class="action-link al-violet">👥 Empleados</a>
+                                        <form action="{{ route('servicios.destroy', $servicio) }}" method="POST" onsubmit="return confirm('¿Eliminar este servicio?')" style="display:inline">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" class="action-link al-red" style="border:none;cursor:pointer">🗑️ Eliminar</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" style="padding:32px;text-align:center;color:#9ca3af;font-size:13px">No hay servicios registrados</td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
@@ -222,29 +204,50 @@
 
 <script>
     const inputBuscar = document.getElementById('buscar-servicio');
-    const tbody = document.querySelector('tbody');
+    const tbody = document.getElementById('tabla-servicios');
+    const resultCount = document.getElementById('servicios-result-count');
 
-    inputBuscar.addEventListener('input', function () {
-        const busqueda = this.value.toLowerCase().trim();
-        let visibles = 0;
-        Array.from(tbody.querySelectorAll('tr:not(.no-resultados)')).forEach(fila => {
-            if (fila.querySelector('td[colspan]')) return;
-            const nombre   = fila.children[0]?.textContent.toLowerCase() ?? '';
-            const categoria = fila.children[3]?.textContent.toLowerCase() ?? '';
-            const coincide = nombre.includes(busqueda) || categoria.includes(busqueda);
-            fila.style.display = coincide ? '' : 'none';
-            if (coincide) visibles++;
-        });
-        let noRes = tbody.querySelector('.no-resultados');
-        if (visibles === 0 && busqueda) {
-            if (!noRes) {
-                noRes = document.createElement('tr');
-                noRes.className = 'no-resultados';
-                noRes.innerHTML = '<td colspan="7" style="padding:24px;text-align:center;color:#9ca3af;font-size:13px">No se encontraron servicios que coincidan con la búsqueda.</td>';
-                tbody.appendChild(noRes);
-            }
-        } else if (noRes) noRes.remove();
-    });
+    const normalizar = (valor) => String(valor || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+
+    if (inputBuscar && tbody) {
+        const filas = Array.from(tbody.querySelectorAll('tr[data-search]')).map((fila) => ({
+            fila,
+            texto: normalizar(`${fila.dataset.search} ${fila.textContent}`)
+        }));
+
+        if (filas.length > 0) {
+            inputBuscar.addEventListener('input', function () {
+                const busqueda = normalizar(this.value);
+                let visibles = 0;
+
+                filas.forEach(({ fila, texto }) => {
+                    const coincide = !busqueda || texto.includes(busqueda);
+                    fila.style.display = coincide ? '' : 'none';
+                    if (coincide) visibles++;
+                });
+
+                let noRes = tbody.querySelector('.no-resultados');
+                if (visibles === 0 && busqueda) {
+                    if (!noRes) {
+                        noRes = document.createElement('tr');
+                        noRes.className = 'no-resultados';
+                        noRes.innerHTML = '<td colspan="7" style="padding:24px;text-align:center;color:#9ca3af;font-size:13px">No se encontraron servicios que coincidan con la búsqueda.</td>';
+                        tbody.appendChild(noRes);
+                    }
+                } else if (noRes) {
+                    noRes.remove();
+                }
+
+                if (resultCount) {
+                    resultCount.textContent = busqueda ? `${visibles} resultado(s)` : '';
+                }
+            });
+        }
+    }
 </script>
 </body>
 </html>
