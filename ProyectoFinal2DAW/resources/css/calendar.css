@@ -121,6 +121,16 @@
     background: #d1d5db;
 }
 
+.celda-horario.hora-pasada {
+    background: #f3f4f6;
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+.celda-horario.hora-pasada:hover {
+    background: #f3f4f6;
+}
+
 .celda-horario.hora-deshabilitada {
     background: repeating-linear-gradient(
         45deg, #fee2e2, #fee2e2 10px, #fca5a5 10px, #fca5a5 20px

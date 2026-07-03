@@ -365,6 +365,17 @@
         </div>
 
         <!-- ── Grid del Calendario ── -->
+        @php
+            // Calcular el bloque de 15 min mínimo para hoy (para deshabilitar el pasado)
+            $esHoy = $fecha->isToday();
+            if ($esHoy) {
+                $ahoraCalendario = \Carbon\Carbon::now();
+                $minutosEnBloque = $ahoraCalendario->minute % 15;
+                $bloqueMinimoHoy = $ahoraCalendario->copy()->subMinutes($minutosEnBloque)->second(0)->microsecond(0);
+            } else {
+                $bloqueMinimoHoy = null;
+            }
+        @endphp
         <div class="calendario-grid-container">
             @php $numEmpleados = count($empleados); @endphp
             <div class="calendario-grid" style="--num-empleados: {{ $numEmpleados }};">
@@ -426,19 +437,22 @@
                                 }
 
                                 $claseEstado = '';
-                                if ($bloqueDeshabilitado)    $claseEstado = 'hora-deshabilitada';
-                                elseif (!$disponible)        $claseEstado = 'no-disponible';
+                                if ($bloqueDeshabilitado)                               $claseEstado = 'hora-deshabilitada';
+                                elseif ($bloqueMinimoHoy && $horaCarbon->lt($bloqueMinimoHoy)) $claseEstado = 'hora-pasada';
+                                elseif (!$disponible)                                   $claseEstado = 'no-disponible';
                             @endphp
 
                             <div class="celda-horario {{ $claseEstado }}"
                                  data-empleado-id="{{ $empleado->id }}"
                                  data-fecha-hora="{{ $horaCarbon->format('Y-m-d H:i:s') }}"
-                                 @if($disponible && !$bloqueDeshabilitado)
+                                 @if($disponible && !$bloqueDeshabilitado && !($bloqueMinimoHoy && $horaCarbon->lt($bloqueMinimoHoy)))
                                  ondrop="drop(event)"
                                  ondragover="allowDrop(event)"
                                  onclick="crearCitaRapida({{ $empleado->id }}, '{{ $horaCarbon->format('Y-m-d H:i:s') }}', event)"
                                  @endif
-                                 @if($bloqueDeshabilitado) title="⛔ Hora deshabilitada" @endif>
+                                 @if($bloqueDeshabilitado) title="⛔ Hora deshabilitada"
+                                 @elseif($bloqueMinimoHoy && $horaCarbon->lt($bloqueMinimoHoy)) title="⏪ Hora ya pasada"
+                                 @endif>
                                 @if($bloqueDeshabilitado)<span class="icono-deshabilitado">⛔</span>@endif
                             </div>
                         @endforeach

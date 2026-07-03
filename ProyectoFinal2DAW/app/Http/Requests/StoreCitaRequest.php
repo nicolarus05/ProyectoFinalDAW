@@ -26,7 +26,16 @@ class StoreCitaRequest extends FormRequest
             'fecha_hora' => [
                 'required',
                 'date',
-                'after_or_equal:today',
+                function ($attribute, $value, $fail) {
+                    // Calcular el inicio del bloque de 15 min actual
+                    $now = \Carbon\Carbon::now();
+                    $minutosEnBloque = $now->minute % 15;
+                    $bloqueMinimoActual = $now->copy()->subMinutes($minutosEnBloque)->second(0)->microsecond(0);
+
+                    if (\Carbon\Carbon::parse($value)->lt($bloqueMinimoActual)) {
+                        $fail('No se pueden crear citas en el pasado. El primer bloque disponible es las ' . $bloqueMinimoActual->format('H:i') . '.');
+                    }
+                },
             ],
             'notas_adicionales' => [
                 'nullable',
@@ -64,7 +73,6 @@ class StoreCitaRequest extends FormRequest
     {
         return [
             'fecha_hora.required' => 'La fecha y hora de la cita es obligatoria.',
-            'fecha_hora.after_or_equal' => 'La cita debe ser en el futuro.',
             'id_cliente.required' => 'Debes seleccionar un cliente.',
             'id_cliente.exists' => 'El cliente seleccionado no existe.',
             'id_empleado.required' => 'Debes seleccionar un empleado.',

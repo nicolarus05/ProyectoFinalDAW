@@ -119,12 +119,26 @@ document.addEventListener('DOMContentLoaded', function() {
         // Si no se pasa el evento como parámetro, usar el global window.event
         const e = event || window.event;
         const celda = e ? e.target : null;
-        
-        // Verificar que no sea una celda no disponible o deshabilitada
-        if (celda && (celda.classList.contains('no-disponible') || celda.classList.contains('hora-deshabilitada'))) {
+
+        // Verificar que no sea una celda no disponible, deshabilitada o del pasado
+        if (celda && (
+            celda.classList.contains('no-disponible') ||
+            celda.classList.contains('hora-deshabilitada') ||
+            celda.classList.contains('hora-pasada')
+        )) {
             return;
         }
-        
+
+        // Guardia JS: no permitir crear citas antes del bloque de 15 min actual
+        const blockDate = new Date(fechaHora.replace(' ', 'T'));
+        const now = new Date();
+        const currentBlockStart = new Date(now);
+        currentBlockStart.setMinutes(Math.floor(now.getMinutes() / 15) * 15, 0, 0);
+        if (blockDate < currentBlockStart) {
+            alert('⚠️ No se pueden crear citas en el pasado.');
+            return;
+        }
+
         // Redirigir a crear cita con parámetros prellenados
         window.location.href = `${createUrl}?empleado_id=${empleadoId}&fecha_hora=${encodeURIComponent(fechaHora)}`;
     };
