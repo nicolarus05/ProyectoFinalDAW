@@ -213,16 +213,23 @@ class RegistroEntradaSalidaController extends Controller{
             return back()->with('error', 'No tienes ninguna entrada activa para fichar salida.');
         }
 
-        // Buscar el horario de trabajo para hoy (tabla horario_trabajo)
+        // Buscar el horario de trabajo para hoy (tabla horario_trabajo — registro específico del empleado)
         $horario = \App\Models\HorarioTrabajo::where('id_empleado', $empleadoId)
             ->whereDate('fecha', $hoy)
             ->first();
-        
+
         $horarioFin = null;
         if ($horario && $horario->hora_fin) {
+            // Existe registro específico para este empleado/día
             $horarioFin = $horario->hora_fin;
+        } else {
+            // Sin registro específico: usar el horario general según fecha (constantes del modelo)
+            $horarioGeneral = \App\Models\HorarioTrabajo::obtenerHorarioPorFecha($hoy);
+            if ($horarioGeneral) {
+                $horarioFin = $horarioGeneral['fin'];
+            }
         }
-            
+
         $salidaFueraHorario = false;
         $minutosExtra = 0;
         $mensaje = '✓ Salida registrada correctamente a las ' . $horaActual->format('H:i');
@@ -232,13 +239,13 @@ class RegistroEntradaSalidaController extends Controller{
             $horaSalidaProgramada = Carbon::parse($hoy->format('Y-m-d') . ' ' . $horarioFin);
             $margenMinutos = 1; // Margen de 1 minuto (estricto)
             $horaSalidaLimite = $horaSalidaProgramada->copy()->addMinutes($margenMinutos);
-            
+
             // Verificar si salió tarde (más de 1 minuto después de la hora programada)
             if ($horaActual->greaterThan($horaSalidaLimite)) {
                 $salidaFueraHorario = true;
                 $minutosExtra = $horaActual->diffInMinutes($horaSalidaProgramada);
                 $mensaje .= ' ⚠️ Saliste ' . $minutosExtra . ' minutos tarde (horario: ' . $horaSalidaProgramada->format('H:i') . ')';
-                
+
                 // Enviar email de notificación al admin
                 try {
                     \Mail::to('ngh2605@gmail.com')->send(new \App\Mail\SalidaTardia($registro->id));
@@ -253,8 +260,8 @@ class RegistroEntradaSalidaController extends Controller{
                 }
             }
         } else {
-            // No hay horario definido para hoy, solo registrar la salida sin validar
-            $mensaje .= ' (Sin horario definido para hoy)';
+            // Domingo u otro día no laborable: registrar sin validar extras
+            $mensaje .= ' (Día no laborable, sin horario base)';
         }
 
         // Actualizar con la hora de salida
@@ -286,16 +293,50 @@ class RegistroEntradaSalidaController extends Controller{
             return back()->with('error', 'Este empleado ya ha registrado su salida.');
         }
 
-        // Registrar salida con hora actual
-        $horaSalida = Carbon::now()->format('H:i:s');
+        $horaActual = Carbon::now();
+        $horaSalida = $horaActual->format('H:i:s');
+        $fechaRegistro = $registro->fecha instanceof Carbon ? $registro->fecha : Carbon::parse($registro->fecha);
+
+        // Calcular horas extra igual que en registrarSalida
+        $horario = \App\Models\HorarioTrabajo::where('id_empleado', $registro->id_empleado)
+            ->whereDate('fecha', $fechaRegistro)
+            ->first();
+
+        $horarioFin = null;
+        if ($horario && $horario->hora_fin) {
+            $horarioFin = $horario->hora_fin;
+        } else {
+            $horarioGeneral = \App\Models\HorarioTrabajo::obtenerHorarioPorFecha($fechaRegistro);
+            if ($horarioGeneral) {
+                $horarioFin = $horarioGeneral['fin'];
+            }
+        }
+
+        $salidaFueraHorario = false;
+        $minutosExtra = 0;
+
+        if ($horarioFin) {
+            $horaSalidaProgramada = Carbon::parse($fechaRegistro->format('Y-m-d') . ' ' . $horarioFin);
+            if ($horaActual->greaterThan($horaSalidaProgramada->copy()->addMinute())) {
+                $salidaFueraHorario = true;
+                $minutosExtra = $horaActual->diffInMinutes($horaSalidaProgramada);
+            }
+        }
+
         $registro->update([
-            'hora_salida' => $horaSalida,
+            'hora_salida'          => $horaSalida,
+            'salida_fuera_horario' => $salidaFueraHorario,
+            'minutos_extra'        => $minutosExtra,
         ]);
 
         $horasTrabajadas = $registro->calcularHorasTrabajadas();
         $nombreEmpleado = $registro->empleado->user->nombre . ' ' . $registro->empleado->user->apellidos;
-        
-        return back()->with('success', "✓ {$nombreEmpleado} desconectado a las " . Carbon::now()->format('H:i') . '. Trabajó ' . $horasTrabajadas['formatted']);
+        $msg = "✓ {$nombreEmpleado} desconectado a las " . $horaActual->format('H:i') . '. Trabajó ' . $horasTrabajadas['formatted'];
+        if ($salidaFueraHorario) {
+            $msg .= " ⚠️ ({$minutosExtra} min extra)";
+        }
+
+        return back()->with('success', $msg);
     }
 
     /**
@@ -461,16 +502,54 @@ class RegistroEntradaSalidaController extends Controller{
                 $horas = $registro->calcularHorasTrabajadas();
                 if ($horas) {
                     $totalMinutos += $horas['total_minutos'];
-                    $totalMinutosExtra += $registro->minutos_extra ?? 0;
                     $diasTrabajados++;
+
+                    // Calcular minutos extra en tiempo real:
+                    // 1. Usar el valor almacenado si existe y es > 0
+                    // 2. Si no, recalcular comparando hora_salida con el horario esperado
+                    $minutosExtraDia = $registro->minutos_extra ?? 0;
+                    $fueraHorarioDia = (bool) $registro->salida_fuera_horario;
+
+                    if ($minutosExtraDia === 0) {
+                        // Intentar recalcular con el horario específico o general
+                        $horarioEsp = \App\Models\HorarioTrabajo::where('id_empleado', $empleado->id)
+                            ->whereDate('fecha', $registro->fecha)
+                            ->first();
+
+                        $horarioFinDia = null;
+                        if ($horarioEsp && $horarioEsp->hora_fin) {
+                            $horarioFinDia = $horarioEsp->hora_fin;
+                        } else {
+                            $horarioGeneral = \App\Models\HorarioTrabajo::obtenerHorarioPorFecha($registro->fecha);
+                            if ($horarioGeneral) {
+                                $horarioFinDia = $horarioGeneral['fin'];
+                            }
+                        }
+
+                        if ($horarioFinDia && $registro->hora_salida) {
+                            $fechaStr = $registro->fecha instanceof Carbon
+                                ? $registro->fecha->format('Y-m-d')
+                                : $registro->fecha;
+                            $salidaProgramada = Carbon::parse($fechaStr . ' ' . $horarioFinDia);
+                            $salidaReal = Carbon::parse($fechaStr . ' ' . $registro->hora_salida);
+
+                            if ($salidaReal->greaterThan($salidaProgramada->copy()->addMinute())) {
+                                $minutosExtraDia = $salidaReal->diffInMinutes($salidaProgramada);
+                                $fueraHorarioDia = true;
+                            }
+                        }
+                    }
+
+                    $totalMinutosExtra += $minutosExtraDia;
+
                     $detalleDias[] = [
-                        'fecha' => $registro->fecha,
-                        'entrada' => $registro->hora_entrada,
-                        'salida' => $registro->hora_salida,
-                        'horas' => $horas['formatted'],
-                        'minutos_total' => $horas['total_minutos'],
-                        'minutos_extra' => $registro->minutos_extra ?? 0,
-                        'fuera_horario' => $registro->salida_fuera_horario,
+                        'fecha'          => $registro->fecha,
+                        'entrada'        => $registro->hora_entrada,
+                        'salida'         => $registro->hora_salida,
+                        'horas'          => $horas['formatted'],
+                        'minutos_total'  => $horas['total_minutos'],
+                        'minutos_extra'  => $minutosExtraDia,
+                        'fuera_horario'  => $fueraHorarioDia,
                     ];
                 }
             }
