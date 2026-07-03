@@ -84,6 +84,16 @@ class Cita extends Model{
     }
 
     /**
+     * Indica si la cita ya ha terminado y puede cobrarse.
+     */
+    public function puedeCobrarse(?\Carbon\Carbon $momento = null): bool
+    {
+        $momento = $momento ?: \Carbon\Carbon::now();
+
+        return $momento->greaterThanOrEqualTo($this->hora_fin);
+    }
+
+    /**
      * Verifica si esta cita se superpone con otra
      */
     public function seSuperponeCon($otraCita){

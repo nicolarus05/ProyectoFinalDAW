@@ -210,12 +210,21 @@
 
         <!-- Acciones -->
         <div style="max-width:800px;margin:0 auto;display:flex;gap:10px;flex-wrap:wrap">
-            @php $tieneCobro = DB::table('registro_cobros')->where('id_cita', $cita->id)->exists(); @endphp
-            @if(!$tieneCobro)
+            @php
+                $tieneCobro = DB::table('registro_cobros')->where('id_cita', $cita->id)->exists();
+                $puedeCobrar = $cita->puedeCobrarse();
+                $horaFinCobro = $cita->hora_fin->format('H:i');
+            @endphp
+            @if(!$tieneCobro && $puedeCobrar)
                 <a href="{{ route('cobros.create', ['cita_id' => $cita->id]) }}"
                    style="padding:10px 24px;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border-radius:9px;font-size:13px;font-weight:700;text-decoration:none">
                     💰 Pasar a Caja
                 </a>
+            @elseif(!$tieneCobro)
+                <span title="Disponible para cobrar a las {{ $horaFinCobro }}"
+                      style="padding:10px 24px;background:#e5e7eb;color:#6b7280;border-radius:9px;font-size:13px;font-weight:700;text-decoration:none;cursor:not-allowed">
+                    💰 Pasar a Caja desde las {{ $horaFinCobro }}
+                </span>
             @else
                 <span style="padding:10px 24px;background:#d1fae5;color:#065f46;border-radius:9px;font-size:13px;font-weight:700;border:1.5px solid #a7f3d0">
                     ✓ Cita Cobrada

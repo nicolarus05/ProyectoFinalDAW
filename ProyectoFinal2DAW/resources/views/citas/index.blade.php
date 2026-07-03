@@ -238,6 +238,13 @@
 
     <!-- CONTENT -->
     <div class="content">
+        @if ($errors->any())
+            <div style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;font-weight:600">
+                @foreach ($errors->all() as $error)
+                    <div>{{ $error }}</div>
+                @endforeach
+            </div>
+        @endif
 
         <!-- ── Info row: mini-calendario + leyenda ── -->
         <div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">
@@ -522,11 +529,22 @@
 
                                     @if($cita->estado !== 'completada' && $cita->estado !== 'cancelada')
                                     <div class="cita-acciones">
-                                        <form action="{{ route('citas.completarYCobrar', $cita->id) }}" method="POST" style="display:inline">
-                                            @csrf
-                                            <button type="submit" class="btn-accion btn-completar"
-                                                    onclick="event.stopPropagation()" title="Completar y cobrar">✓</button>
-                                        </form>
+                                        @php
+                                            $puedeCobrar = $cita->puedeCobrarse();
+                                            $horaFinCobro = $cita->hora_fin->format('H:i');
+                                        @endphp
+                                        @if($puedeCobrar)
+                                            <form action="{{ route('citas.completarYCobrar', $cita->id) }}" method="POST" style="display:inline">
+                                                @csrf
+                                                <button type="submit" class="btn-accion btn-completar"
+                                                        onclick="event.stopPropagation()" title="Completar y cobrar">✓</button>
+                                            </form>
+                                        @else
+                                            <span onclick="event.stopPropagation()" title="Disponible para cobrar a las {{ $horaFinCobro }}" style="display:inline-block">
+                                                <button type="button" class="btn-accion btn-completar" disabled
+                                                        style="opacity:.45;cursor:not-allowed;filter:grayscale(1)">✓</button>
+                                            </span>
+                                        @endif
                                         <form action="{{ route('citas.destroy', $cita->id) }}" method="POST" style="display:inline">
                                             @csrf @method('DELETE')
                                             <button type="submit" class="btn-accion btn-cancelar"

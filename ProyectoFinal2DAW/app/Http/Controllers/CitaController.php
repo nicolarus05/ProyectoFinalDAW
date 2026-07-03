@@ -88,6 +88,22 @@ class CitaController extends Controller{
         return true;
     }
 
+    private function primeraCitaNoCobrable(Collection $citas, ?Carbon $momento = null): ?Cita
+    {
+        $momento = $momento ?: Carbon::now();
+
+        return $citas->first(fn (Cita $cita) => !$cita->puedeCobrarse($momento));
+    }
+
+    private function mensajeCitaNoCobrable(Cita $cita): string
+    {
+        $servicios = $cita->relationLoaded('servicios') && $cita->servicios->isNotEmpty()
+            ? $cita->servicios->pluck('nombre')->join(', ')
+            : 'esta cita';
+
+        return 'No se puede cobrar ' . $servicios . ' hasta las ' . $cita->hora_fin->format('H:i') . '.';
+    }
+
     private function bloquesDelEmpleadoEnFecha(int $empleadoId, Carbon $fecha): Collection
     {
         return HorarioTrabajo::where('id_empleado', $empleadoId)
@@ -635,7 +651,7 @@ class CitaController extends Controller{
      * Busca TODAS las citas pendientes del mismo cliente del mismo día para cobro agrupado
      */
     public function completarYCobrar($id){
-        $cita = Cita::findOrFail($id);
+        $cita = Cita::with('servicios')->findOrFail($id);
         
         // Buscar TODAS las citas pendientes del mismo cliente del mismo día
         $fechaCita = Carbon::parse($cita->fecha_hora)->startOfDay();
@@ -644,6 +660,16 @@ class CitaController extends Controller{
             ->where('estado', 'pendiente')
             ->with(['servicios', 'cliente.user', 'empleado.user'])
             ->get();
+
+        $citaNoCobrable = $this->primeraCitaNoCobrable(
+            $citasDelDia->isNotEmpty() ? $citasDelDia : collect([$cita])
+        );
+
+        if ($citaNoCobrable) {
+            return back()->withErrors([
+                'cita' => $this->mensajeCitaNoCobrable($citaNoCobrable),
+            ]);
+        }
         
         // Si hay múltiples citas, cobrarlas todas juntas
         if ($citasDelDia->count() > 1) {
