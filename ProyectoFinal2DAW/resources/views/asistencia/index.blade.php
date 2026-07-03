@@ -213,7 +213,7 @@
                                         </span>
                                         @if($registro->salida_fuera_horario)
                                             <div class="text-xs text-orange-600 mt-1">
-                                                +{{ $registro->minutos_extra }} min
+                                                +{{ $registro->minutos_extra ?? 0 }} min
                                             </div>
                                         @endif
                                     @else

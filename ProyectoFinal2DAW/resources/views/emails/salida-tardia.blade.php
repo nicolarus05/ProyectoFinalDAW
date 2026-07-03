@@ -45,7 +45,7 @@
                 <tr style="background-color: #fee; ">
                     <td style="padding: 8px 0; font-weight: bold; color: #d32f2f;">⏱️ Tiempo Extra:</td>
                     <td style="padding: 8px 0; color: #d32f2f; font-weight: bold; font-size: 18px;">
-                        +{{ $registro->minutos_extra }} minutos
+                        +{{ $registro->minutos_extra ?? 0 }} minutos
                     </td>
                 </tr>
             </table>
@@ -53,7 +53,7 @@
 
         <div style="background-color: #f8f9fa; padding: 15px; border-radius: 4px; margin-top: 20px;">
             <p style="margin: 0; font-size: 14px; color: #666;">
-                ℹ️ <strong>Nota:</strong> Este empleado se quedó más de 5 minutos después de su horario de salida programado.
+                ℹ️ <strong>Nota:</strong> Este empleado registró una salida posterior a su horario de salida programado.
             </p>
         </div>
 

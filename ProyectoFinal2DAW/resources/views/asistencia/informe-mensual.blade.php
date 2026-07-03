@@ -176,7 +176,11 @@
                                 </td>
                                 <td class="px-4 py-3 text-center">{{ $dato['dias_trabajados'] }}</td>
                                 <td class="px-4 py-3 text-center font-semibold text-blue-700">{{ $dato['total_formatted'] }}</td>
-                                <td class="px-4 py-3 text-center {{ $dato['total_minutos'] > 0 ? 'text-orange-600' : 'text-gray-400' }}">{{ $dato['extra_formatted'] }}</td>
+                                @php
+                                    $totalExtraMin = $dato['total_minutos_extra'] ?? 0;
+                                    $extraColor = $totalExtraMin > 0 ? 'text-orange-600 font-semibold' : 'text-gray-400';
+                                @endphp
+                                <td class="px-4 py-3 text-center {{ $extraColor }}">{{ $dato['extra_formatted'] }}</td>
                                 <td class="px-4 py-3 text-center text-gray-600">{{ $dato['promedio_diario'] }}</td>
                             </tr>
                             @endif
@@ -218,7 +222,7 @@
                                 <th class="px-3 py-2 border-b text-center">Entrada</th>
                                 <th class="px-3 py-2 border-b text-center">Salida</th>
                                 <th class="px-3 py-2 border-b text-center">Horas</th>
-                                <th class="px-3 py-2 border-b text-center">Extra (min)</th>
+                                <th class="px-3 py-2 border-b text-center">Horas Extra</th>
                                 <th class="px-3 py-2 border-b text-center">Notas</th>
                             </tr>
                         </thead>
@@ -235,8 +239,15 @@
                                     <td class="px-3 py-2 text-center">{{ $dia['entrada'] }}</td>
                                     <td class="px-3 py-2 text-center">{{ $dia['salida'] }}</td>
                                     <td class="px-3 py-2 text-center font-medium">{{ $dia['horas'] }}</td>
-                                    <td class="px-3 py-2 text-center {{ $dia['minutos_extra'] > 0 ? 'text-orange-600 font-semibold' : 'text-gray-400' }}">
-                                        {{ $dia['minutos_extra'] > 0 ? '+' . $dia['minutos_extra'] . ' min' : '-' }}
+                                    @php
+                                        $me = $dia['minutos_extra'];
+                                        $extraColorDia = $me > 0 ? 'text-orange-600 font-semibold' : 'text-gray-400';
+                                        $extraTxt = $me > 0
+                                            ? sprintf('+%dh %02dmin', intdiv($me, 60), $me % 60)
+                                            : '—';
+                                    @endphp
+                                    <td class="px-3 py-2 text-center {{ $extraColorDia }}">
+                                        {{ $extraTxt }}
                                     </td>
                                     <td class="px-3 py-2 text-center text-xs">
                                         @if($dia['fuera_horario'])
@@ -252,7 +263,11 @@
                             <tr class="bg-gray-100 font-bold">
                                 <td class="px-3 py-2" colspan="4">Total</td>
                                 <td class="px-3 py-2 text-center text-blue-700">{{ $dato['total_formatted'] }}</td>
-                                <td class="px-3 py-2 text-center text-orange-600">{{ $dato['extra_formatted'] }}</td>
+                                @php
+                                    $totalExtraMinFoot = $dato['total_minutos_extra'] ?? 0;
+                                    $extraColorFoot = $totalExtraMinFoot > 0 ? 'text-orange-600' : 'text-gray-400';
+                                @endphp
+                                <td class="px-3 py-2 text-center {{ $extraColorFoot }}">{{ $dato['extra_formatted'] }}</td>
                                 <td></td>
                             </tr>
                         </tfoot>
