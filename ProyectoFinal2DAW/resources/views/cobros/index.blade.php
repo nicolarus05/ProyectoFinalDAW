@@ -167,19 +167,9 @@
         <div class="space-y-4">
             @forelse ($cobros as $cobro)
                 @php
-                    // Obtener hora del cobro
-                    $horaCita = null;
-                    if ($cobro->cita && $cobro->cita->fecha_hora) {
-                        $horaCita = \Carbon\Carbon::parse($cobro->cita->fecha_hora)->format('H:i');
-                    } elseif ($cobro->citasAgrupadas && $cobro->citasAgrupadas->count() > 0) {
-                        $primeraCita = $cobro->citasAgrupadas->first();
-                        if ($primeraCita && $primeraCita->fecha_hora) {
-                            $horaCita = \Carbon\Carbon::parse($primeraCita->fecha_hora)->format('H:i');
-                        }
-                    }
-                    if (!$horaCita && $cobro->created_at) {
-                        $horaCita = \Carbon\Carbon::parse($cobro->created_at)->format('H:i');
-                    }
+                    $horaCobro = $cobro->created_at
+                        ? \Carbon\Carbon::parse($cobro->created_at)->format('H:i')
+                        : null;
                     
                     // Cliente
                     $clienteNombre = '-';
@@ -255,7 +245,7 @@
                     <div class="flex justify-between items-start mb-4 pb-3 border-b-2 border-gray-100">
                         <div class="flex items-center gap-4">
                             <div class="text-2xl font-bold text-blue-600">
-                                🕐 {{ $horaCita ?? '-' }}
+                                🕐 {{ $horaCobro ?? '-' }}
                             </div>
                             <div>
                                 <div class="text-lg font-semibold text-gray-800">

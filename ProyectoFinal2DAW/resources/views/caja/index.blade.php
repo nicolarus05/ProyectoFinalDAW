@@ -639,15 +639,9 @@
                             @foreach($detalleServicios as $item)
                                 @php
                                     // Obtener información común del cobro
-                                    $horaCita = null;
-                                    if ($item->cita && $item->cita->fecha_hora) {
-                                        $horaCita = \Carbon\Carbon::parse($item->cita->fecha_hora)->format('H:i');
-                                    } elseif ($item->citasAgrupadas && $item->citasAgrupadas->count() > 0) {
-                                        $primeraCita = $item->citasAgrupadas->first();
-                                        if ($primeraCita && $primeraCita->fecha_hora) {
-                                            $horaCita = \Carbon\Carbon::parse($primeraCita->fecha_hora)->format('H:i');
-                                        }
-                                    }
+                                    $horaCobro = $item->created_at
+                                        ? \Carbon\Carbon::parse($item->created_at)->format('H:i')
+                                        : null;
                                     
                                     $nombreCliente = '-';
                                     if($item->cliente && $item->cliente->user) {
@@ -691,7 +685,7 @@
                                             $filasMostradas = true;
                                         @endphp
                                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                            <td class="py-3 px-4 font-medium text-gray-900 dark:text-gray-100">{{ $horaCita ?? '-' }}</td>
+                                            <td class="py-3 px-4 font-medium text-gray-900 dark:text-gray-100">{{ $horaCobro ?? '-' }}</td>
                                             <td class="py-3 px-4 text-gray-700 dark:text-gray-300">{{ $nombreCliente }}</td>
                                             <td class="py-3 px-4">
                                                 @if($servicio->categoria === 'peluqueria')
@@ -728,7 +722,7 @@
                                             $filasMostradas = true;
                                         @endphp
                                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                            <td class="py-3 px-4 font-medium text-gray-900 dark:text-gray-100">{{ $horaCita ?? '-' }}</td>
+                                            <td class="py-3 px-4 font-medium text-gray-900 dark:text-gray-100">{{ $horaCobro ?? '-' }}</td>
                                             <td class="py-3 px-4 text-gray-700 dark:text-gray-300">{{ $nombreCliente }}</td>
                                             <td class="py-3 px-4">
                                                 <span class="inline-flex items-center px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded text-xs">🛍️ {{ $producto->nombre }} (x{{ $producto->pivot->cantidad }})</span>
@@ -756,7 +750,7 @@
                                 {{-- FALLBACK: Si no hay servicios directos, mostrar los de la cita (datos antiguos) --}}
                                 @if(!$filasMostradas && $item->cita && $item->cita->servicios && $item->cita->servicios->count() > 0)
                                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                        <td class="py-3 px-4 font-medium text-gray-900 dark:text-gray-100">{{ $horaCita ?? '-' }}</td>
+                                        <td class="py-3 px-4 font-medium text-gray-900 dark:text-gray-100">{{ $horaCobro ?? '-' }}</td>
                                         <td class="py-3 px-4 text-gray-700 dark:text-gray-300">{{ $nombreCliente }}</td>
                                         <td class="py-3 px-4">
                                             @foreach($item->cita->servicios as $servicio)
