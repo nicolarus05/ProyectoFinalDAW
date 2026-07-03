@@ -96,7 +96,7 @@
                     <select name="mes">
                         @for ($m = 1; $m <= 12; $m++)
                             <option value="{{ $m }}" {{ $mes == $m ? 'selected' : '' }}>
-                                {{ \Carbon\Carbon::create(null, $m, 1)->translatedFormat('F') }}
+                                {{ ucfirst(\Carbon\Carbon::create(null, $m, 1)->locale('es')->isoFormat('MMMM')) }}
                             </option>
                         @endfor
                     </select>
@@ -225,12 +225,13 @@
                         <tbody>
                             @foreach($dato['detalle_dias'] as $dia)
                                 @php
-                                    $fechaDia = \Carbon\Carbon::parse($dia['fecha']);
+                                    $fechaDia = \Carbon\Carbon::parse($dia['fecha'])->locale('es');
+                                    $nombreDia = ucfirst($fechaDia->isoFormat('dddd'));
                                     $esSabado = $fechaDia->isSaturday();
                                 @endphp
                                 <tr class="border-b {{ $esSabado ? 'bg-yellow-50' : '' }} {{ $dia['fuera_horario'] ? 'bg-red-50' : '' }}">
                                     <td class="px-3 py-2">{{ $fechaDia->format('d/m/Y') }}</td>
-                                    <td class="px-3 py-2">{{ ucfirst($fechaDia->translatedFormat('l')) }}</td>
+                                    <td class="px-3 py-2">{{ $nombreDia }}</td>
                                     <td class="px-3 py-2 text-center">{{ $dia['entrada'] }}</td>
                                     <td class="px-3 py-2 text-center">{{ $dia['salida'] }}</td>
                                     <td class="px-3 py-2 text-center font-medium">{{ $dia['horas'] }}</td>
@@ -263,7 +264,7 @@
 
         <!-- Pie de informe -->
         <div class="text-center text-xs text-gray-400 mt-4 mb-8">
-            Informe generado el {{ now()->translatedFormat('d F Y, H:i') }}
+            Informe generado el {{ now()->locale('es')->isoFormat('D [de] MMMM [de] YYYY, HH:mm') }}
         </div>
         </main>
     </div>

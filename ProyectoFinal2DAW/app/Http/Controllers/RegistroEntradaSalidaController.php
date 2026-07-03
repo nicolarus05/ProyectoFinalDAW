@@ -431,12 +431,14 @@ class RegistroEntradaSalidaController extends Controller{
             abort(403, 'No tienes permiso para acceder a esta sección.');
         }
 
+        Carbon::setLocale('es');
+
         $mes = $request->get('mes', Carbon::now()->month);
         $anio = $request->get('anio', Carbon::now()->year);
 
         $fechaInicio = Carbon::create($anio, $mes, 1)->startOfMonth();
         $fechaFin = $fechaInicio->copy()->endOfMonth();
-        $nombreMes = $fechaInicio->translatedFormat('F Y');
+        $nombreMes = ucfirst($fechaInicio->copy()->locale('es')->isoFormat('MMMM YYYY'));
 
         $empleados = Empleado::with('user')->get();
 
@@ -495,4 +497,3 @@ class RegistroEntradaSalidaController extends Controller{
         ));
     }
 }
-
