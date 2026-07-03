@@ -85,7 +85,7 @@
                 <a href="{{ route('cobros.index') }}" style="color:#1e1a4b;font-size:20px;text-decoration:none">←</a>
                 <div>
                     <div class="topbar-title">👁️ Cobro #{{ $cobro->id }}</div>
-                    <div class="topbar-sub">{{ optional($cobro->created_at)->format('d/m/Y H:i') }}</div>
+                    <div class="topbar-sub">🕐 Cobrado a las {{ optional($cobro->created_at)->format('H:i') }} — {{ optional($cobro->created_at)->format('d/m/Y') }}</div>
                 </div>
             </div>
             <a href="{{ route('profile.edit') }}" class="user-badge">
@@ -167,7 +167,7 @@
         <div style="background:#1e1a4b;color:#fff;padding:14px 20px;border-radius:12px;display:flex;justify-content:space-between;align-items:center">
             <div>
                 <div style="font-size:20px;font-weight:800">Cobro #{{ $cobro->id }}</div>
-                <div style="font-size:12px;opacity:.75">{{ optional($cobro->created_at)->format('d/m/Y H:i') }} &bull; Método: {{ $cobro->metodo_pago ?? '-' }}</div>
+                <div style="font-size:12px;opacity:.75">🕐 Cobrado el {{ optional($cobro->created_at)->format('d/m/Y') }} a las {{ optional($cobro->created_at)->format('H:i') }} &bull; Método: {{ $cobro->metodo_pago ?? '-' }}</div>
             </div>
             <div style="text-align:right">
                 <span style="background:#22c55e;color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700">✓ Completado</span>
@@ -182,6 +182,7 @@
                 <p class="text-xs uppercase text-gray-500 tracking-wide">Cliente</p>
                 <h2 class="text-2xl font-bold mt-1">{{ $clienteNombre ?: '-' }}</h2>
                 <p class="mt-3 text-sm text-gray-600">Empleado principal: <span class="font-semibold text-gray-800">{{ $empleadoPrincipal ?: '-' }}</span></p>
+                <p class="mt-2 text-sm text-gray-600">🕐 Hora del cobro: <span class="font-semibold text-gray-800">{{ optional($cobro->created_at)->format('H:i') ?: '-' }}</span></p>
             </article>
 
             <article class="glass rounded-2xl shadow-lg p-5" style="background: linear-gradient(145deg, #ffffff 0%, var(--sand) 100%);">
@@ -292,7 +293,8 @@
                     @foreach($citasRelacionadas as $cita)
                         <article class="rounded-xl border border-cyan-100 p-4 bg-cyan-50/70">
                             <p class="font-bold">Cita #{{ $cita->id }}</p>
-                            <p class="text-sm text-gray-700 mt-1">Fecha: {{ optional($cita->fecha_hora)->format('d/m/Y H:i') ?: '-' }}</p>
+                            <p class="text-sm text-gray-700 mt-1">📅 Fecha de la cita: {{ optional($cita->fecha_hora)->format('d/m/Y') ?: '-' }}</p>
+                            <p class="text-sm text-gray-700">🕐 Hora de la cita: {{ optional($cita->fecha_hora)->format('H:i') ?: '-' }}</p>
                             <p class="text-sm text-gray-700">Estado: {{ $cita->estado ?? '-' }}</p>
                         </article>
                     @endforeach
