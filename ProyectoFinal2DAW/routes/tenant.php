@@ -196,6 +196,7 @@ Route::middleware([
         
         // Facturación mensual
         Route::get('/facturacion/exportar/{formato}', [FacturacionController::class, 'exportar'])->name('facturacion.exportar');
+        Route::get('/facturacion/empleados', [FacturacionController::class, 'empleados'])->name('facturacion.empleados');
         Route::get('/facturacion', [FacturacionController::class, 'index'])->name('facturacion.index');
     });
 

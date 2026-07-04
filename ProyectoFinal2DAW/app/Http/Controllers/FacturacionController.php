@@ -301,6 +301,163 @@ class FacturacionController extends Controller
         ));
     }
 
+    public function empleados(Request $request)
+    {
+        Carbon::setLocale('es');
+
+        [$mes, $anio] = $this->resolverMesAnio($request);
+        $fechaInicio = Carbon::create($anio, $mes, 1)->startOfMonth();
+        $fechaFin = Carbon::create($anio, $mes, 1)->endOfMonth();
+        $empleadoId = $request->get('empleado_id');
+        $tipo = $request->get('tipo', 'todos');
+
+        if (!in_array($tipo, ['todos', 'servicios', 'productos', 'bonos'], true)) {
+            $tipo = 'todos';
+        }
+
+        $empleados = Empleado::with('user')
+            ->get()
+            ->sortBy(fn ($empleado) => trim(($empleado->user->nombre ?? '') . ' ' . ($empleado->user->apellidos ?? '')))
+            ->values();
+
+        if ($empleadoId && !$empleados->contains('id', (int) $empleadoId)) {
+            $empleadoId = null;
+        }
+
+        $cobros = RegistroCobro::with([
+            'cliente.user',
+            'empleado.user',
+            'cita.cliente.user',
+            'cita.servicios',
+            'citasAgrupadas.cliente.user',
+            'citasAgrupadas.servicios',
+            'servicios',
+            'productos',
+            'bonosVendidos.bonoPlantilla',
+            'bonosVendidos.empleado.user',
+            'bonosVendidos.cliente.user',
+        ])
+            ->whereBetween('created_at', [$fechaInicio, $fechaFin])
+            ->where('metodo_pago', '!=', 'deuda')
+            ->orderByDesc('created_at')
+            ->get();
+
+        $facturacionService = new FacturacionService();
+        $resumenEmpleados = [];
+        foreach ($empleados as $empleado) {
+            $resumenEmpleados[$empleado->id] = $this->estructuraResumenEmpleado($empleado);
+        }
+
+        $movimientos = collect();
+
+        foreach ($cobros as $cobro) {
+            $desglose = $facturacionService->desglosarCobroPorEmpleado($cobro);
+            $desglose = $this->aplicarFallbackEmpleado($cobro, $desglose);
+
+            foreach ($desglose as $idEmpleadoMovimiento => $datos) {
+                $idEmpleadoMovimiento = (int) $idEmpleadoMovimiento;
+                $totalMovimiento = (float) ($datos['total'] ?? 0);
+
+                if ($totalMovimiento <= 0.01) {
+                    continue;
+                }
+
+                if ($empleadoId && $idEmpleadoMovimiento !== (int) $empleadoId) {
+                    continue;
+                }
+
+                if ($tipo !== 'todos' && (float) ($datos[$tipo] ?? 0) <= 0.01) {
+                    continue;
+                }
+
+                if (!isset($resumenEmpleados[$idEmpleadoMovimiento])) {
+                    $empleadoHistorico = Empleado::withTrashed()->with('user')->find($idEmpleadoMovimiento);
+                    $resumenEmpleados[$idEmpleadoMovimiento] = $this->estructuraResumenEmpleado($empleadoHistorico, $idEmpleadoMovimiento);
+                }
+
+                foreach (['servicios', 'productos', 'bonos'] as $clave) {
+                    $resumenEmpleados[$idEmpleadoMovimiento][$clave] += (float) ($datos[$clave] ?? 0);
+                }
+                $resumenEmpleados[$idEmpleadoMovimiento]['total'] += $totalMovimiento;
+                $resumenEmpleados[$idEmpleadoMovimiento]['cobros']++;
+                $resumenEmpleados[$idEmpleadoMovimiento]['clientes'][$this->nombreClienteCobro($cobro)] = true;
+
+                $importeVisible = $tipo === 'todos' ? $totalMovimiento : (float) ($datos[$tipo] ?? 0);
+                $movimientos->push([
+                    'fecha' => $cobro->created_at,
+                    'cobro' => $cobro,
+                    'empleado_id' => $idEmpleadoMovimiento,
+                    'empleado' => $resumenEmpleados[$idEmpleadoMovimiento]['empleado'],
+                    'empleado_nombre' => $resumenEmpleados[$idEmpleadoMovimiento]['nombre'],
+                    'cliente' => $this->nombreClienteCobro($cobro),
+                    'concepto' => $this->conceptoMovimientoEmpleado($cobro, $idEmpleadoMovimiento),
+                    'metodo_pago' => $cobro->metodo_pago,
+                    'servicios' => (float) ($datos['servicios'] ?? 0),
+                    'productos' => (float) ($datos['productos'] ?? 0),
+                    'bonos' => (float) ($datos['bonos'] ?? 0),
+                    'total' => $totalMovimiento,
+                    'importe_visible' => $importeVisible,
+                ]);
+            }
+        }
+
+        $resumenEmpleados = collect($resumenEmpleados)
+            ->map(function (array $dato) {
+                $dato['clientes_count'] = count($dato['clientes']);
+                $dato['ticket_medio'] = $dato['cobros'] > 0 ? round($dato['total'] / $dato['cobros'], 2) : 0;
+                foreach (['servicios', 'productos', 'bonos', 'total'] as $clave) {
+                    $dato[$clave] = round($dato[$clave], 2);
+                }
+                return $dato;
+            })
+            ->sortByDesc('total')
+            ->values();
+
+        $totalGeneral = round($resumenEmpleados->sum('total'), 2);
+        $totalServicios = round($resumenEmpleados->sum('servicios'), 2);
+        $totalProductos = round($resumenEmpleados->sum('productos'), 2);
+        $totalBonos = round($resumenEmpleados->sum('bonos'), 2);
+        $empleadosConFacturacion = $resumenEmpleados->filter(fn ($dato) => $dato['total'] > 0.01)->count();
+        $ticketMedio = $movimientos->count() > 0 ? round($movimientos->sum('importe_visible') / $movimientos->count(), 2) : 0;
+        $empleadoSeleccionado = $empleadoId ? $empleados->firstWhere('id', (int) $empleadoId) : null;
+
+        $movimientos = $movimientos->sortByDesc('fecha')->values();
+        $page = max(1, (int) $request->get('page', 1));
+        $perPage = 18;
+        $movimientosPaginados = new \Illuminate\Pagination\LengthAwarePaginator(
+            $movimientos->forPage($page, $perPage)->values(),
+            $movimientos->count(),
+            $perPage,
+            $page,
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
+
+        $meses = $this->mesesDisponibles();
+
+        return view('facturacion.empleados', compact(
+            'mes',
+            'anio',
+            'meses',
+            'fechaInicio',
+            'fechaFin',
+            'empleados',
+            'empleadoId',
+            'empleadoSeleccionado',
+            'tipo',
+            'resumenEmpleados',
+            'movimientosPaginados',
+            'totalGeneral',
+            'totalServicios',
+            'totalProductos',
+            'totalBonos',
+            'empleadosConFacturacion',
+            'ticketMedio'
+        ));
+    }
+
     public function exportar(Request $request, string $formato)
     {
         Carbon::setLocale('es');
@@ -608,6 +765,102 @@ class FacturacionController extends Controller
             'porcentaje' => $porcentaje,
             'estado' => $diferencia > 0.01 ? 'up' : ($diferencia < -0.01 ? 'down' : 'flat'),
         ];
+    }
+
+    private function estructuraResumenEmpleado(?Empleado $empleado, ?int $id = null): array
+    {
+        return [
+            'empleado' => $empleado,
+            'id' => $empleado?->id ?? $id,
+            'nombre' => $this->nombreEmpleado($empleado, $id),
+            'categoria' => $empleado?->categoria ?? 'sin categoria',
+            'servicios' => 0.0,
+            'productos' => 0.0,
+            'bonos' => 0.0,
+            'total' => 0.0,
+            'cobros' => 0,
+            'clientes' => [],
+            'clientes_count' => 0,
+            'ticket_medio' => 0.0,
+        ];
+    }
+
+    private function aplicarFallbackEmpleado(RegistroCobro $cobro, array $desglose): array
+    {
+        $totalDesglosado = collect($desglose)->sum(fn ($dato) => (float) ($dato['total'] ?? 0));
+        $tieneServicios = $cobro->servicios && $cobro->servicios->count() > 0;
+        $tieneProductos = $cobro->productos && $cobro->productos->count() > 0;
+        $tieneBonos = $cobro->bonosVendidos && $cobro->bonosVendidos->count() > 0;
+
+        if ($totalDesglosado <= 0.01 && !$tieneServicios && !$tieneProductos && !$tieneBonos && $cobro->total_final > 0.01 && $cobro->id_empleado) {
+            $desglose[$cobro->id_empleado] = [
+                'servicios' => (float) $cobro->total_final,
+                'productos' => 0.0,
+                'bonos' => 0.0,
+                'total' => (float) $cobro->total_final,
+            ];
+        }
+
+        return $desglose;
+    }
+
+    private function nombreEmpleado(?Empleado $empleado, ?int $id = null): string
+    {
+        $nombre = trim(($empleado?->user?->nombre ?? '') . ' ' . ($empleado?->user?->apellidos ?? ''));
+
+        if ($nombre !== '') {
+            return $nombre;
+        }
+
+        return $id ? 'Empleado #' . $id : 'Empleado sin asignar';
+    }
+
+    private function nombreClienteCobro(RegistroCobro $cobro): string
+    {
+        $cliente = $cobro->cliente ?? $cobro->cita?->cliente ?? $cobro->citasAgrupadas?->first()?->cliente;
+        $nombre = trim(($cliente?->user?->nombre ?? '') . ' ' . ($cliente?->user?->apellidos ?? ''));
+
+        return $nombre !== '' ? $nombre : 'Cliente no indicado';
+    }
+
+    private function conceptoMovimientoEmpleado(RegistroCobro $cobro, int $empleadoId): string
+    {
+        $partes = [];
+
+        $servicios = ($cobro->servicios ?? collect())
+            ->filter(fn ($servicio) => (int) ($servicio->pivot->empleado_id ?? 0) === $empleadoId && (float) ($servicio->pivot->precio ?? 0) > 0)
+            ->pluck('nombre')
+            ->filter()
+            ->unique()
+            ->take(3)
+            ->values();
+        if ($servicios->isNotEmpty()) {
+            $partes[] = 'Servicios: ' . $servicios->implode(', ');
+        }
+
+        $productos = ($cobro->productos ?? collect())
+            ->filter(fn ($producto) => (int) ($producto->pivot->empleado_id ?? $cobro->id_empleado) === $empleadoId)
+            ->pluck('nombre')
+            ->filter()
+            ->unique()
+            ->take(3)
+            ->values();
+        if ($productos->isNotEmpty()) {
+            $partes[] = 'Productos: ' . $productos->implode(', ');
+        }
+
+        $bonos = ($cobro->bonosVendidos ?? collect())
+            ->filter(fn ($bono) => (int) ($bono->id_empleado ?? $cobro->id_empleado) === $empleadoId && $bono->metodo_pago !== 'deuda')
+            ->map(fn ($bono) => $bono->bonoPlantilla->nombre ?? 'Bono')
+            ->filter()
+            ->unique()
+            ->take(3)
+            ->values();
+        if ($bonos->isNotEmpty()) {
+            $partes[] = 'Bonos: ' . $bonos->implode(', ');
+        }
+
+        return $partes ? implode(' / ', $partes) : 'Cobro directo';
     }
 
     private function htmlExportacion(array $resumen, array $estadisticas, string $nombreMes, int $anio, Carbon $fechaInicio, Carbon $fechaFin): string

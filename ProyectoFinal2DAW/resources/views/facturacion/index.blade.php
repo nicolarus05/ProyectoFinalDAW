@@ -118,11 +118,15 @@
                             @endfor
                         </select>
                     </div>
-                    <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-semibold">
-                        🔍 Consultar
-                    </button>
-                    @if($fechaDiaSeleccionado)
-                        <a href="{{ route('facturacion.index', ['mes' => $mes, 'anio' => $anio]) }}"
+	                    <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-semibold">
+	                        🔍 Consultar
+	                    </button>
+	                    <a href="{{ route('facturacion.empleados', ['mes' => $mes, 'anio' => $anio]) }}"
+	                       class="bg-gray-900 text-white px-6 py-2 rounded-lg hover:bg-gray-800 transition font-semibold">
+	                        Detalle empleados
+	                    </a>
+	                    @if($fechaDiaSeleccionado)
+	                        <a href="{{ route('facturacion.index', ['mes' => $mes, 'anio' => $anio]) }}"
                            class="text-sm font-semibold text-gray-600 px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition">
                             Ver mes completo
                         </a>
