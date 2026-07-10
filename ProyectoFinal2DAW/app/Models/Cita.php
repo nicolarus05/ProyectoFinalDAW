@@ -52,8 +52,77 @@ class Cita extends Model{
         return $this->hasOne(RegistroCobro::class, 'id_cita');
     }
 
+    public function cobrosAgrupados()
+    {
+        return $this->belongsToMany(
+            RegistroCobro::class,
+            'registro_cobro_citas',
+            'cita_id',
+            'registro_cobro_id'
+        )->withTimestamps();
+    }
+
     public function user(){
         return $this->belongsTo(User::class, 'id_user');
+    }
+
+    /**
+     * Devuelve los servicios de la cita con el precio realmente cobrado.
+     */
+    public function serviciosConPrecioCobrado()
+    {
+        $this->loadMissing(['servicios', 'cobro.servicios', 'cobrosAgrupados.servicios']);
+
+        $cobros = collect([$this->cobro])
+            ->filter()
+            ->merge($this->cobrosAgrupados ?? collect())
+            ->unique('id')
+            ->values();
+
+        $lineasCobro = $cobros
+            ->flatMap(function ($cobro) {
+                return ($cobro->servicios ?? collect())->map(function ($servicio) {
+                    return [
+                        'servicio_id' => (int) $servicio->id,
+                        'empleado_id' => $servicio->pivot->empleado_id !== null ? (int) $servicio->pivot->empleado_id : null,
+                        'precio' => (float) ($servicio->pivot->precio ?? 0),
+                        'pivot_id' => (int) ($servicio->pivot->id ?? 0),
+                        'usado' => false,
+                    ];
+                });
+            })
+            ->sortBy('pivot_id')
+            ->values();
+
+        return $this->servicios->map(function ($servicio) use (&$lineasCobro) {
+            $indice = $lineasCobro->search(function ($linea) use ($servicio) {
+                return !$linea['usado']
+                    && $linea['servicio_id'] === (int) $servicio->id
+                    && ($linea['empleado_id'] === null || $linea['empleado_id'] === (int) $this->id_empleado);
+            });
+
+            if ($indice === false) {
+                $indice = $lineasCobro->search(function ($linea) use ($servicio) {
+                    return !$linea['usado'] && $linea['servicio_id'] === (int) $servicio->id;
+                });
+            }
+
+            $tienePrecioCobrado = $indice !== false;
+            $precioCobrado = null;
+
+            if ($tienePrecioCobrado) {
+                $linea = $lineasCobro->get($indice);
+                $precioCobrado = $linea['precio'];
+                $linea['usado'] = true;
+                $lineasCobro->put($indice, $linea);
+            }
+
+            return (object) [
+                'servicio' => $servicio,
+                'precio_cobrado' => $precioCobrado,
+                'tiene_precio_cobrado' => $tienePrecioCobrado,
+            ];
+        });
     }
 
     /**

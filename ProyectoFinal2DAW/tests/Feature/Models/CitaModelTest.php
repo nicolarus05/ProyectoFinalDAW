@@ -3,6 +3,8 @@
 use App\Models\Cita;
 use App\Models\Cliente;
 use App\Models\Empleado;
+use App\Models\RegistroCobro;
+use App\Models\Servicio;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -93,6 +95,98 @@ describe('Cita Model', function () {
         $cita = Cita::factory()->create();
         
         expect($cita->cobro())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\HasOne::class);
+    });
+
+    test('cita has cobros agrupados relationship', function () {
+        $cita = Cita::factory()->create();
+
+        expect($cita->cobrosAgrupados())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsToMany::class);
+    });
+
+    test('cita exposes charged service price from direct cobro', function () {
+        $cita = Cita::factory()->completed()->create();
+        $servicio = Servicio::factory()->create(['precio' => 75.00]);
+        $cita->servicios()->attach($servicio->id);
+
+        $cobro = RegistroCobro::create([
+            'id_cita' => $cita->id,
+            'id_cliente' => $cita->id_cliente,
+            'id_empleado' => $cita->id_empleado,
+            'coste' => 75.00,
+            'total_final' => 42.50,
+            'metodo_pago' => 'efectivo',
+            'dinero_cliente' => 42.50,
+            'cambio' => 0,
+            'deuda' => 0,
+        ]);
+
+        $cobro->servicios()->attach($servicio->id, [
+            'empleado_id' => $cita->id_empleado,
+            'precio' => 42.50,
+        ]);
+
+        $lineas = $cita->fresh()
+            ->load(['servicios', 'cobro.servicios', 'cobrosAgrupados.servicios'])
+            ->serviciosConPrecioCobrado();
+
+        expect($lineas)->toHaveCount(1)
+            ->and($lineas->first()->tiene_precio_cobrado)->toBeTrue()
+            ->and($lineas->first()->precio_cobrado)->toBe(42.50);
+    });
+
+    test('cita exposes charged service price from grouped cobro', function () {
+        $cliente = Cliente::factory()->create();
+        $cita = Cita::factory()->completed()->forCliente($cliente)->create();
+        $otraCita = Cita::factory()->completed()->forCliente($cliente)->create();
+        $servicio = Servicio::factory()->create(['precio' => 60.00]);
+        $otroServicio = Servicio::factory()->create(['precio' => 40.00]);
+
+        $cita->servicios()->attach($servicio->id);
+        $otraCita->servicios()->attach($otroServicio->id);
+
+        $cobro = RegistroCobro::create([
+            'id_cita' => null,
+            'id_cliente' => $cliente->id,
+            'id_empleado' => $cita->id_empleado,
+            'coste' => 100.00,
+            'total_final' => 55.00,
+            'metodo_pago' => 'efectivo',
+            'dinero_cliente' => 55.00,
+            'cambio' => 0,
+            'deuda' => 0,
+        ]);
+
+        $cobro->citasAgrupadas()->attach([$cita->id, $otraCita->id]);
+        $cobro->servicios()->attach($servicio->id, [
+            'empleado_id' => $cita->id_empleado,
+            'precio' => 18.75,
+        ]);
+        $cobro->servicios()->attach($otroServicio->id, [
+            'empleado_id' => $otraCita->id_empleado,
+            'precio' => 36.25,
+        ]);
+
+        $lineas = $cita->fresh()
+            ->load(['servicios', 'cobro.servicios', 'cobrosAgrupados.servicios'])
+            ->serviciosConPrecioCobrado();
+
+        expect($lineas)->toHaveCount(1)
+            ->and($lineas->first()->tiene_precio_cobrado)->toBeTrue()
+            ->and($lineas->first()->precio_cobrado)->toBe(18.75);
+    });
+
+    test('cita does not use default service price when there is no cobro', function () {
+        $cita = Cita::factory()->completed()->create();
+        $servicio = Servicio::factory()->create(['precio' => 75.00]);
+        $cita->servicios()->attach($servicio->id);
+
+        $lineas = $cita->fresh()
+            ->load(['servicios', 'cobro.servicios', 'cobrosAgrupados.servicios'])
+            ->serviciosConPrecioCobrado();
+
+        expect($lineas)->toHaveCount(1)
+            ->and($lineas->first()->tiene_precio_cobrado)->toBeFalse()
+            ->and($lineas->first()->precio_cobrado)->toBeNull();
     });
 
     test('pending and confirmed citas have null duracion_real', function () {

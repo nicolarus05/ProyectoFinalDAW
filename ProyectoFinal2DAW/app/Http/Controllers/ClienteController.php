@@ -225,7 +225,7 @@ class ClienteController extends Controller{
     {
         // Cargar las citas con sus relaciones
         $citas = $cliente->citas()
-            ->with(['empleado.user', 'servicios'])
+            ->with(['empleado.user', 'servicios', 'cobro.servicios', 'cobrosAgrupados.servicios'])
             ->orderBy('fecha_hora', 'desc')
             ->get();
         
@@ -257,4 +257,3 @@ class ClienteController extends Controller{
         }
     }
 }
-

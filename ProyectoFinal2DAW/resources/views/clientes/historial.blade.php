@@ -45,6 +45,11 @@
         .badge-yellow { background:#fef9c3;color:#713f12; }
         .badge-red    { background:#fee2e2;color:#991b1b; }
         .badge-blue   { background:#dbeafe;color:#1e40af; }
+        .charged-prices { display:flex;flex-direction:column;gap:4px;min-width:155px; }
+        .charged-price-row { display:flex;align-items:center;justify-content:space-between;gap:10px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:4px 7px;font-size:11px; }
+        .charged-service { color:#4b5563;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+        .charged-amount { color:#047857;font-weight:800;white-space:nowrap; }
+        .charged-pending { color:#9ca3af;font-weight:700;white-space:nowrap; }
         .btn-link { font-size:12px;font-weight:600;color:#a855f7;text-decoration:none; }
         .btn-link:hover { text-decoration:underline; }
         .btn-primary { padding:8px 18px;background:linear-gradient(135deg,#f472b6,#a855f7);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px; }
@@ -165,6 +170,7 @@
                                     <th>Fecha y Hora</th>
                                     <th>Empleado</th>
                                     <th>Servicios</th>
+                                    <th>Precio cobrado</th>
                                     <th style="text-align:center">Duración</th>
                                     <th style="text-align:center">Estado</th>
                                     <th style="text-align:center">Acciones</th>
@@ -186,6 +192,25 @@
                                                 <div style="font-size:12px">
                                                     @foreach($cita->servicios as $servicio)
                                                         <span style="display:inline-block;background:#f3f4f6;padding:2px 7px;border-radius:4px;margin:1px;font-size:11px">{{ $servicio->nombre }}</span>
+                                                    @endforeach
+                                                </div>
+                                            @else
+                                                <span style="color:#9ca3af;font-size:12px">Sin servicios</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @php $serviciosCobrados = $cita->serviciosConPrecioCobrado(); @endphp
+                                            @if($serviciosCobrados->isNotEmpty())
+                                                <div class="charged-prices">
+                                                    @foreach($serviciosCobrados as $servicioCobrado)
+                                                        <div class="charged-price-row">
+                                                            <span class="charged-service">{{ $servicioCobrado->servicio->nombre }}</span>
+                                                            @if($servicioCobrado->tiene_precio_cobrado)
+                                                                <span class="charged-amount">{{ number_format($servicioCobrado->precio_cobrado, 2, ',', '.') }} €</span>
+                                                            @else
+                                                                <span class="charged-pending">Sin cobro</span>
+                                                            @endif
+                                                        </div>
                                                     @endforeach
                                                 </div>
                                             @else
