@@ -16,7 +16,6 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Collection;
 use App\Http\Requests\StoreRegistroCobroRequest;
 use App\Services\CacheService;
 use App\Http\Resources\RegistroCobroResource;
@@ -30,37 +29,6 @@ class RegistroCobroController extends Controller{
     protected function getResourceName(): string
     {
         return 'cobro';
-    }
-
-    private function primeraCitaNoCobrable(Collection $citas, ?Carbon $momento = null): ?Cita
-    {
-        $momento = $momento ?: Carbon::now();
-
-        return $citas->first(fn (Cita $cita) => !$cita->puedeCobrarse($momento));
-    }
-
-    private function mensajeCitaNoCobrable(Cita $cita): string
-    {
-        $servicios = $cita->relationLoaded('servicios') && $cita->servicios->isNotEmpty()
-            ? $cita->servicios->pluck('nombre')->join(', ')
-            : 'esta cita';
-
-        return 'No se puede cobrar ' . $servicios . ' hasta las ' . $cita->hora_fin->format('H:i') . '.';
-    }
-
-    private function citaNoCobrablePorIds(array $citaIds): ?Cita
-    {
-        $ids = collect($citaIds)->filter()->unique()->values();
-
-        if ($ids->isEmpty()) {
-            return null;
-        }
-
-        $citas = Cita::with('servicios')
-            ->whereIn('id', $ids)
-            ->get();
-
-        return $this->primeraCitaNoCobrable($citas);
     }
 
     /**
@@ -115,12 +83,6 @@ class RegistroCobroController extends Controller{
                 $query->withPivot('cantidad_total', 'cantidad_usada');
             }])
                 ->find($request->cita_id);
-
-            if ($citaSeleccionada && !$citaSeleccionada->puedeCobrarse()) {
-                return redirect()
-                    ->route('citas.show', $citaSeleccionada->id)
-                    ->withErrors(['cita' => $this->mensajeCitaNoCobrable($citaSeleccionada)]);
-            }
         }
         
         $empleados = Empleado::with('user')->get();
@@ -148,12 +110,6 @@ class RegistroCobroController extends Controller{
         if ($request->has('id_cita')) {
             // Flujo normal: una sola cita
             $cita = \App\Models\Cita::with(['cliente.user', 'empleado.user', 'servicios'])->find($request->id_cita);
-
-            if ($cita && !$cita->puedeCobrarse()) {
-                return redirect()
-                    ->route('citas.index', ['fecha' => $cita->fecha_hora->format('Y-m-d')])
-                    ->withErrors(['cita' => $this->mensajeCitaNoCobrable($cita)]);
-            }
             
             // Cargar bonos activos del cliente con información de alertas
             if ($cita && $cita->cliente) {
@@ -173,13 +129,6 @@ class RegistroCobroController extends Controller{
             $citas = \App\Models\Cita::with(['cliente.user', 'empleado.user', 'servicios'])
                 ->whereIn('id', $request->citas_ids)
                 ->get();
-
-            $citaNoCobrable = $this->primeraCitaNoCobrable($citas);
-            if ($citaNoCobrable) {
-                return redirect()
-                    ->route('citas.index', ['fecha' => $citaNoCobrable->fecha_hora->format('Y-m-d')])
-                    ->withErrors(['cita' => $this->mensajeCitaNoCobrable($citaNoCobrable)]);
-            }
             
             // Cargar bonos del cliente (asumiendo todas las citas son del mismo cliente)
             if ($citas->isNotEmpty() && $citas->first()->cliente) {
@@ -232,18 +181,6 @@ class RegistroCobroController extends Controller{
         if (empty($data['id_cita']) && empty($data['citas_ids']) && empty($data['id_cliente'])) {
             return back()
                 ->withErrors(['id_cliente' => 'Debe seleccionar una cita o un cliente.'])
-                ->withInput();
-        }
-
-        $citaIdsParaCobro = collect($data['citas_ids'] ?? []);
-        if (!empty($data['id_cita'])) {
-            $citaIdsParaCobro->push($data['id_cita']);
-        }
-
-        $citaNoCobrable = $this->citaNoCobrablePorIds($citaIdsParaCobro->all());
-        if ($citaNoCobrable) {
-            return back()
-                ->withErrors(['cita' => $this->mensajeCitaNoCobrable($citaNoCobrable)])
                 ->withInput();
         }
 

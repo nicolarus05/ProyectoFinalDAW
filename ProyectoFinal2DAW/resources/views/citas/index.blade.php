@@ -543,22 +543,11 @@
 
                                     @if($cita->estado !== 'completada' && $cita->estado !== 'cancelada')
                                     <div class="cita-acciones">
-                                        @php
-                                            $puedeCobrar = $cita->puedeCobrarse();
-                                            $horaFinCobro = $cita->hora_fin->format('H:i');
-                                        @endphp
-                                        @if($puedeCobrar)
-                                            <form action="{{ route('citas.completarYCobrar', $cita->id) }}" method="POST" style="display:inline">
-                                                @csrf
-                                                <button type="submit" class="btn-accion btn-completar"
-                                                        onclick="event.stopPropagation()" title="Completar y cobrar">✓</button>
-                                            </form>
-                                        @else
-                                            <span onclick="event.stopPropagation()" title="Disponible para cobrar a las {{ $horaFinCobro }}" style="display:inline-block">
-                                                <button type="button" class="btn-accion btn-completar" disabled
-                                                        style="opacity:.45;cursor:not-allowed;filter:grayscale(1)">✓</button>
-                                            </span>
-                                        @endif
+                                        <form action="{{ route('citas.completarYCobrar', $cita->id) }}" method="POST" style="display:inline">
+                                            @csrf
+                                            <button type="submit" class="btn-accion btn-completar"
+                                                    onclick="event.stopPropagation()" title="Completar y cobrar">✓</button>
+                                        </form>
                                         <form action="{{ route('citas.destroy', $cita->id) }}" method="POST" style="display:inline">
                                             @csrf @method('DELETE')
                                             <button type="submit" class="btn-accion btn-cancelar"
