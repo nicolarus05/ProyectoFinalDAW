@@ -20,6 +20,15 @@ class Empleado extends Model
 {
     use HasFactory, SoftDeletes, Notifiable, CanResetPassword, HasApiTokens;
 
+    protected static function booted(): void
+    {
+        static::deleting(function (Empleado $empleado): void {
+            // SoftDeletes no activa el ON DELETE CASCADE de la FK. Eliminamos
+            // también los bloques para que no sigan apareciendo en la agenda.
+            HorarioTrabajo::where('id_empleado', $empleado->getKey())->delete();
+        });
+    }
+
     protected $table = 'empleados';
 
     protected $fillable = [
@@ -42,6 +51,11 @@ class Empleado extends Model
     public function citas()
     {
         return $this->hasMany(Cita::class, 'id_empleado');
+    }
+
+    public function horariosTrabajo()
+    {
+        return $this->hasMany(HorarioTrabajo::class, 'id_empleado');
     }
 
     public function servicios()

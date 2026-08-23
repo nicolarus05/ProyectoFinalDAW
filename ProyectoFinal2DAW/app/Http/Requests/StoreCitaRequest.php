@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\HorarioTrabajo;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreCitaRequest extends FormRequest
@@ -27,9 +28,23 @@ class StoreCitaRequest extends FormRequest
                 'required',
                 'date',
                 function ($attribute, $value, $fail) {
+                    try {
+                        $fechaHora = \Carbon\Carbon::parse($value);
+                    } catch (\Throwable $e) {
+                        return;
+                    }
+
+                    if (
+                        $fechaHora->minute % HorarioTrabajo::DURACION_BLOQUE_MINUTOS !== 0
+                        || $fechaHora->second !== 0
+                    ) {
+                        $fail('La hora de inicio debe coincidir con un bloque de 15 minutos.');
+                        return;
+                    }
+
                     // Calcular el inicio del bloque de 15 min actual
                     $now = \Carbon\Carbon::now();
-                    $minutosEnBloque = $now->minute % 15;
+                    $minutosEnBloque = $now->minute % HorarioTrabajo::DURACION_BLOQUE_MINUTOS;
                     $bloqueMinimoActual = $now->copy()->subMinutes($minutosEnBloque)->second(0)->microsecond(0);
 
                     if (\Carbon\Carbon::parse($value)->lt($bloqueMinimoActual)) {

@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\HorarioTrabajo;
 use App\Models\Empleado;
+use App\Models\Cita;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use App\Services\CacheService;
 use App\Traits\HasFlashMessages;
 use App\Traits\HasCrudMessages;
@@ -14,6 +16,137 @@ use App\Traits\HasJsonResponses;
 
 class HorarioTrabajoController extends Controller{
     use HasFlashMessages, HasCrudMessages, HasJsonResponses;
+
+    private function validarRangoHorario(string $horaInicio, string $horaFin): void
+    {
+        $error = HorarioTrabajo::validarRangoHorario($horaInicio, $horaFin);
+
+        if ($error !== null) {
+            throw ValidationException::withMessages([
+                'hora_inicio' => $error,
+            ]);
+        }
+    }
+
+    private function validarConfiguracionesHorarios(Request $request, ?Empleado $empleado = null): void
+    {
+        foreach (['horario_invierno', 'horario_verano'] as $temporada) {
+            if ($request->has($temporada)) {
+                $configuracion = $request->input($temporada);
+            } elseif ($empleado) {
+                $configuracion = $empleado->{$temporada};
+            } else {
+                $configuracion = null;
+            }
+
+            if ($configuracion === null) {
+                continue;
+            }
+
+            if (!is_array($configuracion)) {
+                throw ValidationException::withMessages([
+                    $temporada => 'La configuración del horario no es válida.',
+                ]);
+            }
+
+            foreach ($configuracion as $dia => $horario) {
+                if ($horario === null || $horario === '') {
+                    continue;
+                }
+
+                if (!is_array($horario)) {
+                    throw ValidationException::withMessages([
+                        "{$temporada}.{$dia}" => 'La configuración del día no es válida.',
+                    ]);
+                }
+
+                $horaInicio = $horario['inicio'] ?? '';
+                $horaFin = $horario['fin'] ?? '';
+                $error = HorarioTrabajo::validarRangoHorario($horaInicio, $horaFin);
+
+                if ($error !== null) {
+                    throw ValidationException::withMessages([
+                        "{$temporada}.{$dia}" => $error,
+                    ]);
+                }
+            }
+        }
+    }
+
+    private function validarNoHayCitasEnRango(int $empleadoId, string $fechaInicio, string $fechaFin): void
+    {
+        if (
+            Cita::where('id_empleado', $empleadoId)
+                ->whereDate('fecha_hora', '>=', $fechaInicio)
+                ->whereDate('fecha_hora', '<=', $fechaFin)
+                ->exists()
+        ) {
+            throw ValidationException::withMessages([
+                'fecha' => 'No se pueden regenerar horarios porque ya existen citas en el periodo seleccionado.',
+            ]);
+        }
+    }
+
+    private function citasQueBloqueanHorarios(
+        int $empleadoId,
+        string $fechaInicio,
+        string $fechaFin
+    ): \Illuminate\Support\Collection {
+        return Cita::with('servicios')
+            ->where('id_empleado', $empleadoId)
+            ->whereIn('estado', ['pendiente', 'confirmada', 'completada'])
+            ->whereDate('fecha_hora', '>=', $fechaInicio)
+            ->whereDate('fecha_hora', '<=', $fechaFin)
+            ->get()
+            ->groupBy(fn (Cita $cita) => Carbon::parse($cita->fecha_hora)->toDateString());
+    }
+
+    private function cargarRangoHorario(HorarioTrabajo $horario): HorarioTrabajo
+    {
+        $horarioGeneral = HorarioTrabajo::where('id_empleado', $horario->id_empleado)
+            ->whereDate('fecha', Carbon::parse($horario->fecha)->format('Y-m-d'))
+            ->whereNotNull('hora_inicio')
+            ->whereNotNull('hora_fin')
+            ->first();
+
+        if ($horarioGeneral) {
+            return $horarioGeneral;
+        }
+
+        $horas = HorarioTrabajo::where('id_empleado', $horario->id_empleado)
+            ->whereDate('fecha', Carbon::parse($horario->fecha)->format('Y-m-d'))
+            ->whereNotNull('hora')
+            ->orderBy('hora')
+            ->pluck('hora');
+
+        if ($horas->isNotEmpty()) {
+            $horario->hora_inicio = Carbon::parse($horas->first())->format('H:i');
+            $horario->hora_fin = Carbon::parse($horas->last())->format('H:i');
+        }
+
+        return $horario;
+    }
+
+    private function hayCitaEnBloque(int $empleadoId, string $fecha, string $hora): bool
+    {
+        $inicioBloque = Carbon::parse($fecha . ' ' . $hora);
+        $finBloque = $inicioBloque->copy()->addMinutes(HorarioTrabajo::DURACION_BLOQUE_MINUTOS);
+
+        $citas = Cita::with('servicios')
+            ->where('id_empleado', $empleadoId)
+            ->whereIn('estado', ['pendiente', 'confirmada'])
+            ->whereDate('fecha_hora', $fecha)
+            ->get();
+
+        foreach ($citas as $cita) {
+            $inicioCita = Carbon::parse($cita->fecha_hora);
+            if ($inicioCita->lessThan($finBloque) && $cita->hora_fin->greaterThan($inicioBloque)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     protected function getResourceName(): string
     {
@@ -85,37 +218,41 @@ class HorarioTrabajoController extends Controller{
             'disponible' => 'boolean',
             'notas' => 'nullable|string|max:1000',
         ]);
+        $this->validarRangoHorario($data['hora_inicio'], $data['hora_fin']);
+        $this->validarNoHayCitasEnRango($data['id_empleado'], $data['fecha'], $data['fecha']);
 
-        // ELIMINAR todos los horarios existentes para este empleado en esta fecha
-        HorarioTrabajo::where('id_empleado', $data['id_empleado'])
-            ->where('fecha', $data['fecha'])
-            ->delete();
+        DB::transaction(function () use ($data) {
+            // ELIMINAR todos los horarios existentes para este empleado en esta fecha
+            HorarioTrabajo::where('id_empleado', $data['id_empleado'])
+                ->where('fecha', $data['fecha'])
+                ->delete();
 
-        // CREAR bloques de 15 minutos
-        $bloques = HorarioTrabajo::generarBloquesHorarios(
-            $data['hora_inicio'],
-            $data['hora_fin']
-        );
+            // CREAR bloques de 15 minutos
+            $bloques = HorarioTrabajo::generarBloquesHorarios(
+                $data['hora_inicio'],
+                $data['hora_fin']
+            );
 
-        foreach ($bloques as $hora) {
+            foreach ($bloques as $hora) {
+                HorarioTrabajo::create([
+                    'id_empleado' => $data['id_empleado'],
+                    'fecha' => $data['fecha'],
+                    'hora' => $hora,
+                    'disponible' => $data['disponible'] ?? true,
+                    'notas' => $data['notas'] ?? null,
+                ]);
+            }
+
+            // CREAR registro general con hora_inicio y hora_fin para el calendario
             HorarioTrabajo::create([
                 'id_empleado' => $data['id_empleado'],
                 'fecha' => $data['fecha'],
-                'hora' => $hora,
+                'hora_inicio' => $data['hora_inicio'],
+                'hora_fin' => $data['hora_fin'],
                 'disponible' => $data['disponible'] ?? true,
                 'notas' => $data['notas'] ?? null,
             ]);
-        }
-
-        // CREAR registro general con hora_inicio y hora_fin para el calendario
-        HorarioTrabajo::create([
-            'id_empleado' => $data['id_empleado'],
-            'fecha' => $data['fecha'],
-            'hora_inicio' => $data['hora_inicio'],
-            'hora_fin' => $data['hora_fin'],
-            'disponible' => $data['disponible'] ?? true,
-            'notas' => $data['notas'] ?? null,
-        ]);
+        });
 
         return $this->redirectWithSuccess(
             'horarios.index',
@@ -127,6 +264,7 @@ class HorarioTrabajoController extends Controller{
      * Display the specified resource.
      */
     public function show(HorarioTrabajo $horario){
+        $horario = $this->cargarRangoHorario($horario);
         return view('horarios.show', compact('horario'));
     }
 
@@ -134,6 +272,7 @@ class HorarioTrabajoController extends Controller{
      * Show the form for editing the specified resource.
      */
     public function edit(HorarioTrabajo $horario){
+        $horario = $this->cargarRangoHorario($horario);
         $empleados = Empleado::all();
         return view('horarios.edit', compact('horario', 'empleados'));
     }
@@ -150,8 +289,60 @@ class HorarioTrabajoController extends Controller{
             'disponible' => 'boolean',
             'notas' => 'nullable|string|max:1000',
         ]);
+        $this->validarRangoHorario($data['hora_inicio'], $data['hora_fin']);
 
-        $horario->update($data);
+        $empleadoOriginalId = (int) $horario->id_empleado;
+        $fechaOriginal = Carbon::parse($horario->fecha)->format('Y-m-d');
+        $empleadoNuevoId = (int) $data['id_empleado'];
+        $fechaNueva = Carbon::parse($data['fecha'])->format('Y-m-d');
+
+        $this->validarNoHayCitasEnRango($empleadoOriginalId, $fechaOriginal, $fechaOriginal);
+
+        if ($empleadoOriginalId !== $empleadoNuevoId || $fechaOriginal !== $fechaNueva) {
+            if (
+                HorarioTrabajo::where('id_empleado', $empleadoNuevoId)
+                    ->whereDate('fecha', $fechaNueva)
+                    ->exists()
+            ) {
+                throw ValidationException::withMessages([
+                    'fecha' => 'Ya existe un horario para ese empleado y fecha. Edítalo desde ese día o elige otra fecha.',
+                ]);
+            }
+
+            $this->validarNoHayCitasEnRango($empleadoNuevoId, $fechaNueva, $fechaNueva);
+        }
+
+        DB::transaction(function () use (
+            $empleadoOriginalId,
+            $fechaOriginal,
+            $data,
+            $empleadoNuevoId,
+            $fechaNueva
+        ) {
+            HorarioTrabajo::where('id_empleado', $empleadoOriginalId)
+                ->whereDate('fecha', $fechaOriginal)
+                ->delete();
+
+            foreach (HorarioTrabajo::generarBloquesHorarios($data['hora_inicio'], $data['hora_fin']) as $hora) {
+                HorarioTrabajo::create([
+                    'id_empleado' => $empleadoNuevoId,
+                    'fecha' => $fechaNueva,
+                    'hora' => $hora,
+                    'disponible' => $data['disponible'] ?? true,
+                    'notas' => $data['notas'] ?? null,
+                ]);
+            }
+
+            HorarioTrabajo::create([
+                'id_empleado' => $empleadoNuevoId,
+                'fecha' => $fechaNueva,
+                'hora_inicio' => $data['hora_inicio'],
+                'hora_fin' => $data['hora_fin'],
+                'disponible' => $data['disponible'] ?? true,
+                'notas' => $data['notas'] ?? null,
+            ]);
+        });
+
         return $this->redirectWithSuccess('horarios.index', $this->getUpdatedMessage());
     }
 
@@ -159,7 +350,15 @@ class HorarioTrabajoController extends Controller{
      * Remove the specified resource from storage.
      */
     public function destroy(HorarioTrabajo $horario){
-        $horario->delete();
+        $fecha = Carbon::parse($horario->fecha)->format('Y-m-d');
+        $this->validarNoHayCitasEnRango((int) $horario->id_empleado, $fecha, $fecha);
+
+        DB::transaction(function () use ($horario, $fecha) {
+            HorarioTrabajo::where('id_empleado', $horario->id_empleado)
+                ->whereDate('fecha', $fecha)
+                ->delete();
+        });
+
         return $this->redirectWithSuccess('horarios.index', $this->getDeletedMessage());
     }
 
@@ -191,55 +390,66 @@ class HorarioTrabajoController extends Controller{
             'id_empleado' => 'required|exists:empleados,id',
             'fecha_inicio' => 'required|date',
         ]);
-
         $empleado = Empleado::findOrFail($request->id_empleado);
-        
-        // PRIMERO: Guardar la configuración en el empleado
-        if ($request->has('horario_invierno')) {
-            $empleado->horario_invierno = $request->horario_invierno;
-        }
-        if ($request->has('horario_verano')) {
-            $empleado->horario_verano = $request->horario_verano;
-        }
-        $empleado->save();
+        $this->validarConfiguracionesHorarios($request, $empleado);
 
         $fechaInicio = Carbon::parse($request->fecha_inicio)->startOfWeek(); // Lunes
         $fechaFin = $fechaInicio->copy()->endOfWeek()->subDay(); // Sábado
-        
-        // ELIMINAR horarios existentes de esta semana para este empleado
-        HorarioTrabajo::where('id_empleado', $empleado->id)
-            ->whereBetween('fecha', [$fechaInicio->format('Y-m-d'), $fechaFin->format('Y-m-d')])
-            ->delete();
-        
+        $citasPorFecha = $this->citasQueBloqueanHorarios(
+            $empleado->id,
+            $fechaInicio->format('Y-m-d'),
+            $fechaFin->format('Y-m-d')
+        );
         $registrosCreados = 0;
 
-        // Generar para 6 días (lunes a sábado)
-        for ($dia = 0; $dia < 6; $dia++) {
-            $fecha = $fechaInicio->copy()->addDays($dia);
-            
-            // Obtener horario personalizado del empleado o usar global
-            $horarioDia = $empleado->obtenerHorario($fecha);
-            
-            if (!$horarioDia) {
-                // Día no laborable (domingo), saltar
-                continue;
+        DB::transaction(function () use ($request, $empleado, $fechaInicio, $fechaFin, $citasPorFecha, &$registrosCreados) {
+            // PRIMERO: Guardar la configuración en el empleado
+            if ($request->has('horario_invierno')) {
+                $empleado->horario_invierno = $request->horario_invierno;
             }
-            
-            $bloques = HorarioTrabajo::generarBloquesHorarios(
-                $horarioDia['inicio'],
-                $horarioDia['fin']
-            );
+            if ($request->has('horario_verano')) {
+                $empleado->horario_verano = $request->horario_verano;
+            }
+            $empleado->save();
 
-            foreach ($bloques as $hora) {
-                HorarioTrabajo::create([
-                    'id_empleado' => $empleado->id,
-                    'fecha' => $fecha->format('Y-m-d'),
-                    'hora' => $hora,
-                    'disponible' => true,
-                ]);
-                $registrosCreados++;
+            // ELIMINAR horarios existentes de esta semana para este empleado
+            HorarioTrabajo::where('id_empleado', $empleado->id)
+                ->whereBetween('fecha', [$fechaInicio->format('Y-m-d'), $fechaFin->format('Y-m-d')])
+                ->delete();
+
+            // Generar para 6 días (lunes a sábado)
+            for ($dia = 0; $dia < 6; $dia++) {
+                $fecha = $fechaInicio->copy()->addDays($dia);
+
+                // Obtener horario personalizado del empleado o usar global
+                $horarioDia = $empleado->obtenerHorario($fecha);
+
+                if (!$horarioDia) {
+                    // Día no laborable (domingo), saltar
+                    continue;
+                }
+
+                $bloques = HorarioTrabajo::generarBloquesHorarios(
+                    $horarioDia['inicio'],
+                    $horarioDia['fin']
+                );
+                $citasDelDia = $citasPorFecha->get($fecha->toDateString(), collect());
+
+                foreach ($bloques as $hora) {
+                    HorarioTrabajo::create([
+                        'id_empleado' => $empleado->id,
+                        'fecha' => $fecha->format('Y-m-d'),
+                        'hora' => $hora,
+                        'disponible' => !HorarioTrabajo::bloqueOcupadoPorCitas(
+                            $citasDelDia,
+                            $fecha->toDateString(),
+                            $hora
+                        ),
+                    ]);
+                    $registrosCreados++;
+                }
             }
-        }
+        });
 
         return $this->redirectWithSuccess(
             'horarios.index',
@@ -256,9 +466,20 @@ class HorarioTrabajoController extends Controller{
             'mes' => 'required|integer|min:1|max:12',
             'anio' => 'required|integer|min:2024',
         ]);
-
         $empleado = Empleado::findOrFail($request->id_empleado);
-        
+        $this->validarConfiguracionesHorarios($request, $empleado);
+        $mes = $request->mes;
+        $anio = $request->anio;
+        $fechaInicio = Carbon::create($anio, $mes, 1);
+        $fechaFin = $fechaInicio->copy()->endOfMonth();
+        $citasPorFecha = $this->citasQueBloqueanHorarios(
+            $empleado->id,
+            $fechaInicio->format('Y-m-d'),
+            $fechaFin->format('Y-m-d')
+        );
+        $registrosCreados = 0;
+
+        DB::transaction(function () use ($request, $empleado, $fechaInicio, $fechaFin, $citasPorFecha, &$registrosCreados) {
         // PRIMERO: Guardar la configuración en el empleado
         if ($request->has('horario_invierno')) {
             $empleado->horario_invierno = $request->horario_invierno;
@@ -268,19 +489,11 @@ class HorarioTrabajoController extends Controller{
         }
         $empleado->save();
 
-        $mes = $request->mes;
-        $anio = $request->anio;
-        
-        $fechaInicio = Carbon::create($anio, $mes, 1);
-        $fechaFin = $fechaInicio->copy()->endOfMonth();
-        
         // ELIMINAR horarios existentes de este mes para este empleado
         HorarioTrabajo::where('id_empleado', $empleado->id)
             ->whereBetween('fecha', [$fechaInicio->format('Y-m-d'), $fechaFin->format('Y-m-d')])
             ->delete();
         
-        $registrosCreados = 0;
-
         $fecha = $fechaInicio->copy();
         while ($fecha <= $fechaFin) {
             // Solo días laborables (lunes a sábado)
@@ -299,19 +512,25 @@ class HorarioTrabajoController extends Controller{
                     $horarioDia['inicio'],
                     $horarioDia['fin']
                 );
+                $citasDelDia = $citasPorFecha->get($fecha->toDateString(), collect());
 
                 foreach ($bloques as $hora) {
                     HorarioTrabajo::create([
                         'id_empleado' => $empleado->id,
                         'fecha' => $fecha->format('Y-m-d'),
                         'hora' => $hora,
-                        'disponible' => true,
+                        'disponible' => !HorarioTrabajo::bloqueOcupadoPorCitas(
+                            $citasDelDia,
+                            $fecha->toDateString(),
+                            $hora
+                        ),
                     ]);
                     $registrosCreados++;
                 }
             }
             $fecha->addDay();
         }
+        });
 
         return $this->redirectWithSuccess(
             'horarios.index',
@@ -327,67 +546,76 @@ class HorarioTrabajoController extends Controller{
             'id_empleado' => 'required|exists:empleados,id',
             'anio' => 'required|integer|min:2024',
         ]);
-
         $empleado = Empleado::findOrFail($request->id_empleado);
-        
-        // PRIMERO: Guardar la configuración en el empleado
-        if ($request->has('horario_invierno')) {
-            $empleado->horario_invierno = $request->horario_invierno;
-        }
-        if ($request->has('horario_verano')) {
-            $empleado->horario_verano = $request->horario_verano;
-        }
-        $empleado->save();
-
+        $this->validarConfiguracionesHorarios($request, $empleado);
         $anio = $request->anio;
-        
-        // ELIMINAR todos los horarios existentes de este año para este empleado
         $fechaInicioAnio = Carbon::create($anio, 1, 1);
         $fechaFinAnio = Carbon::create($anio, 12, 31);
-        
-        HorarioTrabajo::where('id_empleado', $empleado->id)
-            ->whereBetween('fecha', [$fechaInicioAnio->format('Y-m-d'), $fechaFinAnio->format('Y-m-d')])
-            ->delete();
-        
+        $citasPorFecha = $this->citasQueBloqueanHorarios(
+            $empleado->id,
+            $fechaInicioAnio->format('Y-m-d'),
+            $fechaFinAnio->format('Y-m-d')
+        );
         $registrosCreados = 0;
 
-        // Iterar por todos los meses del año
-        for ($mes = 1; $mes <= 12; $mes++) {
-            $fechaInicio = Carbon::create($anio, $mes, 1);
-            $fechaFin = $fechaInicio->copy()->endOfMonth();
-
-            $fecha = $fechaInicio->copy();
-            while ($fecha <= $fechaFin) {
-                // Solo días laborables (lunes a sábado)
-                if (in_array($fecha->dayOfWeek, HorarioTrabajo::DIAS_LABORABLES)) {
-                    
-                    // Obtener horario personalizado del empleado o usar global
-                    $horarioDia = $empleado->obtenerHorario($fecha);
-                    
-                    if (!$horarioDia) {
-                        // Día no laborable, saltar
-                        $fecha->addDay();
-                        continue;
-                    }
-                    
-                    $bloques = HorarioTrabajo::generarBloquesHorarios(
-                        $horarioDia['inicio'],
-                        $horarioDia['fin']
-                    );
-
-                    foreach ($bloques as $hora) {
-                        HorarioTrabajo::create([
-                            'id_empleado' => $empleado->id,
-                            'fecha' => $fecha->format('Y-m-d'),
-                            'hora' => $hora,
-                            'disponible' => true,
-                        ]);
-                        $registrosCreados++;
-                    }
-                }
-                $fecha->addDay();
+        DB::transaction(function () use ($request, $empleado, $anio, $fechaInicioAnio, $fechaFinAnio, $citasPorFecha, &$registrosCreados) {
+            // PRIMERO: Guardar la configuración en el empleado
+            if ($request->has('horario_invierno')) {
+                $empleado->horario_invierno = $request->horario_invierno;
             }
-        }
+            if ($request->has('horario_verano')) {
+                $empleado->horario_verano = $request->horario_verano;
+            }
+            $empleado->save();
+
+            // ELIMINAR todos los horarios existentes de este año para este empleado
+            HorarioTrabajo::where('id_empleado', $empleado->id)
+                ->whereBetween('fecha', [$fechaInicioAnio->format('Y-m-d'), $fechaFinAnio->format('Y-m-d')])
+                ->delete();
+
+            // Iterar por todos los meses del año
+            for ($mes = 1; $mes <= 12; $mes++) {
+                $fechaInicio = Carbon::create($anio, $mes, 1);
+                $fechaFin = $fechaInicio->copy()->endOfMonth();
+
+                $fecha = $fechaInicio->copy();
+                while ($fecha <= $fechaFin) {
+                    // Solo días laborables (lunes a sábado)
+                    if (in_array($fecha->dayOfWeek, HorarioTrabajo::DIAS_LABORABLES)) {
+
+                        // Obtener horario personalizado del empleado o usar global
+                        $horarioDia = $empleado->obtenerHorario($fecha);
+
+                        if (!$horarioDia) {
+                            // Día no laborable, saltar
+                            $fecha->addDay();
+                            continue;
+                        }
+
+                        $bloques = HorarioTrabajo::generarBloquesHorarios(
+                            $horarioDia['inicio'],
+                            $horarioDia['fin']
+                        );
+                        $citasDelDia = $citasPorFecha->get($fecha->toDateString(), collect());
+
+                        foreach ($bloques as $hora) {
+                            HorarioTrabajo::create([
+                                'id_empleado' => $empleado->id,
+                                'fecha' => $fecha->format('Y-m-d'),
+                                'hora' => $hora,
+                                'disponible' => !HorarioTrabajo::bloqueOcupadoPorCitas(
+                                    $citasDelDia,
+                                    $fecha->toDateString(),
+                                    $hora
+                                ),
+                            ]);
+                            $registrosCreados++;
+                        }
+                    }
+                    $fecha->addDay();
+                }
+            }
+        });
 
         return $this->redirectWithSuccess(
             'horarios.index',
@@ -405,6 +633,22 @@ class HorarioTrabajoController extends Controller{
         ]);
 
         $horario = HorarioTrabajo::findOrFail($request->id);
+
+        if (
+            $horario->disponible
+            && $horario->hora
+            && $this->hayCitaEnBloque(
+                (int) $horario->id_empleado,
+                Carbon::parse($horario->fecha)->format('Y-m-d'),
+                $horario->hora
+            )
+        ) {
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'No se puede deshabilitar un bloque que tiene una cita activa.'
+            ], 422);
+        }
+
         $horario->disponible = !$horario->disponible;
         
         // Si se está deshabilitando, guardar la nota
@@ -437,6 +681,25 @@ class HorarioTrabajoController extends Controller{
         ]);
 
         $count = 0;
+        $horarios = HorarioTrabajo::whereIn('id', $request->ids)->get();
+
+        foreach ($horarios as $horario) {
+            if (
+                $horario->disponible
+                && $horario->hora
+                && $this->hayCitaEnBloque(
+                    (int) $horario->id_empleado,
+                    Carbon::parse($horario->fecha)->format('Y-m-d'),
+                    $horario->hora
+                )
+            ) {
+                return response()->json([
+                    'success' => false,
+                    'mensaje' => 'No se puede deshabilitar un rango que contiene una cita activa.'
+                ], 422);
+            }
+        }
+
         foreach ($request->ids as $id) {
             $horario = HorarioTrabajo::find($id);
             if ($horario && $horario->disponible) {
@@ -464,6 +727,13 @@ class HorarioTrabajoController extends Controller{
             'hora_inicio' => 'required|date_format:H:i',
             'hora_fin' => 'required|date_format:H:i',
         ]);
+        $errorRango = HorarioTrabajo::validarRangoHorario(
+            $request->hora_inicio,
+            $request->hora_fin
+        );
+        if ($errorRango !== null) {
+            throw ValidationException::withMessages(['hora_inicio' => $errorRango]);
+        }
 
         $bloques = HorarioTrabajo::generarBloquesHorarios(
             $request->hora_inicio,
@@ -471,6 +741,14 @@ class HorarioTrabajoController extends Controller{
         );
 
         $actualizados = 0;
+        foreach ($bloques as $hora) {
+            if ($this->hayCitaEnBloque((int) $request->id_empleado, $request->fecha, $hora)) {
+                throw ValidationException::withMessages([
+                    'hora_inicio' => 'No se puede deshabilitar un rango que contiene una cita activa.',
+                ]);
+            }
+        }
+
         foreach ($bloques as $hora) {
             $updated = HorarioTrabajo::where('id_empleado', $request->id_empleado)
                 ->where('fecha', $request->fecha)

@@ -24,11 +24,11 @@ class UpdateCitaRequest extends FormRequest
     {
         return [
             'fecha_hora'   => 'required|date',
-            'estado'       => 'required|in:pendiente,completada,cancelada',
+            'estado'       => 'required|in:pendiente,confirmada,completada,cancelada',
             'id_cliente'   => 'required|exists:clientes,id',
             'id_empleado'  => 'required|exists:empleados,id',
             'servicios'    => 'required|array|min:1',
-            'servicios.*'  => 'exists:servicios,id',
+            'servicios.*'  => 'distinct|exists:servicios,id',
             'notas_adicionales' => 'nullable|string|max:1000',
         ];
     }
@@ -44,7 +44,7 @@ class UpdateCitaRequest extends FormRequest
             'fecha_hora.required'  => 'La fecha y hora son obligatorias.',
             'fecha_hora.date'      => 'La fecha y hora no tienen un formato válido.',
             'estado.required'      => 'El estado de la cita es obligatorio.',
-            'estado.in'            => 'El estado debe ser: pendiente, completada o cancelada.',
+            'estado.in'            => 'El estado debe ser: pendiente, confirmada, completada o cancelada.',
             'id_cliente.required'  => 'El cliente es obligatorio.',
             'id_cliente.exists'    => 'El cliente seleccionado no existe.',
             'id_empleado.required' => 'El empleado es obligatorio.',

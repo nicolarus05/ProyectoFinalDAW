@@ -373,6 +373,7 @@
                                 <label style="display:block;font-size:12px;font-weight:700;color:#374151;margin-bottom:6px">Hora <span style="color:#ef4444">*</span></label>
                                 <input type="time" id="hora_cita" name="hora_cita"
                                        value="{{ request('fecha_hora') ? \Carbon\Carbon::parse(request('fecha_hora'))->format('H:i') : '' }}"
+                                       step="900"
                                        required style="width:100%;padding:9px 14px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:13px;outline:none">
                                 <p style="font-size:11px;color:#9ca3af;margin-top:4px">Invierno L-V 9:00-20:00, Sáb 8:30-14:00 · Verano L-S 8:30-14:00 (Mié 8:30-19:00)</p>
                             </div>

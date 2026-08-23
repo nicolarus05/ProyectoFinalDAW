@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Empleado;
 use App\Models\user;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Resources\EmpleadoResource;
 use App\Traits\HasFlashMessages;
@@ -172,7 +173,10 @@ class EmpleadoController extends Controller{
      * Remove the specified resource from storage.
      */
     public function destroy(Empleado $empleado){
-        $empleado->delete();
+        DB::transaction(function () use ($empleado) {
+            $empleado->delete();
+        });
+
         return $this->redirectWithSuccess('empleados.index', $this->getDeletedMessage());
     }
 }

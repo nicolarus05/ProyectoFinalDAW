@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Empleado;
+use App\Models\HorarioTrabajo;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -105,6 +106,22 @@ describe('Empleado Model', function () {
         
         expect(Empleado::find($empleadoId))->toBeNull()
             ->and(Empleado::withTrashed()->find($empleadoId))->not->toBeNull();
+    });
+
+    test('deleting empleado removes its work schedules', function () {
+        $empleado = Empleado::factory()->create();
+
+        HorarioTrabajo::create([
+            'id_empleado' => $empleado->id,
+            'fecha' => '2026-09-01',
+            'hora' => '09:00:00',
+            'disponible' => true,
+        ]);
+
+        $empleado->delete();
+
+        expect(HorarioTrabajo::where('id_empleado', $empleado->id)->count())->toBe(0)
+            ->and(Empleado::withTrashed()->find($empleado->id))->not->toBeNull();
     });
 
     test('facturacion mes actual returns numeric value', function () {

@@ -31,6 +31,7 @@ class HorarioTrabajo extends Model{
     
     const DIAS_LABORABLES = [1, 2, 3, 4, 5, 6]; // Lunes (1) a Sábado (6)
     const MESES_VERANO = [7, 8]; // Julio y Agosto
+    const DURACION_BLOQUE_MINUTOS = 15;
 
     // Definición de las columnas de la tabla
     protected $fillable = [
@@ -64,10 +65,75 @@ class HorarioTrabajo extends Model{
         
         while ($hora <= $horaLimite) {
             $bloques[] = $hora->format('H:i:s');
-            $hora->addMinutes(15);
+            $hora->addMinutes(self::DURACION_BLOQUE_MINUTOS);
         }
         
         return $bloques;
+    }
+
+    /**
+     * Comprueba si un bloque de 15 minutos se solapa con alguna cita activa.
+     *
+     * Las citas no se eliminan al regenerar horarios; sus bloques deben
+     * conservarse ocupados para evitar dobles reservas.
+     */
+    public static function bloqueOcupadoPorCitas(iterable $citas, string $fecha, string $hora): bool
+    {
+        $inicioBloque = Carbon::parse($fecha . ' ' . $hora);
+        $finBloque = $inicioBloque->copy()->addMinutes(self::DURACION_BLOQUE_MINUTOS);
+
+        foreach ($citas as $cita) {
+            $inicioCita = Carbon::parse($cita->fecha_hora);
+            $finCita = $inicioCita->copy()->addMinutes((int) $cita->duracion_minutos);
+
+            if ($inicioCita->lessThan($finBloque) && $finCita->greaterThan($inicioBloque)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Valida que un rango de trabajo sea compatible con los bloques del calendario.
+     *
+     * Devuelve null cuando el rango es válido y un mensaje cuando no lo es.
+     * Un día sin horario se representa con ambos valores vacíos.
+     */
+    public static function validarRangoHorario(?string $horaInicio, ?string $horaFin): ?string
+    {
+        $horaInicio = trim((string) $horaInicio);
+        $horaFin = trim((string) $horaFin);
+
+        if ($horaInicio === '' && $horaFin === '') {
+            return null;
+        }
+
+        if (
+            !preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $horaInicio)
+            || !preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $horaFin)
+        ) {
+            return 'La hora de inicio y la hora de fin deben tener el formato HH:MM.';
+        }
+
+        [$inicioHora, $inicioMinuto] = array_map('intval', explode(':', $horaInicio));
+        [$finHora, $finMinuto] = array_map('intval', explode(':', $horaFin));
+
+        if (
+            $inicioMinuto % self::DURACION_BLOQUE_MINUTOS !== 0
+            || $finMinuto % self::DURACION_BLOQUE_MINUTOS !== 0
+        ) {
+            return 'Las horas deben estar alineadas con bloques de 15 minutos (00, 15, 30 o 45).';
+        }
+
+        $inicioEnMinutos = ($inicioHora * 60) + $inicioMinuto;
+        $finEnMinutos = ($finHora * 60) + $finMinuto;
+
+        if ($finEnMinutos <= $inicioEnMinutos) {
+            return 'La hora de fin debe ser posterior a la hora de inicio.';
+        }
+
+        return null;
     }
 
     /**

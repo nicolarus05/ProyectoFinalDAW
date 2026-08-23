@@ -80,6 +80,17 @@
         </header>
         <main class="main-content">
             <div class="max-w-6xl mx-auto">
+                @if($errors->any())
+                    <div class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-6 text-sm text-red-800">
+                        <strong>No se puede generar el horario:</strong>
+                        <ul class="mt-1 list-disc list-inside">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
                 <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-6 text-sm text-blue-800">
                     <strong>Empleado:</strong> {{ $empleado->user->nombre }} {{ $empleado->user->apellidos }} &nbsp;|&nbsp;
                     <strong>Tipo:</strong> {{ $tipo === 'semana' ? 'Semana' : ($tipo === 'mes' ? 'Mes' : 'Año completo') }}
@@ -151,12 +162,14 @@
                                             <input type="time" 
                                                    name="horario_invierno[{{ $numDia }}][inicio]" 
                                                    value="{{ $horario['inicio'] ?? '' }}"
+                                                   step="900"
                                                    class="border border-gray-300 rounded px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                         </td>
                                         <td class="px-4 py-3">
                                             <input type="time" 
                                                    name="horario_invierno[{{ $numDia }}][fin]" 
                                                    value="{{ $horario['fin'] ?? '' }}"
+                                                   step="900"
                                                    class="border border-gray-300 rounded px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                         </td>
                                     </tr>
@@ -199,12 +212,14 @@
                                             <input type="time" 
                                                    name="horario_verano[{{ $numDia }}][inicio]" 
                                                    value="{{ $horario['inicio'] ?? '' }}"
+                                                   step="900"
                                                    class="border border-gray-300 rounded px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                         </td>
                                         <td class="px-4 py-3">
                                             <input type="time" 
                                                    name="horario_verano[{{ $numDia }}][fin]" 
                                                    value="{{ $horario['fin'] ?? '' }}"
+                                                   step="900"
                                                    class="border border-gray-300 rounded px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                         </td>
                                     </tr>

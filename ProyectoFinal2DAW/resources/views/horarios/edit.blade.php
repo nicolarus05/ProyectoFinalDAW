@@ -109,11 +109,11 @@
                     </div>
                     <div>
                         <label for="hora_inicio">Hora inicio:</label>
-                        <input type="time" name="hora_inicio" value="{{ $horario->hora_inicio }}" required>
+                        <input type="time" name="hora_inicio" value="{{ $horario->hora_inicio }}" step="900" required>
                     </div>
                     <div>
                         <label for="hora_fin">Hora fin:</label>
-                        <input type="time" name="hora_fin" value="{{ $horario->hora_fin }}" required>
+                        <input type="time" name="hora_fin" value="{{ $horario->hora_fin }}" step="900" required>
                     </div>
                     <input type="hidden" name="disponible" value="0">
                     <div style="display:flex;align-items:center;gap:8px;">

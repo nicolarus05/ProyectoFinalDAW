@@ -109,11 +109,11 @@
                     </div>
                     <div>
                         <label for="hora_inicio">Hora de inicio:</label>
-                        <input type="time" name="hora_inicio" id="hora_inicio" required>
+                        <input type="time" name="hora_inicio" id="hora_inicio" step="900" required>
                     </div>
                     <div>
                         <label for="hora_fin">Hora de fin:</label>
-                        <input type="time" name="hora_fin" id="hora_fin" required>
+                        <input type="time" name="hora_fin" id="hora_fin" step="900" required>
                     </div>
                     <div style="display:flex;align-items:center;gap:8px;">
                         <input type="checkbox" name="disponible" id="disponible" value="1" style="width:auto;">

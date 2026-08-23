@@ -461,11 +461,26 @@
                         @foreach($citasEmpleado as $cita)
                             @php
                                 $horaInicio = \Carbon\Carbon::parse($cita->fecha_hora);
-                                $horaBaseStr = $horariosArray[0] ?? '09:00:00';
-                                $horaBase    = \Carbon\Carbon::parse($fecha->format('Y-m-d') . ' ' . $horaBaseStr);
-                                $minutosDesdeInicio = $horaBase->diffInMinutes($horaInicio, false);
-                                $numeroBloque  = $minutosDesdeInicio / 15;
-                                $topPosition   = 88 + ($numeroBloque * 30) + 2;
+                                $indiceSlot = array_search(
+                                    $horaInicio->format('H:i:s'),
+                                    array_values($horariosArray),
+                                    true
+                                );
+
+                                if ($indiceSlot !== false) {
+                                    $topPosition = 88 + ($indiceSlot * 30) + 2;
+                                } else {
+                                    // Mantener el posicionamiento proporcional para citas agrupadas
+                                    // cuyos servicios empiezan fuera de un bloque de 15 minutos.
+                                    $horaBaseStr = $horariosArray[0] ?? '09:00:00';
+                                    $horaBase = \Carbon\Carbon::parse(
+                                        $fecha->format('Y-m-d') . ' ' . $horaBaseStr
+                                    );
+                                    $minutosDesdeInicio = $horaBase->diffInMinutes($horaInicio, false);
+                                    $numeroBloque = $minutosDesdeInicio / 15;
+                                    $topPosition = 88 + ($numeroBloque * 30) + 2;
+                                }
+
                                 $bloquesOcupados = max(1, $cita->duracion_minutos / 15);
                                 $altura = $cita->duracion_minutos <= 15 ? 30 : ($bloquesOcupados * 30) * 0.92;
 

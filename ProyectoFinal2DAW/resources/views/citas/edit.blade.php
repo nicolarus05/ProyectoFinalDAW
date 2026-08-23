@@ -145,9 +145,15 @@
                         <label class="form-label">Estado <span style="color:#ef4444">*</span></label>
                         <select name="estado" class="form-control" required>
                             <option value="pendiente" {{ $cita->estado == 'pendiente' ? 'selected' : '' }}>⏳ Pendiente</option>
+                            <option value="confirmada" {{ $cita->estado == 'confirmada' ? 'selected' : '' }}>📌 Confirmada</option>
                             <option value="completada" {{ $cita->estado == 'completada' ? 'selected' : '' }}>✅ Completada</option>
-                            <option value="cancelada" {{ $cita->estado == 'cancelada' ? 'selected' : '' }}>❌ Cancelada</option>
+                            @if($cita->estado === 'cancelada')
+                                <option value="cancelada" selected>❌ Cancelada</option>
+                            @endif
                         </select>
+                        @if($cita->estado !== 'cancelada')
+                            <p style="font-size:11px;color:#9ca3af;margin-top:4px">Para cancelar una cita utiliza la acción específica de cancelación, que también libera sus bloques horarios.</p>
+                        @endif
                     </div>
 
                     @if(auth()->user()->rol === 'admin')
