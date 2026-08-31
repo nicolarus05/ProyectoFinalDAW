@@ -418,15 +418,30 @@
                                 $bloqueDeshabilitado = false;
 
                                 foreach ($horariosEmpleado as $horarioTrabajo) {
-                                    if ($horarioTrabajo->hora && $horarioTrabajo->hora == $hora) {
+                                    if ($horarioTrabajo->hora) {
+                                        // Los horarios antiguos pueden contener
+                                        // minutos no alineados (09:18, 09:33...).
+                                        // Se representan en la celda de 15 minutos
+                                        // que los contiene para no perder su estado.
+                                        $horaNormalizada = \App\Models\HorarioTrabajo::normalizarHoraBloque(
+                                            $horarioTrabajo->hora
+                                        );
+
+                                        if ($horaNormalizada !== $hora) {
+                                            continue;
+                                        }
+
                                         if (!$horarioTrabajo->disponible) {
                                             $bloqueDeshabilitado = true;
                                             $disponible = false;
                                         } else {
-                                            $disponible = true;
+                                            if (!$bloqueDeshabilitado) {
+                                                $disponible = true;
+                                            }
                                         }
-                                        break;
+                                        continue;
                                     }
+
                                     if ($horarioTrabajo->hora_inicio && $horarioTrabajo->hora_fin) {
                                         $inicioTrabajo = \Carbon\Carbon::parse($fecha->format('Y-m-d') . ' ' . $horarioTrabajo->hora_inicio);
                                         $finTrabajo    = \Carbon\Carbon::parse($fecha->format('Y-m-d') . ' ' . $horarioTrabajo->hora_fin);
@@ -461,25 +476,18 @@
                         @foreach($citasEmpleado as $cita)
                             @php
                                 $horaInicio = \Carbon\Carbon::parse($cita->fecha_hora);
-                                $indiceSlot = array_search(
-                                    $horaInicio->format('H:i:s'),
-                                    array_values($horariosArray),
-                                    true
+                                // La hora de un servicio agrupado puede caer fuera
+                                // de un bloque exacto (p. ej. 10:20). El eje visual
+                                // siempre representa 15 minutos, así que la posición
+                                // debe depender de los minutos reales y no del índice
+                                // de una lista que puede contener datos antiguos.
+                                $horaBaseStr = $horariosArray[0] ?? '09:00:00';
+                                $horaBase = \Carbon\Carbon::parse(
+                                    $fecha->format('Y-m-d') . ' ' . $horaBaseStr
                                 );
-
-                                if ($indiceSlot !== false) {
-                                    $topPosition = 88 + ($indiceSlot * 30) + 2;
-                                } else {
-                                    // Mantener el posicionamiento proporcional para citas agrupadas
-                                    // cuyos servicios empiezan fuera de un bloque de 15 minutos.
-                                    $horaBaseStr = $horariosArray[0] ?? '09:00:00';
-                                    $horaBase = \Carbon\Carbon::parse(
-                                        $fecha->format('Y-m-d') . ' ' . $horaBaseStr
-                                    );
-                                    $minutosDesdeInicio = $horaBase->diffInMinutes($horaInicio, false);
-                                    $numeroBloque = $minutosDesdeInicio / 15;
-                                    $topPosition = 88 + ($numeroBloque * 30) + 2;
-                                }
+                                $minutosDesdeInicio = $horaBase->diffInMinutes($horaInicio, false);
+                                $numeroBloque = $minutosDesdeInicio / \App\Models\HorarioTrabajo::DURACION_BLOQUE_MINUTOS;
+                                $topPosition = 88 + ($numeroBloque * 30) + 2;
 
                                 $bloquesOcupados = max(1, $cita->duracion_minutos / 15);
                                 $altura = $cita->duracion_minutos <= 15 ? 30 : ($bloquesOcupados * 30) * 0.92;

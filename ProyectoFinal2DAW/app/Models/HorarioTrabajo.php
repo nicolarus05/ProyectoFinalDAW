@@ -72,6 +72,37 @@ class HorarioTrabajo extends Model{
     }
 
     /**
+     * Normaliza una hora al bloque de 15 minutos que la contiene.
+     *
+     * Las citas agrupadas pueden empezar fuera del eje de la agenda
+     * (por ejemplo, a las 10:20 después de un servicio de 20 minutos),
+     * pero los registros de horario siguen representando bloques de 15 min.
+     */
+    public static function normalizarHoraBloque($hora): string
+    {
+        $carbon = $hora instanceof Carbon ? $hora->copy() : Carbon::parse($hora);
+        $minutos = ($carbon->hour * 60) + $carbon->minute;
+        $minutos -= $minutos % self::DURACION_BLOQUE_MINUTOS;
+
+        return sprintf(
+            '%02d:%02d:00',
+            intdiv($minutos, 60),
+            $minutos % 60
+        );
+    }
+
+    /**
+     * Devuelve el inicio del bloque de 15 minutos de una fecha y hora.
+     */
+    public static function inicioBloque(Carbon $fechaHora): Carbon
+    {
+        $minuto = $fechaHora->minute
+            - ($fechaHora->minute % self::DURACION_BLOQUE_MINUTOS);
+
+        return $fechaHora->copy()->setTime($fechaHora->hour, $minuto, 0, 0);
+    }
+
+    /**
      * Comprueba si un bloque de 15 minutos se solapa con alguna cita activa.
      *
      * Las citas no se eliminan al regenerar horarios; sus bloques deben

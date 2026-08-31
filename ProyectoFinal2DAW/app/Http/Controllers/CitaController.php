@@ -80,16 +80,70 @@ class CitaController extends Controller{
 
     private function horariosArrayParaAgenda(Carbon $fecha): array
     {
-        $horasReales = HorarioTrabajo::whereDate('fecha', $fecha->format('Y-m-d'))
-            ->whereNotNull('hora')
+        $horariosDelDia = HorarioTrabajo::with('empleado')
+            ->whereDate('fecha', $fecha->format('Y-m-d'))
             ->whereHas('empleado')
-            ->distinct()
-            ->orderBy('hora')
-            ->pluck('hora')
-            ->all();
+            ->get(['id_empleado', 'hora', 'hora_inicio', 'hora_fin']);
 
-        if (!empty($horasReales)) {
-            return $horasReales;
+        $rangos = [];
+        foreach ($horariosDelDia->groupBy('id_empleado') as $horariosEmpleado) {
+            $horarioGeneral = $horariosEmpleado->first(
+                fn ($horario) => $horario->hora_inicio && $horario->hora_fin
+            );
+
+            if ($horarioGeneral) {
+                $inicio = Carbon::parse($horarioGeneral->hora_inicio);
+                $fin = Carbon::parse($horarioGeneral->hora_fin);
+            } else {
+                // En horarios generados automáticamente, la configuración
+                // del empleado es la fuente fiable aunque existan filas
+                // antiguas con minutos corruptos.
+                $empleado = $horariosEmpleado->first()->empleado;
+                $horarioConfigurado = $empleado?->obtenerHorario($fecha);
+
+                if ($horarioConfigurado) {
+                    $inicio = Carbon::parse($horarioConfigurado['inicio']);
+                    $fin = Carbon::parse($horarioConfigurado['fin']);
+                } else {
+                    $horas = $horariosEmpleado->pluck('hora')->filter();
+                    if ($horas->isEmpty()) {
+                        continue;
+                    }
+
+                    $minutos = $horas->map(function ($hora) {
+                        $carbon = Carbon::parse($hora);
+
+                        return ($carbon->hour * 60) + $carbon->minute;
+                    });
+
+                    $minutoInicio = intdiv(
+                        (int) $minutos->min(),
+                        HorarioTrabajo::DURACION_BLOQUE_MINUTOS
+                    ) * HorarioTrabajo::DURACION_BLOQUE_MINUTOS;
+                    $minutoFin = intdiv(
+                        (int) $minutos->max(),
+                        HorarioTrabajo::DURACION_BLOQUE_MINUTOS
+                    ) * HorarioTrabajo::DURACION_BLOQUE_MINUTOS;
+
+                    $inicio = Carbon::parse($this->horaDesdeMinutos($minutoInicio));
+                    $fin = Carbon::parse($this->horaDesdeMinutos($minutoFin));
+                }
+            }
+
+            $rangos[] = [
+                ($inicio->hour * 60) + $inicio->minute,
+                ($fin->hour * 60) + $fin->minute,
+            ];
+        }
+
+        if (!empty($rangos)) {
+            $minutoInicio = min(array_column($rangos, 0));
+            $minutoFin = max(array_column($rangos, 1));
+
+            return HorarioTrabajo::generarBloquesHorarios(
+                $this->horaDesdeMinutos($minutoInicio),
+                $this->horaDesdeMinutos($minutoFin)
+            );
         }
 
         $horarioDia = HorarioTrabajo::obtenerHorarioPorFecha($fecha);
@@ -102,6 +156,11 @@ class CitaController extends Controller{
             $horarioDia['inicio'],
             $horarioDia['fin']
         );
+    }
+
+    private function horaDesdeMinutos(int $minutos): string
+    {
+        return sprintf('%02d:%02d', intdiv($minutos, 60), $minutos % 60);
     }
 
     private function bloquesDisponiblesParaRango(
@@ -118,32 +177,52 @@ class CitaController extends Controller{
         }
 
         $fechaHoraFin = $fechaHoraInicio->copy()->addMinutes($duracionMinutos);
+        $estadoBloques = [];
+
+        foreach ($bloques as $bloque) {
+            $horaNormalizada = HorarioTrabajo::normalizarHoraBloque($bloque->hora);
+
+            if (!array_key_exists($horaNormalizada, $estadoBloques)) {
+                $estadoBloques[$horaNormalizada] = (bool) $bloque->disponible;
+            } else {
+                // Si hay datos antiguos duplicados al normalizar, un bloque
+                // ocupado debe seguir considerándose ocupado.
+                $estadoBloques[$horaNormalizada] = $estadoBloques[$horaNormalizada]
+                    && (bool) $bloque->disponible;
+            }
+        }
+
+        if (empty($estadoBloques)) {
+            return false;
+        }
+
+        $ultimaHoraBloque = max(array_keys($estadoBloques));
         $horaFinJornada = Carbon::parse(
-            $fechaHoraInicio->format('Y-m-d') . ' ' . $bloques->max('hora')
+            $fechaHoraInicio->format('Y-m-d') . ' ' . $ultimaHoraBloque
         );
 
         if ($fechaHoraFin->greaterThan($horaFinJornada)) {
             return false;
         }
 
-        $bloquesDisponibles = $bloques
-            ->where('disponible', true)
-            ->pluck('hora')
-            ->flip();
+        $bloquesDisponibles = collect($estadoBloques)
+            ->filter(fn (bool $disponible) => $disponible);
 
-        $horaActual = $fechaHoraInicio->copy();
+        $horaActual = HorarioTrabajo::inicioBloque($fechaHoraInicio);
         $inicioCitaIgnorada = $citaIgnorada ? Carbon::parse($citaIgnorada->fecha_hora) : null;
         $finCitaIgnorada = $inicioCitaIgnorada
             ? $inicioCitaIgnorada->copy()->addMinutes($citaIgnorada->duracion_minutos)
             : null;
 
         while ($horaActual->lessThan($fechaHoraFin)) {
-            $bloqueDisponible = $bloquesDisponibles->has($horaActual->format('H:i:s'));
+            $finBloque = $horaActual->copy()->addMinutes(HorarioTrabajo::DURACION_BLOQUE_MINUTOS);
+            $horaNormalizada = $horaActual->format('H:i:s');
+            $bloqueDisponible = $bloquesDisponibles->has($horaNormalizada);
             $bloquePerteneceACitaIgnorada = $citaIgnorada !== null
                 && (int) $citaIgnorada->id_empleado === $empleadoId
                 && $horaActual->toDateString() === $inicioCitaIgnorada->toDateString()
-                && $horaActual->greaterThanOrEqualTo($inicioCitaIgnorada)
-                && $horaActual->lessThan($finCitaIgnorada);
+                && $horaActual->lessThan($finCitaIgnorada)
+                && $finBloque->greaterThan($inicioCitaIgnorada);
 
             if (!$bloqueDisponible && !$bloquePerteneceACitaIgnorada) {
                 return false;
@@ -159,18 +238,68 @@ class CitaController extends Controller{
         int $empleadoId,
         Carbon $fechaHoraInicio,
         int $duracionMinutos,
-        bool $disponible
+        bool $disponible,
+        ?int $citaIgnoradaId = null
     ): void {
-        $bloques = (int) ceil($duracionMinutos / HorarioTrabajo::DURACION_BLOQUE_MINUTOS);
-        $horaActual = $fechaHoraInicio->copy();
+        $inicioBloque = HorarioTrabajo::inicioBloque($fechaHoraInicio);
+        $finCita = $fechaHoraInicio->copy()->addMinutes($duracionMinutos);
+        $horasAfectadas = [];
+        $horaActual = $inicioBloque->copy();
 
-        for ($i = 0; $i < $bloques; $i++) {
-            HorarioTrabajo::where('id_empleado', $empleadoId)
-                ->whereDate('fecha', $horaActual->format('Y-m-d'))
-                ->where('hora', $horaActual->format('H:i:s'))
-                ->update(['disponible' => $disponible]);
-
+        while ($horaActual->lessThan($finCita)) {
+            $horasAfectadas[$horaActual->format('H:i:s')] = true;
             $horaActual->addMinutes(HorarioTrabajo::DURACION_BLOQUE_MINUTOS);
+        }
+
+        if (empty($horasAfectadas)) {
+            return;
+        }
+
+        $bloques = HorarioTrabajo::where('id_empleado', $empleadoId)
+            ->whereDate('fecha', $fechaHoraInicio->format('Y-m-d'))
+            ->whereNotNull('hora')
+            ->get(['id', 'hora', 'disponible']);
+
+        $citasActivas = collect();
+        if ($disponible) {
+            $citasActivas = Cita::with('servicios')
+                ->where('id_empleado', $empleadoId)
+                ->whereIn('estado', ['pendiente', 'confirmada', 'completada'])
+                ->whereDate('fecha_hora', $fechaHoraInicio->format('Y-m-d'))
+                ->when($citaIgnoradaId !== null, fn ($query) => $query->where('id', '!=', $citaIgnoradaId))
+                ->get();
+        }
+
+        foreach ($bloques as $bloque) {
+            $horaNormalizada = HorarioTrabajo::normalizarHoraBloque($bloque->hora);
+
+            if (!isset($horasAfectadas[$horaNormalizada])) {
+                continue;
+            }
+
+            $nuevoEstado = $disponible;
+            if ($disponible) {
+                $inicioBloqueGuardado = Carbon::parse(
+                    $fechaHoraInicio->format('Y-m-d') . ' ' . $horaNormalizada
+                );
+                $finBloqueGuardado = $inicioBloqueGuardado->copy()
+                    ->addMinutes(HorarioTrabajo::DURACION_BLOQUE_MINUTOS);
+
+                $nuevoEstado = !$citasActivas->contains(function (Cita $cita) use (
+                    $inicioBloqueGuardado,
+                    $finBloqueGuardado
+                ) {
+                    $inicioCita = Carbon::parse($cita->fecha_hora);
+                    $finCita = $inicioCita->copy()->addMinutes((int) $cita->duracion_minutos);
+
+                    return $inicioCita->lessThan($finBloqueGuardado)
+                        && $finCita->greaterThan($inicioBloqueGuardado);
+                });
+            }
+
+            if ((bool) $bloque->disponible !== $nuevoEstado) {
+                $bloque->update(['disponible' => $nuevoEstado]);
+            }
         }
     }
 
@@ -380,7 +509,9 @@ class CitaController extends Controller{
             $data,
             $servicios,
             $serviciosSeleccionados,
-            $hayMultiplesServicios
+            $hayMultiplesServicios,
+            $fechaHora,
+            $duracionTotalNuevaCita
         ) {
             // Si hay múltiples servicios, se crean citas consecutivas dentro
             // de una única transacción para no dejar grupos incompletos.
@@ -414,11 +545,25 @@ class CitaController extends Controller{
                     $orden++;
                 }
 
+                $this->actualizarDisponibilidadCita(
+                    (int) $data['id_empleado'],
+                    $fechaHora,
+                    (int) $duracionTotalNuevaCita,
+                    false
+                );
+
                 return $citaPrincipal;
             }
 
             $cita = Cita::create($data);
             $cita->servicios()->attach($servicios);
+
+            $this->actualizarDisponibilidadCita(
+                (int) $data['id_empleado'],
+                $fechaHora,
+                (int) $duracionTotalNuevaCita,
+                false
+            );
 
             return $cita;
         });
@@ -517,8 +662,8 @@ class CitaController extends Controller{
             ->all();
         $idsServiciosNuevos = collect($serviciosIds)->sort()->values()->all();
         $serviciosCambiados = $idsServiciosAnteriores !== $idsServiciosNuevos;
-        $horarioCambiado = $fechaHoraNueva->format('Y-m-d H:i')
-            !== $fechaHoraAnterior->format('Y-m-d H:i')
+        $horarioCambiado = $fechaHoraNueva->format('Y-m-d H:i:s')
+            !== $fechaHoraAnterior->format('Y-m-d H:i:s')
             || (int) $data['id_empleado'] !== (int) $cita->id_empleado
             || $serviciosCambiados;
         $duracionAnterior = (int) $cita->duracion_minutos;
@@ -554,7 +699,13 @@ class CitaController extends Controller{
         }
 
         if ($horarioCambiado) {
-            if (!$this->horaInicioAlineada($fechaHoraNueva)) {
+            $mismaHoraDeLaCita = $fechaHoraNueva->format('Y-m-d H:i:s')
+                === $fechaHoraAnterior->format('Y-m-d H:i:s');
+
+            if (
+                !$this->horaInicioAlineada($fechaHoraNueva)
+                && (!$mismaHoraDeLaCita || (int) $data['id_empleado'] !== (int) $cita->id_empleado)
+            ) {
                 return redirect()->back()
                     ->withInput()
                     ->withErrors([
@@ -627,7 +778,8 @@ class CitaController extends Controller{
                     (int) $cita->id_empleado,
                     $fechaHoraAnterior,
                     $duracionAnterior,
-                    true
+                    true,
+                    (int) $cita->id
                 );
             }
 
@@ -661,7 +813,13 @@ class CitaController extends Controller{
         $duracionTotal = (int) $cita->duracion_minutos;
 
         DB::transaction(function () use ($cita, $fechaHora, $empleadoId, $duracionTotal) {
-            $this->actualizarDisponibilidadCita($empleadoId, $fechaHora, $duracionTotal, true);
+            $this->actualizarDisponibilidadCita(
+                $empleadoId,
+                $fechaHora,
+                $duracionTotal,
+                true,
+                (int) $cita->id
+            );
             $cita->delete();
         });
         
@@ -692,7 +850,8 @@ class CitaController extends Controller{
                     (int) $cita->id_empleado,
                     Carbon::parse($cita->fecha_hora),
                     (int) $cita->duracion_minutos,
-                    true
+                    true,
+                    (int) $cita->id
                 );
 
                 $cita->delete();
@@ -733,7 +892,13 @@ class CitaController extends Controller{
             }
 
             $cita->update(['estado' => 'cancelada']);
-            $this->actualizarDisponibilidadCita($empleadoId, $fechaHora, $duracionTotal, true);
+            $this->actualizarDisponibilidadCita(
+                $empleadoId,
+                $fechaHora,
+                $duracionTotal,
+                true,
+                (int) $cita->id
+            );
         });
 
         $mensaje = 'La cita ha sido cancelada y las horas han sido liberadas.';
@@ -765,7 +930,14 @@ class CitaController extends Controller{
             ], 422);
         }
 
-        if (!$this->horaInicioAlineada($nuevaFechaHora)) {
+        $fechaHoraActual = Carbon::parse($cita->fecha_hora);
+        if (
+            !$this->horaInicioAlineada($nuevaFechaHora)
+            && (
+                $nuevaFechaHora->format('Y-m-d H:i:s') !== $fechaHoraActual->format('Y-m-d H:i:s')
+                || $nuevoEmpleadoId !== (int) $cita->id_empleado
+            )
+        ) {
             return response()->json([
                 'success' => false,
                 'message' => 'La hora de destino debe coincidir con un bloque de 15 minutos.'
@@ -853,7 +1025,8 @@ class CitaController extends Controller{
                 (int) $empleadoIdAntiguo,
                 $fechaHoraAntigua,
                 $duracionMinutos,
-                true
+                true,
+                (int) $cita->id
             );
             $this->actualizarDisponibilidadCita(
                 $nuevoEmpleadoId,
@@ -938,7 +1111,10 @@ class CitaController extends Controller{
     public function actualizarDuracion(Request $request){
         $request->validate([
             'cita_id' => 'required|exists:citas,id',
-            'duracion_minutos' => 'required|integer|min:15|max:480|multiple:15', // Entre 15 min y 8 horas
+            // La duración de los servicios puede ser de 5, 10, 20, 35 min,
+            // etc. Los bloques de disponibilidad son de 15 min, pero la
+            // duración real de una cita no tiene que ser múltiplo de 15.
+            'duracion_minutos' => 'required|integer|min:15|max:480', // Entre 15 min y 8 horas
         ]);
 
         $cita = Cita::with(['servicios'])->findOrFail($request->cita_id);
@@ -979,61 +1155,43 @@ class CitaController extends Controller{
             }
         }
 
-        // Calcular duración anterior y nueva para gestionar bloques horarios
-        $duracionAnterior = $cita->duracion_minutos; // Usa duracion_real si existe, sino suma servicios
-        $duracionNueva = $request->duracion_minutos;
-        
-        // Si la nueva duración es MAYOR, validar todos los bloques antes de modificar nada.
-        if ($duracionNueva > $duracionAnterior) {
-            $horaActual = $horaInicio->copy()->addMinutes($duracionAnterior);
-            $bloquesAOcupar = (int) ceil(
-                ($duracionNueva - $duracionAnterior) / HorarioTrabajo::DURACION_BLOQUE_MINUTOS
-            );
+        // Calcular duración anterior y nueva para gestionar bloques horarios.
+        $duracionAnterior = (int) $cita->duracion_minutos;
+        $duracionNueva = (int) $request->duracion_minutos;
 
-            for ($i = 0; $i < $bloquesAOcupar; $i++) {
-                $horarioDisponible = HorarioTrabajo::where('id_empleado', $cita->id_empleado)
-                    ->where('fecha', $horaActual->format('Y-m-d'))
-                    ->where('disponible', true)
-                    ->where(function ($query) use ($horaActual) {
-                        $hora = $horaActual->format('H:i:s');
-                        $query->where('hora', $hora)
-                            ->orWhere(function ($q) use ($hora) {
-                                $q->whereTime('hora_inicio', '<=', $hora)
-                                  ->whereTime('hora_fin', '>=', $hora);
-                            });
-                    })
-                    ->exists();
-
-                if (!$horarioDisponible) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'No hay suficiente espacio disponible para extender la cita hasta ' . $nuevaHoraFin->format('H:i')
-                    ], 400);
-                }
-
-                $horaActual->addMinutes(HorarioTrabajo::DURACION_BLOQUE_MINUTOS);
-            }
+        // Validar el rango completo ignorando la propia cita. Esto también
+        // funciona cuando la cita empieza fuera del eje de 15 minutos (10:20).
+        if (!$this->bloquesDisponiblesParaRango(
+            (int) $cita->id_empleado,
+            $horaInicio,
+            $duracionNueva,
+            $cita
+        )) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay suficiente espacio disponible para ajustar la cita hasta ' . $nuevaHoraFin->format('H:i')
+            ], 400);
         }
 
         DB::transaction(function () use ($cita, $horaInicio, $duracionAnterior, $duracionNueva) {
-            if ($duracionNueva < $duracionAnterior) {
-                $this->actualizarDisponibilidadCita(
-                    (int) $cita->id_empleado,
-                    $horaInicio->copy()->addMinutes($duracionNueva),
-                    $duracionAnterior - $duracionNueva,
-                    true
-                );
-            } elseif ($duracionNueva > $duracionAnterior) {
-                $this->actualizarDisponibilidadCita(
-                    (int) $cita->id_empleado,
-                    $horaInicio->copy()->addMinutes($duracionAnterior),
-                    $duracionNueva - $duracionAnterior,
-                    false
-                );
-            }
-
+            // Recalcular el rango completo evita errores en los extremos de
+            // citas no alineadas: un bloque puede seguir solapándose después
+            // de reducir la duración.
+            $this->actualizarDisponibilidadCita(
+                (int) $cita->id_empleado,
+                $horaInicio,
+                $duracionAnterior,
+                true,
+                (int) $cita->id
+            );
             $cita->duracion_real = $duracionNueva;
             $cita->save();
+            $this->actualizarDisponibilidadCita(
+                (int) $cita->id_empleado,
+                $horaInicio,
+                $duracionNueva,
+                false
+            );
         });
 
         return response()->json([

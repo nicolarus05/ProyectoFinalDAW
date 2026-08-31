@@ -317,8 +317,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 citaCard.dataset.duracionActual = data.nueva_duracion;
                 
                 // Actualizar visualmente la altura de la cita
-                const nuevosBloques = Math.max(1, Math.ceil(data.nueva_duracion / 15));
-                const nuevaAltura = (nuevosBloques * 30) * 0.92;
+                const nuevaAltura = data.nueva_duracion <= 15
+                    ? 30
+                    : (data.nueva_duracion / 15 * 30) * 0.92;
                 citaCard.style.height = nuevaAltura + 'px';
                 
                 // Actualizar el texto de duración en el DOM
