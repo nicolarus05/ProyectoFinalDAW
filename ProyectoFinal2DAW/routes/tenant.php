@@ -37,10 +37,10 @@ Route::middleware([
 
     // Dashboard
     Route::get('/', fn () => view('dashboard'))
-        ->middleware(['auth'])
+        ->middleware(['auth', 'device.access'])
         ->name('dashboard');
     Route::get('/dashboard', fn () => view('dashboard'))
-        ->middleware(['auth'])
+        ->middleware(['auth', 'device.access'])
         ->name('dashboard.legacy');
 
     // Autenticación
@@ -65,7 +65,7 @@ Route::middleware([
         ->name('password.reset');
 
     // Perfil de usuario
-    Route::middleware(['auth'])->group(function () {
+    Route::middleware(['auth', 'device.access'])->group(function () {
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
         Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
@@ -76,21 +76,21 @@ Route::middleware([
     // PRODUCTOS DISPONIBLES - Debe estar ANTES del Route::resource('productos')
     // Accesible por admin, gerente y empleado
     // ============================================================================
-    Route::middleware(['auth', 'role:admin,gerente,empleado'])->group(function () {
+    Route::middleware(['auth', 'device.access', 'role:admin,gerente,empleado'])->group(function () {
         Route::get('productos/available', [ProductosController::class, 'available'])->name('productos.available');
     });
 
     // ============================================================================
     // SOLO ADMIN - Usuarios del sistema (acceso exclusivo)
     // ============================================================================
-    Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::middleware(['auth', 'device.access', 'role:admin'])->group(function () {
         Route::resource('users', userController::class)->names('users');
     });
 
     // ============================================================================
     // ADMIN Y GERENTE - Acceso completo excepto usuarios del sistema
     // ============================================================================
-    Route::middleware(['auth', 'role:admin,gerente'])->group(function () {
+    Route::middleware(['auth', 'device.access', 'role:admin,gerente'])->group(function () {
         Route::resource('empleados', EmpleadoController::class)->names('empleados');
         
         // Rutas adicionales para horarios de empleados
@@ -154,7 +154,7 @@ Route::middleware([
     // ============================================================================
     // ADMIN, GERENTE Y EMPLEADO - Acceso a: Citas, Clientes, Cobros y Caja
     // ============================================================================
-    Route::middleware(['auth', 'role:admin,gerente,empleado'])->group(function () {
+    Route::middleware(['auth', 'device.access', 'role:admin,gerente,empleado'])->group(function () {
         // Clientes
         Route::get('clientes/exportar', [ClienteController::class, 'exportar'])->name('clientes.exportar');
         Route::resource('clientes', ClienteController::class)->names('clientes');
@@ -203,7 +203,7 @@ Route::middleware([
     // ============================================================================
     // Registro asistencia (todos los autenticados)
     // ============================================================================
-    Route::middleware(['auth', 'desktop.only'])->group(function () {
+    Route::middleware(['auth', 'device.access'])->group(function () {
         Route::post('asistencia/entrada', [RegistroEntradaSalidaController::class, 'registrarEntrada'])->name('asistencia.entrada');
         Route::post('asistencia/salida', [RegistroEntradaSalidaController::class, 'registrarSalida'])->name('asistencia.salida');
         Route::get('asistencia/mi-historial', [RegistroEntradaSalidaController::class, 'miHistorial'])->name('asistencia.mi-historial');
@@ -213,7 +213,7 @@ Route::middleware([
     // ============================================================================
     // Citas para CLIENTES (solo lectura)
     // ============================================================================
-    Route::middleware(['auth', 'role:cliente'])->group(function () {
+    Route::middleware(['auth', 'device.access', 'role:cliente'])->group(function () {
         Route::get('/mis-citas', [CitaController::class, 'index'])->name('cliente.citas.index');
         Route::get('/mis-citas/create', [CitaController::class, 'create'])->name('cliente.citas.create');
         Route::post('/mis-citas', [CitaController::class, 'store'])->name('cliente.citas.store');
@@ -227,7 +227,7 @@ Route::middleware([
     });
 
     // Perfil adicional
-    Route::middleware('auth')->group(function(){
+    Route::middleware(['auth', 'device.access'])->group(function(){
         Route::get('/perfil/edit', [ProfileController::class, 'edit'])->name('perfil.edit');
         Route::put('/perfil/update', [ProfileController::class, 'update'])->name('perfil.update');
     });
